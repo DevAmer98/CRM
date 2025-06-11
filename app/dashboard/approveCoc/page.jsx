@@ -4,7 +4,7 @@ import Search from '@/app/ui/dashboard/search/search';
 import Link from 'next/link';
 import Pagination from '@/app/ui/dashboard/pagination/pagination';
 import { fetchCocs } from '@/app/lib/data';
-import { deleteCoc } from '@/app/lib/actions';
+import DeleteCoc from '@/app/ui/deleteForms/Coc';
 
 
 
@@ -53,12 +53,8 @@ const ApproveCocPage = async ({searchParams}) => {
                     <Link href={`/dashboard/approveCoc/${coc.id}`}>
                       <button className={`${styles.button} ${styles.view}`}>View</button>
                       </Link>
-                      <form action={deleteCoc}>
-                      <input type='hidden' name='id' value={coc.id}/>
-                      <button className={`${styles.button} ${styles.delete}`}>Delete</button>
-                      
-                      </form>
-                      </div>
+                        <DeleteCoc cocId={coc.cocId} customCocId={coc.customCocId} />
+                      </div> 
                   </td>
                 </tr>
               ))}
