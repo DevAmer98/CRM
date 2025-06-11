@@ -1,0 +1,36 @@
+.container {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Slightly larger gap for better spacing */
+  background-color: #ebedf1;
+  padding: 12px 16px; /* Increased padding for better proportions */
+  border-radius: 12px; /* Rounded corners for a modern look */
+  width: max-content;
+  backdrop-filter: blur(10px); /* Glassmorphism effect */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border for depth */
+  transition: all 0.3s ease; /* Smooth transition for hover */
+}
+
+.container:hover {
+  background-color: #d4dbe9; /* Slightly lighter on hover */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow on hover */
+}
+ 
+.input {
+  background-color: transparent;
+  border: none;
+  color: var(--text);
+  outline: none;
+  font-size: 14px; /* Slightly larger font size for readability */
+  width: 200px; /* Fixed width for better usability */
+  transition: all 0.3s ease; /* Smooth transition for focus */
+}
+
+.input::placeholder {
+  color: var(--textSoft); /* Softer color for placeholder */
+  opacity: 0.7; /* Subtle placeholder appearance */
+}
+
+.input:focus {
+  width: 250px; /* Expand width on focus for better usability */
+}

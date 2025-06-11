@@ -1,0 +1,99 @@
+.container {
+  background-color: var(--bgSoft);
+  padding: 20px;
+  border-radius: 12px; /* Slightly larger radius for a softer look */
+  margin-top: 20px;
+  box-shadow: var(--shadow-sm); /* Consistent shadow for depth */
+  backdrop-filter: blur(10px); /* Glassmorphism effect */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border for depth */
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px; /* Added spacing for better separation */
+}
+
+.addButton {
+  padding: 10px 20px;
+  background-color: var(--border-color);
+  color: var(--text);
+  border: none;
+  border-radius: 8px; /* Rounded corners for a modern look */
+  cursor: pointer;
+  font-weight: 500; /* Slightly bolder text */
+  transition: all 0.3s ease; /* Smooth transition for hover */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow for depth */
+}
+
+.addButton:hover {
+  background-color: var(--primary); /* Slightly lighter on hover */
+  transform: translateY(-2px); /* Subtle lift effect */
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse; /* Cleaner table layout */
+}
+
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color); /* Subtle border for rows */
+}
+
+.table tr:last-child td {
+  border-bottom: none; /* Remove border for last row */
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.userImage {
+  border-radius: 50%;
+  object-fit: cover;
+  width: 40px; /* Fixed size for consistency */
+  height: 40px;
+  border: 2px solid var(--primary); /* Highlight user image */
+}
+
+.buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.button {
+  padding: 8px 16px;
+  border-radius: 15px; /* Rounded corners for buttons */
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 500; /* Bolder text */
+  transition: all 0.3s ease; /* Smooth transition for hover */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow for depth */
+}
+
+.button:hover {
+  transform: translateY(-2px); /* Subtle lift effect */
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15); /* Enhanced shadow on hover */
+}
+
+.view {
+  background-color: teal;
+}
+
+.view:hover {
+  background-color: #26a69a; /* Slightly lighter on hover */
+}
+
+.delete {
+  background-color: crimson;
+}
+
+.delete:hover {
+  background-color: #e53935; /* Slightly lighter on hover */
+}

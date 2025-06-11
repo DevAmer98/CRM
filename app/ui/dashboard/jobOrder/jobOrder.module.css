@@ -1,0 +1,74 @@
+.wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 90vh; /* This assumes you want to center it in the viewport */
+}
+
+.container {
+
+  background-color: var(--bgSoft);
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+  width: 50%; /* Adjust width as needed */
+  margin-left: auto;
+  margin-right: auto;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column; 
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  
+  .form input,
+  .form textarea,
+  .form select {
+    width: 100%; /* Full width */
+    padding: 18px; /* Adjust padding as needed */
+    background-color: var(--bg);
+    color: var(--text);
+    border: 2px solid #2e374a;
+    border-radius: 5px;
+    margin-bottom: 20px;
+  }
+  
+  .form input, .form select {
+    width: 100%;
+  }
+  
+  
+  .form textarea{
+    width:50%;
+  }
+  
+  .form button{
+    padding: 20px 40px; 
+    background-color: #00B4D8; 
+    color: white; 
+    font-size: 1rem; 
+    font-weight: bold; 
+    border: none; 
+    border-radius: 10px; 
+    cursor: pointer; 
+    transition: background-color 0.3s ease; 
+    outline: none; 
+    margin-top: 10px; 
+    
+  }
+
+  .form button:hover {
+    background-color: #0096C7; 
+  }
+  
+  .form button:active {
+    transform: scale(0.98); /* Slight push effect when clicked */
+  }
+
+
+  @media (max-width: 768px) {
+    .container {
+      min-height: auto; /* Adjust the height on smaller screens */
+    }}

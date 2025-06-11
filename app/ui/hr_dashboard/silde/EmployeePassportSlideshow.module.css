@@ -1,0 +1,164 @@
+/* Container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Title */
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.controlButton {
+  padding: 8px 16px;
+  background-color: #e2e8f0;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.controlButton:hover {
+  background-color: #cbd5e1;
+}
+
+.playPauseButton {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.playPauseButton:hover {
+  background-color: #2563eb;
+}
+
+/* Slideshow */
+.slideshow {
+  position: relative;
+  overflow: hidden;
+}
+
+.inner {
+  display: flex;
+  transition: transform 0.3s ease-in-out;
+}
+
+.card {
+  flex-shrink: 0;
+  padding: 8px;
+}
+
+.cardInner {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 3);
+  height: 100%;
+}
+
+.employeePhoto {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.employeeDetails {
+  min-width: 0;
+  flex: 1;
+}
+
+.employeeName {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.employeePassport {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.employeeStatus {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.statusDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.statusText {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status Colors */
+.statusExpired {
+  background-color: #ef4444;
+}
+
+.statusCritical {
+  background-color: #f87171;
+}
+
+.statusWarning {
+  background-color: #fbbf24;
+}
+
+.statusValid {
+  background-color: #4ade80;
+}
+
+/* Indicators */
+.slideshowIndicators {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 20px;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #cbd5e1;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.indicator.active {
+  background-color: #3b82f6;
+}
+
+.indicator:hover {
+  background-color: #94a3b8;
+}

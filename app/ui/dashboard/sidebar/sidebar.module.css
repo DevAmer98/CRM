@@ -1,0 +1,82 @@
+.container {
+  position: sticky;
+  top: 40px;
+  background-color: var(--bgSoft); /* Soft background for sidebar */
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  box-shadow: var(--shadow-sm);
+  border-radius: 12px; /* Rounded corners for modern look */
+  padding: 20px;
+  backdrop-filter: blur(10px); /* Glassmorphism effect */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border for depth */
+  margin: 10px;
+}
+ 
+.user {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.userImage {
+  border-radius: 50%;
+  object-fit: cover;
+  width: 50px;
+  height: 50px;
+  border: 2px solid var(--primary); /* Highlight user image with a border */
+}
+
+.userDetail {
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-weight: 600; /* Slightly bolder for emphasis */
+  font-size: 20px;
+  white-space: nowrap; /* Prevent text from wrapping to the next line */
+  overflow: hidden; /* Hide overflowed text */
+  text-overflow: ellipsis; /* Add ellipsis for truncated text */
+  max-width: 200px; /* Set a maximum width for the username */
+}
+
+.userTitle {
+  font-size: 15px;
+  color: var(--big);
+  opacity: 0.8; /* Softer appearance */
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+}
+
+.cat {
+  color: var(--textSoft);
+  font-weight: 600; /* Bold for category headings */
+  font-size: 12px;
+  margin: 15px 0;
+  text-transform: uppercase; /* Uppercase for a modern look */
+  letter-spacing: 1px; /* Spacing for readability */
+}
+
+.logout {
+  padding: 15px;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: var(--border-radius);
+  background: none;
+  border: none;
+  color: var(--text);
+  width: 100%;
+  transition: all 0.3s ease; /* Smooth transition for hover */
+}
+
+.logout:hover {
+  background-color: var(--input-hover-border);
+  transform: translateX(5px); /* Slight movement on hover */
+}

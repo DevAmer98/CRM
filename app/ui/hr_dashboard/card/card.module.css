@@ -1,0 +1,143 @@
+.card {
+  background: var(--bgSoft);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  transition: all 0.3s ease;
+  opacity: 0.8;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.1);
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+/* Color variants */
+.blue::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.purple::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.orange::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+
+.iconWrapper {
+  background: var(--bg);
+  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.blue .iconWrapper { color: #3b82f6; }
+.purple .iconWrapper { color: #8b5cf6; }
+.orange .iconWrapper { color: #f59e0b; }
+.green .iconWrapper { color: #10b981; }
+
+.icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.5;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.title {
+  color: var(--textSoft);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.numberContainer {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.number {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+}
+
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 24px;
+  margin-bottom: 4px;
+}
+
+.sparkbar {
+  width: 4px;
+  background: currentColor;
+  opacity: 0.2;
+  border-radius: 2px;
+}
+
+.blue .sparkbar { background-color: #3b82f6; }
+.purple .sparkbar { background-color: #8b5cf6; }
+.orange .sparkbar { background-color: #f59e0b; }
+.green .sparkbar { background-color: #10b981; }
+
+.sparkbar:nth-child(1) { height: 40%; }
+.sparkbar:nth-child(2) { height: 70%; }
+.sparkbar:nth-child(3) { height: 50%; }
+.sparkbar:nth-child(4) { height: 90%; }
+
+.detail {
+  color: var(--textSoft);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: var(--bgSoft);
+  }
+  
+  .iconWrapper {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  
+  .sparkbar {
+    opacity: 0.3;
+  }
+}
+
+/* Hover animations */
+.card:hover .sparkbar {
+  animation: sparkAnimation 1.5s ease-in-out;
+}
+
+@keyframes sparkAnimation {
+  0% { transform: scaleY(0.8); }
+  50% { transform: scaleY(1.1); }
+  100% { transform: scaleY(1); }
+}

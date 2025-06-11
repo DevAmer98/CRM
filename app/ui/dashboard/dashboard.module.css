@@ -1,0 +1,48 @@
+.container {
+  display: flex;
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+}
+
+.menu {
+  flex: 1;
+  background-color: var(--bgSoft);
+  padding: 24px;
+  min-height: 100vh; 
+  box-shadow: 1px 0 10px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  max-width: 330px;
+}
+  
+  .content {
+    flex: 4;
+    padding: 20px;
+  } 
+  
+  .wrapper {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  
+  .main {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .cards {
+    display: flex;
+    gap: 20px;
+    justify-content: space-between;
+  }
+  
+  .side {
+    flex: 1;
+  }

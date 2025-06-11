@@ -1,0 +1,32 @@
+.container {
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  border-radius: var(--border-radius);
+  transition: all 0.3s ease; /* Smooth transition for hover */
+  background-color: var(--bgSoft);
+  color: var(--text);
+}
+
+.container:hover,
+.active {
+  background-color: var(--primary-hover);
+  color: var(--card-bg);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow on hover/active */
+  transform: translateX(5px); /* Slight movement on hover */
+}
+
+/* Icon styling */
+.icon {
+  width: 20px;
+  height: 20px;
+  color: inherit; /* Inherit text color */
+}
+
+/* Text styling */
+.text {
+  font-size: 14px;
+  font-weight: 500;
+}

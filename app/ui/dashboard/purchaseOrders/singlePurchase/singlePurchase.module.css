@@ -1,0 +1,122 @@
+.container {
+    background-color: var(--bgSoft);
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 20px;
+  }
+  
+  .form1 {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+  .form2 {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px; /* This creates an even 10px gap between flex items */
+  }
+  
+  .form2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* adjust minmax as needed */
+    gap: 10px; /* This creates an even 10px gap between grid items */
+  }
+
+
+  .form2 input1,
+  .form2 textarea {
+    width: 100%; /* Full width of the cell */
+    box-sizing: border-box; /* Include padding and borders in the element's total width and height */
+    padding: 30px;
+    background-color: var(--bg);
+    color: var(--text);
+    border: 2px solid #2e374a;
+    border-radius: 5px;
+    margin-bottom: 30px;
+  }
+  
+  .form1 input {
+    width: 45%;
+    padding: 30px;
+    background-color: var(--bg);
+    color: var(--text);
+    border: 2px solid #2e374a;
+    border-radius: 5px;
+    margin-bottom: 30px;
+  }
+  
+  .form1 textarea{
+    width: 100%;
+    padding: 10px;
+    background-color: var(--bg);
+    color: var(--text);
+    border: 2px solid #2e374a;
+    border-radius: 5px;
+    margin-bottom: 30px;
+    margin-left: 10px;
+  }
+
+  .form2 input,
+  .form2 textarea{
+    padding: 10px;
+    background-color: var(--bg);
+    color: var(--text);
+    border: 2px solid #2e374a;
+    border-radius: 5px;
+    margin-bottom: 30px;
+    margin-left: 10px;
+  }
+  
+  .iconButton{
+    width: 100%;
+    padding: 10px;
+    background-color: teal;
+    color: var(--text);
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    margin-left: 60px;
+  }
+
+ 
+
+  .title {
+    text-align: center;
+    font-size: 30px; 
+    font-weight: bold; 
+    margin-bottom: 30px; 
+  }
+  
+  .table {
+    margin: 0 auto; /* Center the table horizontally */
+    width: calc(100% - 60px); /* Adjust the width as needed, accounting for padding */
+  }
+
+  .form2 .numberInput {
+    background: none; /* Remove background color */
+    border: none; /* Remove border */
+    outline: none; /* Remove outline */
+    /* Add any additional styling as needed */
+  }
+
+  .form2 .input1{
+    margin-right:5px ;
+  }
+
+  .form1 button{
+    width: 100%;
+    padding: 30px;
+    background-color: teal;
+    color: var(--text);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  
+/*.tableTitle{
+
+    margin-right: 90;
+    justify-content: center;
+    
+}*/
