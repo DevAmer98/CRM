@@ -109,7 +109,14 @@ const menuItems = [
 ];
 
 const Sidebar = async () => {
-  const { user } = await auth();
+
+ 
+const session = await auth();
+  const user = session?.user || null;
+
+  if (!user) {
+    redirect("/login");
+  } 
 
   const userRole = user?.role || ROLES.USER;
 
