@@ -4,6 +4,7 @@ import styles from "./sidebar.module.css";
 import { auth, signOut } from "@/app/auth";
 import { ROLES } from '@/app/lib/role';
 import { BriefcaseBusiness, Check, FileBadge, FileBox, FileCheck, FileClock, Handshake, LayoutDashboard, LogOut, PackageCheck, ShieldCheck, Shuffle, TicketCheck, UsersRound } from 'lucide-react';
+import { redirect } from 'next/navigation';
 
 const menuItems = [
   {
