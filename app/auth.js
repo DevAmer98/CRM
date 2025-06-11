@@ -39,15 +39,46 @@ export const { signIn, signOut, auth } = NextAuth({
     strategy: "jwt", // Add this line
   },
 
-  cookies: {
+    cookies: {
     sessionToken: {
-            name: `__Secure-authjs.session-token`,
+      name: process.env.NODE_ENV === 'production' 
+        ? '__Secure-authjs.session-token' 
+        : 'authjs.session-token',
       options: {
         httpOnly: true,
-        sameSite: 'lax', // Change to 'none' if frontend/backend are on different domains
+        sameSite: 'lax', // Changed from 'none'
         path: '/',
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
+        domain: process.env.NODE_ENV === 'production' ? '.smartvisionss.com' : undefined,
       },
+    },
+  },
+  // Add this to handle token refresh
+  callbacks: {
+    async jwt({ token, user, trigger }) {
+      // Debug log
+      console.log('JWT callback - trigger:', trigger, 'user:', !!user, 'token:', !!token)
+      
+      if (user) {
+        token.id = user.id;
+        token.username = user.username;
+        token.email = user.email;
+        token.role = user.role;
+        token.img = user.img;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      console.log('Session callback - token:', !!token)
+      
+      if (token) {
+        session.user.id = token.id;
+        session.user.username = token.username;
+        session.user.email = token.email;
+        session.user.role = token.role;
+        session.user.img = token.img;
+      }
+      return session;
     },
   },
   providers: [
