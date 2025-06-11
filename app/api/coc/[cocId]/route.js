@@ -1,6 +1,9 @@
 import { fetchCoc } from '@/app/lib/data';
 import { NextResponse } from 'next/server';
 
+
+export const revalidate = 0; 
+
 export async function GET(req, context) {
     try {
         const { params } = context;

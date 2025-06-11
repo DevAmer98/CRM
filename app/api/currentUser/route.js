@@ -1,6 +1,8 @@
 import { getSession } from "next-auth/react";
 import {NextResponse } from "next/server";
 
+export const revalidate = 0; 
+
 export default async function GET(req, res) {
   const session = await getSession({ req });
   if (session) {

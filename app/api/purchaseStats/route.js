@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { fetchPurchaseApprovalStats} from '@/app/lib/data';
 
+export const revalidate = 0; 
+
 export async function GET() {
   try {
     const stats = await fetchPurchaseApprovalStats();

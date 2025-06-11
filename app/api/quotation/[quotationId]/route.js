@@ -5,6 +5,9 @@ import { Quotation } from '@/app/lib/models';
 import { connectToDB } from '@/app/lib/utils';
 import { NextResponse } from 'next/server';
 
+
+export const revalidate = 0; 
+
 // GET request handler
 export async function GET(req, context) {
     try {
