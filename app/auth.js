@@ -32,53 +32,48 @@ const login = async (credentials) => {
     throw new Error("Failed to login");
   }
 };
-
 export const { signIn, signOut, auth } = NextAuth({
   ...authConfig,
   session: {
-    strategy: "jwt", // Add this line
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-
-    cookies: {
+  cookies: {
     sessionToken: {
       name: process.env.NODE_ENV === 'production' 
         ? '__Secure-authjs.session-token' 
         : 'authjs.session-token',
       options: {
         httpOnly: true,
-        sameSite: 'lax', // Changed from 'none'
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.smartvisionss.com' : undefined,
+        secure: process.env.NODE_ENV === 'production', // Only secure in production
+        // Remove the domain setting - let it auto-detect
+        // domain: process.env.NODE_ENV === 'production' ? '.smartvisionss.com' : undefined,
       },
     },
-  },
-  // Add this to handle token refresh
-  callbacks: {
-    async jwt({ token, user, trigger }) {
-      // Debug log
-      console.log('JWT callback - trigger:', trigger, 'user:', !!user, 'token:', !!token)
-      
-      if (user) {
-        token.id = user.id;
-        token.username = user.username;
-        token.email = user.email;
-        token.role = user.role;
-        token.img = user.img;
-      }
-      return token;
+    // Add these additional cookies for production stability
+    callbackUrl: {
+      name: process.env.NODE_ENV === 'production' 
+        ? '__Secure-authjs.callback-url' 
+        : 'authjs.callback-url',
+      options: {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
     },
-    async session({ session, token }) {
-      console.log('Session callback - token:', !!token)
-      
-      if (token) {
-        session.user.id = token.id;
-        session.user.username = token.username;
-        session.user.email = token.email;
-        session.user.role = token.role;
-        session.user.img = token.img;
-      }
-      return session;
+    csrfToken: {
+      name: process.env.NODE_ENV === 'production' 
+        ? '__Host-authjs.csrf-token' 
+        : 'authjs.csrf-token',
+      options: {
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
     },
   },
   providers: [
@@ -100,17 +95,20 @@ export const { signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.username = user.username;
         token.email = user.email;
-        token.role = user.role; // Ensure the role is included
+        token.role = user.role;
         token.img = user.img;
       }
+      console.log("JWT callback - production mode:", process.env.NODE_ENV === 'production');
       return token;
     },
     async session({ session, token }) {
-      session.user.id = token.id;
-      session.user.username = token.username;
-      session.user.email = token.email;
-      session.user.role = token.role; // Ensure the role is included
-      session.user.img = token.img;
+      if (token) {
+        session.user.id = token.id;
+        session.user.username = token.username;
+        session.user.email = token.email;
+        session.user.role = token.role;
+        session.user.img = token.img;
+      }
       return session;
     },
   },
