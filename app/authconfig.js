@@ -23,15 +23,20 @@ export const authConfig = {
       }
       return true;
     },
-    async jwt({ token, user }) {
+      async jwt({ token, user }) {
       if (user) {
-        token.role = user.role;
-        token.id = user.id;
-        token.username = user.username;
+        token.role = user.role ?? "user";
+        token.id = user.id ?? null;
+        token.username = user.username ?? null;
       }
       return token;
     },
+
     async session({ session, token }) {
+
+           if (!session.user) {
+    session.user = {};
+  }
       session.user.role = token.role;
       session.user.id = token.id;
       session.user.username = token.username;
