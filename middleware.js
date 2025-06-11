@@ -8,6 +8,9 @@ export async function middleware(request) {
     req: request,
     secret: process.env.NEXTAUTH_SECRET 
   });
+
+  console.log("🌐 Browser Token Check:", token);
+
   
   const isLoggedIn = !!token;
   const { pathname } = request.nextUrl;
