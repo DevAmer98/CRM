@@ -1,7 +1,3 @@
-
-
-/*
-
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { authConfig } from "./authconfig";
@@ -67,11 +63,6 @@ export const { signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-
-      if (!session.user) {
-    session.user = {};
-  }
-
       session.user.id = token.id;
       session.user.username = token.username;
       session.user.email = token.email;
@@ -79,15 +70,5 @@ export const { signIn, signOut, auth } = NextAuth({
       session.user.img = token.img;
       return session;
     },
-
   },
 });
-
-*/
-
-
-
-import NextAuth from "next-auth";
-import { authConfig } from "./authconfig";
-
-export const { signIn, signOut, auth } = NextAuth(authConfig);
