@@ -46,7 +46,7 @@ export const { signIn, signOut, auth } = NextAuth({
         httpOnly: true,
         sameSite: 'none', // Change to 'none' if frontend/backend are on different domains
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
       },
     },
   },
