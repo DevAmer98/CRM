@@ -63,6 +63,11 @@ export const { signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }) {
+
+      if (!session.user) {
+    session.user = {};
+  }
+
       session.user.id = token.id;
       session.user.username = token.username;
       session.user.email = token.email;
@@ -70,5 +75,6 @@ export const { signIn, signOut, auth } = NextAuth({
       session.user.img = token.img;
       return session;
     },
+
   },
 });
