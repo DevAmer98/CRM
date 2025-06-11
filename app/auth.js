@@ -38,6 +38,18 @@ export const { signIn, signOut, auth } = NextAuth({
   session: {
     strategy: "jwt", // Add this line
   },
+
+  cookies: {
+    sessionToken: {
+      name: `next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax', // Change to 'none' if frontend/backend are on different domains
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
   providers: [
     CredentialsProvider({
       async authorize(credentials) {
