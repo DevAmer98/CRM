@@ -41,10 +41,10 @@ export const { signIn, signOut, auth } = NextAuth({
 
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+            name: `__Secure-authjs.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'none', // Change to 'none' if frontend/backend are on different domains
+        sameSite: 'lax', // Change to 'none' if frontend/backend are on different domains
         path: '/',
         secure: true,
       },
