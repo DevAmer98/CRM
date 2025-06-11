@@ -6,7 +6,8 @@ export async function middleware(request) {
   // Get the JWT token, passing the configured secret
   const token = await getToken({ 
     req: request,
-    secret: process.env.NEXTAUTH_SECRET 
+  secret: process.env.NEXTAUTH_SECRET,
+  cookieName: "__Secure-authjs.session-token",
   });
 
   console.log("🌐 Browser Token Check:", token);
