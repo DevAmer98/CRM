@@ -9,8 +9,7 @@
 
 .menu {
   flex: 1;
-  background-color: var(--bgSoft);
-  padding: 24px;
+  padding-bottom: 24px;
   min-height: 100vh; 
   box-shadow: 1px 0 10px rgba(0,0,0,0.05);
   position: sticky;

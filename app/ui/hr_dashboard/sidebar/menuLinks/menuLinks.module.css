@@ -1,32 +1,196 @@
 .container {
-  padding: 12px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 8px 0;
-  border-radius: var(--border-radius);
-  transition: all 0.3s ease; /* Smooth transition for hover */
-  background-color: var(--bgSoft);
+  gap: 14px;
+  margin: 4px 0;
+  border-radius: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: transparent;
   color: var(--text);
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  font-weight: 500;
 }
 
-.container:hover,
+.container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transition: left 0.6s;
+}
+
+.container:hover::before {
+  left: 100%;
+}
+
+.container:hover {
+  background: linear-gradient(135deg, var(--primary), rgba(var(--primary-rgb), 0.8));
+  color: white;
+  transform: translateX(8px) translateY(-1px);
+  box-shadow: 
+    0 8px 25px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
 .active {
-  background-color: var(--primary-hover);
-  color: var(--card-bg);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow on hover/active */
-  transform: translateX(5px); /* Slight movement on hover */
+  background: linear-gradient(135deg, var(--primary), rgba(var(--primary-rgb), 0.9));
+  color: white;
+  transform: translateX(6px);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.15);
 }
 
-/* Icon styling */
+.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: white;
+  border-radius: 0 2px 2px 0;
+  opacity: 0.8;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .icon {
   width: 20px;
   height: 20px;
-  color: inherit; /* Inherit text color */
+  color: inherit;
+  flex-shrink: 0;
+  opacity: 0.9;
 }
 
-/* Text styling */
-.text {
-  font-size: 14px;
+/* Nested Menu Styles */
+.nestedContainer {
+  margin: 2px 0;
+}
+
+.nestedContainer .container {
+  cursor: pointer;
+  position: relative;
+}
+
+.nestedContainer .container::after {
+  content: '›';
+  position: absolute;
+  right: 16px;
+  font-size: 16px;
+  font-weight: bold;
+  transition: transform 0.3s ease;
+  opacity: 0.6;
+}
+
+.nestedContainer .container:hover::after,
+.nestedContainer .active::after {
+  transform: rotate(90deg);
+  opacity: 1;
+}
+
+.subMenu {
+  margin-left: 16px;
+  margin-top: 8px;
+  border-left: 2px solid rgba(var(--primary-rgb), 0.2);
+  padding-left: 8px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.subLink {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  background: transparent;
+  color: var(--textSoft);
+  text-decoration: none;
+  font-size: 13px;
   font-weight: 500;
+  position: relative;
+}
+
+.subLink::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--textSoft);
+  border-radius: 50%;
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.subLink:hover {
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary);
+  transform: translateX(4px);
+}
+
+.subLink:hover::before {
+  background: var(--primary);
+  opacity: 1;
+  transform: translateY(-50%) scale(1.5);
+}
+
+.subLink.active {
+  background: rgba(var(--primary-rgb), 0.15);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.subLink.active::before {
+  background: var(--primary);
+  opacity: 1;
+  width: 6px;
+  height: 6px;
+}
+
+.subTitle {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Responsive Design for MenuLinks */
+@media (max-width: 768px) {
+  .container {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+  
+  .title {
+    font-size: 13px;
+  }
 }

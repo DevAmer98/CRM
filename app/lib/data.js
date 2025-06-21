@@ -1,6 +1,7 @@
 import { ObjectId } from 'mongodb'; // Import ObjectId for validation
 import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee } from "@/app/lib/models";
 import { connectToDB } from './utils';
+import { ROLES } from './role';
 
 
 export const fetchUsers = async (q, page) => {
@@ -128,7 +129,16 @@ export const fetchAllManagers = async () => {
   }
 };
 
-
+export const fetchAllProcurementUsers = async () => {
+  try {
+    await connectToDB();
+    const userPro = await User.find({ role: ROLES.USER_PROCUREMENT });
+    return userPro;
+  } catch (err) {
+    console.log("Error in fetchAllProcurementUsers:", err);
+    throw new Error('Failed to fetch Procurement Users!');
+  }
+};
 
 export const fetchAllSales = async () => {
   try {
@@ -549,8 +559,7 @@ const fetchJobOrdersForClient = async (clientId) => {
       const count = await PurchaseOrder.countDocuments(query);
       const purchaseOrders = await PurchaseOrder.find(query)
         .populate('supplier')
-        .populate('quotation')
-        .populate('sale')
+        .populate('jobOrder')
         .populate({
           path: 'user',
           select: 'username'
@@ -572,9 +581,12 @@ const fetchJobOrdersForClient = async (clientId) => {
   export const fetchPurchaseOrder = async (id) => {
     try {
       await connectToDB();
-      const purchaseOrder = await PurchaseOrder.findById(id).populate('supplier').populate('quotation').populate('sale').populate({
+      const purchaseOrder = await PurchaseOrder.findById(id).populate('supplier').populate('jobOrder').populate({
         path: 'user',
         select: 'username'
+      }).populate({
+        path: 'userPro',
+ select: 'username email phone address'
       })
       return purchaseOrder;
     } catch (err) {

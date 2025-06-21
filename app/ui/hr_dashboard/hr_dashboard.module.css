@@ -4,19 +4,18 @@
   color: var(--text);
   line-height: 1.5;
   font-family: 'Inter', sans-serif;
-  min-height: 100vh;
+  min-height: 100vh; 
 }
  
 .menu {
   flex: 1;
-  background-color: var(--bgSoft);
   padding: 24px;
   min-height: 100vh; 
   box-shadow: 1px 0 10px rgba(0,0,0,0.05);
   position: sticky;
   top: 0;
   height: 100vh;
-  max-width: 330px;
+  max-width: 500px;
 }
 
 .content {

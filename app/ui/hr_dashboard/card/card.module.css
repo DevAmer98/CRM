@@ -35,6 +35,13 @@
 .purple::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
 .orange::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
 .green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.yellow::before { background: linear-gradient(90deg, yellow, rgb(246, 246, 7)); }
+.red::before { background: linear-gradient(90deg, red, red); }
+.WillowGrove::before { background: linear-gradient(90deg, #b7ef9b, #b9f999); }
+.Turquoise::before { background: linear-gradient(90deg, #32e2df, #2af9f5); }
+.red::before { background: linear-gradient(90deg, red, red); }
+
+
 
 .iconWrapper {
   background: var(--bg);
@@ -51,6 +58,14 @@
 .purple .iconWrapper { color: #8b5cf6; }
 .orange .iconWrapper { color: #f59e0b; }
 .green .iconWrapper { color: #10b981; }
+.yellow .iconWrapper { color: #bfff00; }
+.red .iconWrapper { color: red; }
+.Turquoise .iconWrapper { color: #32e2df; }
+.WillowGrove .iconWrapper { color: #b9f999; }
+.red .iconWrapper { color: red; }
+
+
+
 
 .icon {
   width: 24px;
@@ -104,6 +119,13 @@
 .purple .sparkbar { background-color: #8b5cf6; }
 .orange .sparkbar { background-color: #f59e0b; }
 .green .sparkbar { background-color: #10b981; }
+.yellow .sparkbar { background-color: yellow; }
+.red .sparkbar { background-color: red; }
+.Turquoise .sparkbar { background-color: #2af9f5; }
+.WillowGrove .sparkbar { background-color: #b9f999; }
+.red .sparkbar { background-color: red; }
+
+
 
 .sparkbar:nth-child(1) { height: 40%; }
 .sparkbar:nth-child(2) { height: 70%; }

@@ -7,7 +7,7 @@ import { addPoApprove } from '@/app/lib/actions';
 
 const AddApprovePo = () => {
   const [suppliersWithInfo, setSuppliersWithInfo] = useState([]);
-  const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState(''); 
   const [selectedPurchaseOrder, setSelectedPurchaseOrder] = useState('');
   const [quotations, setQuotations] = useState([]); 
   const [sales, setSales] = useState([]); 
@@ -59,24 +59,28 @@ const AddApprovePo = () => {
       ))}
     </>
   );
+
+
+    useEffect(() => { 
+      const fetchUserPro = async () => {
+        try {
+          const response = await fetch(`${domain}/api/allUserPro`, { method: 'GET' });
+          const data = await response.json();
+          console.log('user pro fetched:', data);
+          setUserPro(data);
+          setLoading(false);
+        } catch (error) {
+          console.error('Error fetching user pro:', error);
+          setLoading(false);
+        }
+      };
+    
+      fetchUserPro();
+    }, []);
   
 
-  useEffect(() => {
-    const fetchSales= async () => {
-      try {
-        const response = await fetch(`${domain}/api/allSales`, { method: 'GET' });
-        const data = await response.json();
-        console.log('Sales fetched:', data);
-        setSales(data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        setLoading(false);
-      }
-    };
-  
-    fetchSales();
-  }, []);
+
+ 
  
   useEffect(() => {
     const fetchUsers= async () => {
@@ -95,22 +99,7 @@ const AddApprovePo = () => {
     fetchUsers();
   }, []);
 
-  useEffect(() => {
-    const fetchQuotations= async () => {
-      try {
-        const response = await fetch(`${domain}/api/allQuotations`, { method: 'GET' });
-        const data = await response.json();
-        console.log('Quotation fetched:', data);
-        setQuotations(data);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        setLoading(false);
-      }
-    };
-  
-    fetchQuotations();
-  }, []);
+
 
 
   const renderPurchaseOptions = () => {

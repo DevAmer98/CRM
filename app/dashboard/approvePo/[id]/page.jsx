@@ -13,7 +13,6 @@ const SingleApprovePo = ({params}) => {
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
-      sale:'',
       clientName: '', 
       projectName: '',
       projectLA: '',
@@ -69,51 +68,54 @@ const SingleApprovePo = ({params}) => {
         
           fetchUsers();
         }, []);
-
+ 
   
         const downloadPurchaseOrderWordDocument = async () => {
           try {
-            const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
-            const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-            const vatAmount = totalUnitPrice * vatRate;
-            const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-  
-            // Prepare the data for the document
-            const documentData = {
-              PurchaseId:purchaseOrder.purchaseId,
-              QuotationNumber: purchaseOrder.quotation?.quotationId,
-              SupplierId: purchaseOrder.supplier?.supplierId,
-              SupplierName: purchaseOrder.supplier?.name, 
-              userName: purchaseOrder.user?.username, 
-              ClientContactMobile: purchaseOrder.client?.phone || 'No address provided',
-              SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
-              SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
-              SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
-              SupplierContactName: purchaseOrder.supplier?.contactName || 'No contact info',
-              SaleName: purchaseOrder.sale?.name || 'No address provided',
-              SalePhone: purchaseOrder.sale?.phone || 'No address provided',
-              SaleEmail: purchaseOrder.sale?.email || 'No contact info',
-              SaleAddress: purchaseOrder.sale?.address || 'No address info',
-              Products: purchaseOrder.products.map((product, index) => ({
-                Number: (index + 1).toString().padStart(3, '0'),
-                ProductCode: product.productCode,
-                UnitPrice: product.unitPrice,
-                Unit: product.unit,
-                Qty: product.qty,
-                Description: product.description,
-              })),
-              CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
-              TotalPrice: totalUnitPrice.toFixed(2),
-              VatRate: vatRate.toFixed(2),
-              VatPrice: vatAmount.toFixed(2),
-              NetPrice: totalUnitPriceWithVAT.toFixed(2),
-              PaymentTerm:purchaseOrder.paymentTerm,
-              PaymentDelivery: purchaseOrder.paymentDelivery,
-              DeliveryLocation: purchaseOrder.deliveryLocation,
-              Note: purchaseOrder.note,
-              QuotationDate: purchaseOrder.quotation?.createdAt ? new Date(purchaseOrder.quotation?.createdAt).toDateString().slice(4, 16) : '',
-              CreatedAt: purchaseOrder.createdAt ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16) : '',
-            };
+          const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
+          const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
+          const vatAmount = totalUnitPrice * vatRate;
+          const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+          const documentData = {
+            PurchaseId: purchaseOrder.purchaseId, 
+             username: purchaseOrder.userPro?.username || 'N/A',
+          phone: purchaseOrder.userPro?.phone || 'No phone',
+         email: purchaseOrder.userPro?.email || 'No email',
+         address: purchaseOrder.userPro?.address || 'No address',
+            JobOrderNumber: purchaseOrder.jobOrder?.jobOrderId,
+            SupplierId: purchaseOrder.supplier?.supplierId,
+            QuotationDate: purchaseOrder.jobOrder ? new Date(purchaseOrder.jobOrder.createdAt).toDateString().slice(4, 16) : '',
+            SupplierName: purchaseOrder.supplier?.name, 
+            SupplierPhone: purchaseOrder.supplier?.phone || 'No address provided',
+            SupplierContactName: purchaseOrder.supplier?.contactName, 
+            SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
+            SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
+            SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
+            SaleName: purchaseOrder.userPro?.username || 'No address provided',
+            UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
+            UserEmail: purchaseOrder.userPro?.email || 'No contact info',
+            UserAddress: purchaseOrder.userPro?.address || 'No address info',
+            Products: formData.products.map((product, index) => ({
+              Number: (index + 1).toString().padStart(3, '0'),
+              ProductCode: product.productCode, 
+            UnitPrice: Number(product.unitPrice).toFixed(2),
+              Unit: Number(product.unit).toFixed(2),
+              Qty: product.qty,
+              Description: product.description,
+            })),
+            CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
+            TotalPrice: totalUnitPrice.toFixed(2),
+            VatRate: vatRate.toFixed(2),
+            VatPrice: vatAmount.toFixed(2),
+            NetPrice: totalUnitPriceWithVAT.toFixed(2),
+            PaymentTerm: formData.paymentTerm,
+            PaymentDelivery: formData.deliveryTerm,
+            SellingPolicy: formData.sellingPolicy,
+            DeliveryLocation: formData.deliveryLocation,
+            ValidityPeriod: formData.validityPeriod,
+            DelayPenalties: formData.delayPenalties,
+            CreatedAt: purchaseOrder.createdAt ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16) : '',
+          };
       
             const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
             const response = await fetch(`${domain}/api/loadPoFile`, {
@@ -143,47 +145,50 @@ const SingleApprovePo = ({params}) => {
 
         const downloadPurchaseOrderPdfDocument = async () => {
           try {
-            const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
-            const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-            const vatAmount = totalUnitPrice * vatRate;
-            const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-  
-            // Prepare the data for the document
-            const documentData = {
-              PurchaseId:purchaseOrder.purchaseId,
-              QuotationNumber: purchaseOrder.quotation?.quotationId,
-              SupplierId: purchaseOrder.supplier?.supplierId,
-              SupplierName: purchaseOrder.supplier?.name, 
-              userName: purchaseOrder.user?.username, 
-              ClientContactMobile: purchaseOrder.client?.phone || 'No address provided',
-              SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
-              SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
-              SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
-              SupplierContactName: purchaseOrder.supplier?.contactName || 'No contact info',
-              SaleName: purchaseOrder.sale?.name || 'No address provided',
-              SalePhone: purchaseOrder.sale?.phone || 'No address provided',
-              SaleEmail: purchaseOrder.sale?.email || 'No contact info',
-              SaleAddress: purchaseOrder.sale?.address || 'No address info',
-              Products: purchaseOrder.products.map((product, index) => ({
-                Number: (index + 1).toString().padStart(3, '0'),
-                ProductCode: product.productCode,
-                UnitPrice: product.unitPrice,
-                Unit: product.unit,
-                Qty: product.qty,
-                Description: product.description,
-              })),
-              CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
-              TotalPrice: totalUnitPrice.toFixed(2),
-              VatRate: vatRate.toFixed(2),
-              VatPrice: vatAmount.toFixed(2),
-              NetPrice: totalUnitPriceWithVAT.toFixed(2),
-              PaymentTerm:purchaseOrder.paymentTerm,
-              PaymentDelivery: purchaseOrder.paymentDelivery,
-              DeliveryLocation: purchaseOrder.deliveryLocation,
-              Note: purchaseOrder.note,
-              QuotationDate: purchaseOrder.quotation?.createdAt ? new Date(purchaseOrder.quotation?.createdAt).toDateString().slice(4, 16) : '',
-              CreatedAt: purchaseOrder.createdAt ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16) : '',
-            };
+          const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
+          const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
+          const vatAmount = totalUnitPrice * vatRate;
+          const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+          const documentData = {
+            PurchaseId: purchaseOrder.purchaseId, 
+             username: purchaseOrder.userPro?.username || 'N/A',
+          phone: purchaseOrder.userPro?.phone || 'No phone',
+         email: purchaseOrder.userPro?.email || 'No email',
+         address: purchaseOrder.userPro?.address || 'No address',
+            JobOrderNumber: purchaseOrder.jobOrder?.jobOrderId,
+            SupplierId: purchaseOrder.supplier?.supplierId,
+            QuotationDate: purchaseOrder.jobOrder ? new Date(purchaseOrder.jobOrder.createdAt).toDateString().slice(4, 16) : '',
+            SupplierName: purchaseOrder.supplier?.name, 
+            SupplierPhone: purchaseOrder.supplier?.phone || 'No address provided',
+            SupplierContactName: purchaseOrder.supplier?.contactName, 
+            SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
+            SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
+            SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
+            SaleName: purchaseOrder.userPro?.username || 'No address provided',
+            UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
+            UserEmail: purchaseOrder.userPro?.email || 'No contact info',
+            UserAddress: purchaseOrder.userPro?.address || 'No address info',
+            Products: formData.products.map((product, index) => ({
+              Number: (index + 1).toString().padStart(3, '0'),
+              ProductCode: product.productCode, 
+            UnitPrice: Number(product.unitPrice).toFixed(2),
+              Unit: Number(product.unit).toFixed(2),
+              Qty: product.qty,
+              Description: product.description,
+            })),
+            CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
+            TotalPrice: totalUnitPrice.toFixed(2),
+            VatRate: vatRate.toFixed(2),
+            VatPrice: vatAmount.toFixed(2),
+            NetPrice: totalUnitPriceWithVAT.toFixed(2),
+            PaymentTerm: formData.paymentTerm,
+            PaymentDelivery: formData.deliveryTerm,
+            SellingPolicy: formData.sellingPolicy,
+            DeliveryLocation: formData.deliveryLocation,
+            ValidityPeriod: formData.validityPeriod,
+            DelayPenalties: formData.delayPenalties,
+            CreatedAt: purchaseOrder.createdAt ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16) : '',
+          };
       
             const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
             const response = await fetch(`${domain}/api/loadPoPdf`, {
@@ -210,51 +215,51 @@ const SingleApprovePo = ({params}) => {
         };
 
         const uploadPoDocument = async () => {
-          try {
-          
-        
-            // Calculate totals
-            const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
-            const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-            const vatAmount = totalUnitPrice * vatRate;
-            const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-        
-            // Prepare document data for upload
-            const documentData = {
-              PurchaseId:purchaseOrder.purchaseId,
-              QuotationNumber: purchaseOrder.quotation?.quotationId,
-              SupplierId: purchaseOrder.supplier?.supplierId,
-              SupplierName: purchaseOrder.supplier?.name, 
-              userName: purchaseOrder.user?.username, 
-              ClientContactMobile: purchaseOrder.client?.phone || 'No address provided',
-              SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
-              SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
-              SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
-              SupplierContactName: purchaseOrder.supplier?.contactName || 'No contact info',
-              SaleName: purchaseOrder.sale?.name || 'No address provided',
-              SalePhone: purchaseOrder.sale?.phone || 'No address provided',
-              SaleEmail: purchaseOrder.sale?.email || 'No contact info',
-              SaleAddress: purchaseOrder.sale?.address || 'No address info',
-              Products: purchaseOrder.products.map((product, index) => ({
-                Number: (index + 1).toString().padStart(3, '0'),
-                ProductCode: product.productCode,
-                UnitPrice: product.unitPrice,
-                Unit: product.unit,
-                Qty: product.qty,
-                Description: product.description,
-              })),
-              CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
-              TotalPrice: totalUnitPrice.toFixed(2),
-              VatRate: vatRate.toFixed(2),
-              VatPrice: vatAmount.toFixed(2),
-              NetPrice: totalUnitPriceWithVAT.toFixed(2),
-              PaymentTerm:purchaseOrder.paymentTerm,
-              PaymentDelivery: purchaseOrder.paymentDelivery,
-              DeliveryLocation: purchaseOrder.deliveryLocation,
-              Note: purchaseOrder.note,
-              QuotationDate: purchaseOrder.quotation?.createdAt ? new Date(purchaseOrder.quotation?.createdAt).toDateString().slice(4, 16) : '',
-              CreatedAt: purchaseOrder.createdAt ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16) : '',
-            };
+           try {
+          const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
+          const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
+          const vatAmount = totalUnitPrice * vatRate;
+          const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+          const documentData = {
+            PurchaseId: purchaseOrder.purchaseId, 
+             username: purchaseOrder.userPro?.username || 'N/A',
+          phone: purchaseOrder.userPro?.phone || 'No phone',
+         email: purchaseOrder.userPro?.email || 'No email',
+         address: purchaseOrder.userPro?.address || 'No address',
+            JobOrderNumber: purchaseOrder.jobOrder?.jobOrderId,
+            SupplierId: purchaseOrder.supplier?.supplierId,
+            QuotationDate: purchaseOrder.jobOrder ? new Date(purchaseOrder.jobOrder.createdAt).toDateString().slice(4, 16) : '',
+            SupplierName: purchaseOrder.supplier?.name, 
+            SupplierPhone: purchaseOrder.supplier?.phone || 'No address provided',
+            SupplierContactName: purchaseOrder.supplier?.contactName, 
+            SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
+            SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
+            SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
+            SaleName: purchaseOrder.userPro?.username || 'No address provided',
+            UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
+            UserEmail: purchaseOrder.userPro?.email || 'No contact info',
+            UserAddress: purchaseOrder.userPro?.address || 'No address info',
+            Products: formData.products.map((product, index) => ({
+              Number: (index + 1).toString().padStart(3, '0'),
+              ProductCode: product.productCode, 
+            UnitPrice: Number(product.unitPrice).toFixed(2),
+              Unit: Number(product.unit).toFixed(2),
+              Qty: product.qty,
+              Description: product.description,
+            })),
+            CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
+            TotalPrice: totalUnitPrice.toFixed(2),
+            VatRate: vatRate.toFixed(2),
+            VatPrice: vatAmount.toFixed(2),
+            NetPrice: totalUnitPriceWithVAT.toFixed(2),
+            PaymentTerm: formData.paymentTerm,
+            PaymentDelivery: formData.deliveryTerm,
+            SellingPolicy: formData.sellingPolicy,
+            DeliveryLocation: formData.deliveryLocation,
+            ValidityPeriod: formData.validityPeriod,
+            DelayPenalties: formData.delayPenalties,
+            CreatedAt: purchaseOrder.createdAt ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16) : '',
+          };
         
             // Log document data for debugging
             console.log('Document Data for upload:', documentData);
@@ -289,18 +294,25 @@ const SingleApprovePo = ({params}) => {
   
         useEffect(() => {
           if (purchaseOrder) {
-            setFormData({
-              purchaseId: purchaseOrder.purchaseId,
-              quotationId: purchaseOrder.quotation ? purchaseOrder.quotation.quotationId:'',
-              user: purchaseOrder.user?._id,  
-              saleName:purchaseOrder.sale ? purchaseOrder.sale.name:'',
-              supplierName:purchaseOrder.sale ? purchaseOrder.supplier.name:'',
-              deliveryLocation:purchaseOrder.deliveryLocation,
-              products:purchaseOrder.products,
-              paymentTerm:purchaseOrder.paymentTerm,
-              paymentDelivery:purchaseOrder.paymentDelivery,
-              note:purchaseOrder.note,
-            });
+              setFormData({
+            purchaseId: purchaseOrder.purchaseId,
+            jobOrderId: purchaseOrder.jobOrder?.jobOrderId,
+            userName: purchaseOrder.user && purchaseOrder.user.username ? purchaseOrder.user.username : 'N/A', 
+            userProName: purchaseOrder.userPro && purchaseOrder.userPro.username ? purchaseOrder.userPro.username : 'N/A', 
+            supplierName: purchaseOrder.supplier? purchaseOrder.supplier.name:'',
+            jobOrderNumber: purchaseOrder.jobOrder? purchaseOrder.jobOrder.jobOrderId:'',
+            products: purchaseOrder.products,
+            paymentTerm: purchaseOrder.paymentTerm,
+            deliveryLocation: purchaseOrder.deliveryLocation,
+            paymentDelivery: purchaseOrder.deliveryTerm,
+            sellingPolicy: purchaseOrder.sellingPolicy,
+            deliveryLocation: purchaseOrder.deliveryLocation,
+            validityPeriod: purchaseOrder.validityPeriod,
+            delayPenalties: purchaseOrder.delayPenalties,          
+          });
+
+                  setSelectedCurrency(purchaseOrder.currency || 'USD'); // ✅ Load saved currency
+
       
             const newRows = purchaseOrder?.products.map((product, index) => ({
               _id: product._id,
@@ -443,16 +455,16 @@ const SingleApprovePo = ({params}) => {
             </div>
 </div>
               <div className={styles.inputContainer}>
-                <label htmlFor="saleName" className={styles.label}>
-                Sale Representative Name:
+                <label htmlFor="userProName" className={styles.label}>
+                User Procurement Name:
                 </label>
                 <input
                   type="text"
-                  id="saleName"
+                  id="userProName"
                   className={styles.input}
-                  placeholder="Sale Name"
-                  value={formData.saleName}
-                  onChange={(e) => handleInputChange('saleName', e.target.value)}
+                  placeholder="User Procurement"
+                  value={formData.userProName}
+                  onChange={(e) => handleInputChange('userProName', e.target.value)}
                   readOnly 
                 />
               </div>
@@ -473,14 +485,14 @@ const SingleApprovePo = ({params}) => {
               </div>
               <div className={styles.inputContainer}>
                 <label htmlFor="supplierName" className={styles.label}>
-                  Quotation Number:
+                  Job Order Number:
                 </label>
                <input
                 type="text"
                 className={styles.input}
-                placeholder="quotationId"
-                value={formData.quotationId}
-                onChange={(e) => handleInputChange('quotationId', e.target.value)}
+                placeholder="jobOrderId"
+                value={formData.jobOrderId}
+                onChange={(e) => handleInputChange('jobOrderId', e.target.value)}
                 readOnly 
               />
               </div>
@@ -596,49 +608,56 @@ const SingleApprovePo = ({params}) => {
           <div className={styles.container}>
             <div className={styles.form1}>
             
-              <div className={styles.inputContainer}>
-              <label htmlFor="paymentTerm" className={styles.label}>
-               Payment Term:
+            <div className={styles.inputContainer}>
+                <label htmlFor="paymentTerm" className={styles.label}>
+                Payment Terms:
                 </label>
-              <textarea
-                className={styles.input}
-                placeholder="paymentTerm"
-                value={formData.paymentTerm}
-                onChange={(e) => handleInputChange('paymentTerm', e.target.value)}
-              />
-              </div>
-              <div className={styles.inputContainer}>
-              <label htmlFor="paymentDelivery" className={styles.label}>
-               Payment Delivery:
+            <textarea
+              className={styles.input}
+              value={formData.paymentTerm}
+              onChange={(e) => handleInputChange('paymentTerm', e.target.value)}
+            />
+            </div>
+            <div className={styles.inputContainer}>
+                <label htmlFor="deliveryTerm" className={styles.label}>
+                 Delivery Terms:
                 </label>
-              <textarea
-                className={styles.input}
-                placeholder="paymentDelivery"
-                value={formData.paymentDelivery}
-                onChange={(e) => handleInputChange('paymentDelivery', e.target.value)}
-              />
-              </div>
-              <div className={styles.inputContainer}>
-              <label htmlFor="note" className={styles.label}>
-               Note:
+            <textarea
+              className={styles.input}
+              value={formData.paymentDelivery}
+              onChange={(e) => handleInputChange('deliveryTerm', e.target.value)}
+            />
+            </div>
+            <div className={styles.inputContainer}>
+                <label htmlFor="validityPeriod" className={styles.label}>
+                Validity Period:
                 </label>
-              <textarea
-                className={styles.input}
-                placeholder="note"
-                value={formData.note}
-                onChange={(e) => handleInputChange('note', e.target.value)}
-              />
-              </div>
-              <div className={styles.inputContainer}>
-              <label htmlFor="deliveryLocation" className={styles.label}>
-               Delivey Location:
+            <textarea
+              className={styles.input}
+              value={formData.validityPeriod}
+              onChange={(e) => handleInputChange('validityPeriod', e.target.value)}
+            />
+            </div>
+               <div className={styles.inputContainer}>
+                <label htmlFor="delayPenalties" className={styles.label}>
+                Delay Penalties:
                 </label>
-              <textarea
-                className={styles.input}
-                value={formData.deliveryLocation}
-                onChange={(e) => handleInputChange('deliveryLocation', e.target.value)}
-              />
-              </div>
+            <textarea
+              className={styles.input}
+              value={formData.delayPenalties}
+              onChange={(e) => handleInputChange('delayPenalties', e.target.value)}
+            />
+            </div>
+               <div className={styles.inputContainer}>
+                <label htmlFor="sellingPolicy" className={styles.label}>
+                Selling Policy:
+                </label>
+            <textarea
+              className={styles.input}
+              value={formData.sellingPolicy}
+              onChange={(e) => handleInputChange('sellingPolicy', e.target.value)}
+            />
+            </div>
               <button type="submit">Update</button>
 
             </div>

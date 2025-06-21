@@ -28,7 +28,7 @@ export const addUser = async (formData) => {
     const hashPassword = await bcrypt.hash(password, salt)
     const newUser = new User({
       username,
-      email,
+      email, 
       password: hashPassword,
       phone,
       address,
@@ -1273,6 +1273,8 @@ export const editQuotation = async (formData) => {
 };
 
 
+
+
 export const updateQuotationApprove = async (formData) => {
   const { id, projectName, projectLA, products, paymentTerm, paymentDelivery, note, excluding, user } = formData;
 
@@ -1628,15 +1630,16 @@ export const deletePl = async (formData) => {
 export const addPurchaseOrder = async (formData) => {
 
   const {
-    saleId,
+    userId,
     supplierId,
-    quotationId,
+    jobOrderId,
     products,
     paymentTerm,
-    paymentDelivery,
     deliveryLocation,
-    note,
-
+    sellingPolicy,
+    deliveryTerm,
+    validityPeriod,
+    delayPenalties,
   } = formData
 
   try {
@@ -1657,32 +1660,41 @@ export const addPurchaseOrder = async (formData) => {
 
    const customPurchaseId = `SVSPO-${year}-${sequenceNumber}`;
 
-   const sale = await Sale.findById(saleId);
-   if (!sale) {
-     throw new Error('Sale not found');
+   const userPro = await User.findById(userId);
+   if (!userPro) {
+     throw new Error('User Pro not found');
    }
+   
+ 
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) {
       throw new Error('Supplier not found');
     }
-    const quotation = await Quotation.findById(quotationId);
-    if (!quotation) {
-      throw new Error('Quotation not found');
+
+    
+
+    const jobOrder = await JobOrder.findById(jobOrderId);
+    if (!jobOrder) {
+      throw new Error('job not found');
     }
+
+
 
 
 
 
 
     const newPurchaseOrder = new PurchaseOrder({
-      sale: sale._id,
+      userPro: userPro._id,
       supplier: supplier._id,
-      quotation:quotation._id,
+      jobOrder: jobOrder._id,
       products,
       paymentTerm,
-      paymentDelivery,
       deliveryLocation,
-      note,
+     sellingPolicy,
+     deliveryTerm,
+     validityPeriod,
+     delayPenalties,
       purchaseId:customPurchaseId,
       revisionNumber: 0
 
@@ -1713,12 +1725,14 @@ export const updatePurchaseOrder = async (formData) => {
   const {
     id,
     supplierName,
-    quotationNumber,
     products,
     paymentTerm,
     paymentDelivery,
     deliveryLocation,
-    note,
+    sellingPolicy,
+    deliveryTerm,
+    validityPeriod,
+    delayPenalties,
   } = formData;  
 
   try {
@@ -1747,8 +1761,12 @@ export const updatePurchaseOrder = async (formData) => {
       paymentTerm,
       paymentDelivery,
       deliveryLocation,
-      note,
-      user: null // Reset user to ensure re-approval is required
+    deliveryLocation,
+    sellingPolicy,
+    deliveryTerm,
+    validityPeriod,
+    delayPenalties, 
+          user: null // Reset user to ensure re-approval is required
     };
 
     // Clean up any undefined or empty fields
@@ -1780,12 +1798,14 @@ export const editPurchaseOrder = async (formData) => {
   const {
     id,
     supplierName,
-    quotationNumber,
     products,
     paymentTerm,
-    paymentDelivery,
     deliveryLocation,
-    note,
+    sellingPolicy,
+    deliveryTerm,
+    validityPeriod,
+    delayPenalties,
+     currency
   } = formData;  
 
   try {
@@ -1802,13 +1822,15 @@ export const editPurchaseOrder = async (formData) => {
     // Prepare fields to update
     const updateFields = {
       supplierName,
-      quotationNumber,
       products,
       paymentTerm,
-      paymentDelivery,
       deliveryLocation,
-      note,
-      user: null // Reset user to ensure re-approval is required
+  sellingPolicy,
+    deliveryTerm,
+    validityPeriod,
+    delayPenalties,   
+     currency,   
+    user: null // Reset user to ensure re-approval is required
     };
 
     // Clean up any undefined or empty fields

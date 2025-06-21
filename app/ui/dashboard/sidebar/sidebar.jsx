@@ -3,24 +3,157 @@ import MenuLinks from "./menuLinks/menuLinks";
 import styles from "./sidebar.module.css";
 import { auth, signOut } from "@/app/auth";
 import { ROLES } from '@/app/lib/role';
-import { BriefcaseBusiness, Check, FileBadge, FileBox, FileCheck, FileClock, Handshake, LayoutDashboard, LogOut, PackageCheck, ShieldCheck, Shuffle, TicketCheck, UsersRound } from 'lucide-react';
+import { BriefcaseBusiness, Check, CircleUserRound, DollarSign, FileBadge, FileBox, FileCheck, FileClock, Handshake, LayoutDashboard, LogOut, PackageCheck, ShieldCheck, Shuffle, TicketCheck, UsersRound } from 'lucide-react';
 import { redirect } from 'next/navigation';
 
 const menuItems = [
   {
     title: "Pages",
     list: [
+     {
+  title: "Dashboard",
+  icon: <LayoutDashboard />,
+  roles: [ROLES.ADMIN],
+  children: [
+    {
+      title: "Private Dahboard",
+      path: "/dashboard/private",
+      roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN]
+    },
+    {
+      title: "Advanced Dahboard",
+      path: "/dashboard",
+      roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN]
+    },
+  ],
+},
       { 
-        title: "Dashboard", 
-        path: "/dashboard", 
-        icon: <LayoutDashboard /> ,
-        roles: [ROLES.ADMIN ,ROLES.PROCUREMENT_ADMIN,ROLES.SALES_ADMIN,ROLES.SALES_USER,ROLES.USER_PROCUREMENT,ROLES.DASHBOARD_ADMIN] 
-      },
-      { 
-        title: "HR Dashboard", 
+        title: "HR", 
         path: "/hr_dashboard", 
         icon: <LayoutDashboard /> ,
-        roles: [ROLES.ADMIN ,ROLES.HR_ADMIN] 
+        roles: [ROLES.ADMIN ,ROLES.HR_ADMIN],
+         children: [
+          {
+     title: "Dashboard", 
+          path: "/hr_dashboard", 
+      roles: [ROLES.ADMIN]
+    },
+    {
+     title: "Employees", 
+          path: "/hr_dashboard/employees", 
+      roles: [ROLES.ADMIN]
+    },
+    {
+      title: "Leaves",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Shift Roaster",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Attendance",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     
+     {
+      title: "Holiday",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Designation",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Department",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Appreciation",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+  ], 
+      },
+       { 
+        title: "Work", 
+        path: "/dashboard/users", 
+        icon: <BriefcaseBusiness />, 
+        roles: [ROLES.ADMIN],
+        children: [
+   
+           {
+     title: "Contracts", 
+          path: "/", 
+      roles: [ROLES.ADMIN]
+    },
+     {
+     title: "Projects", 
+          path: "/", 
+      roles: [ROLES.ADMIN]
+    },
+    {
+      title: "Tasks",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Timesheet",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+  ],  
+      },
+       { 
+        title: "Finance", 
+        path: "/dashboard/users", 
+        icon: <DollarSign />, 
+        roles: [ROLES.ADMIN],
+        children: [
+   
+           {
+     title: "Proposal", 
+          path: "/", 
+      roles: [ROLES.ADMIN]
+    },
+     {
+     title: "Estimates", 
+          path: "/", 
+      roles: [ROLES.ADMIN]
+    },
+    {
+      title: "Invoices",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Payments",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Credit Note",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Expenses",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+     {
+      title: "Bank Account ",
+      path: "/",
+      roles: [ROLES.ADMIN]
+    },
+    
+  ],  
       },
       { 
         title: "Users", 
@@ -31,7 +164,7 @@ const menuItems = [
       { 
         title: "Sales Representative", 
         path: "/dashboard/sales", 
-        icon: <BriefcaseBusiness />, 
+        icon: <CircleUserRound />, 
         roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN] 
       },
       { 
@@ -44,7 +177,7 @@ const menuItems = [
         title: "Suppliers", 
         path: "/dashboard/suppliers", 
         icon: <PackageCheck />, 
-        roles: [ROLES.ADMIN,ROLES.PROCUREMENT_ADMIN,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.ADMIN,ROLES.PROCUREMENT_ADMIN,ROLES.USER_PROCUREMENT,ROLES.DASHBOARD_ADMIN] 
       },
       { 
         title: "Quotations", 
@@ -68,25 +201,25 @@ const menuItems = [
         title: "Purchase Approval", 
         path: "/dashboard/approvePo", 
         icon: <TicketCheck />, 
-        roles: [ROLES.PROCUREMENT_ADMIN,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.PROCUREMENT_ADMIN] 
       },
       { 
         title: "Coc Approval", 
         path: "/dashboard/approveCoc", 
         icon: <FileBadge />, 
-        roles: [ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.SALES_ADMIN] 
       },
       { 
         title: "Purchase Orders", 
         path: "/dashboard/purchaseOrder", 
         icon: <FileBox />, 
-        roles: [ROLES.ADMIN, ROLES.PROCUREMENT_ADMIN,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.ADMIN, ROLES.PROCUREMENT_ADMIN,ROLES.USER_PROCUREMENT,ROLES.DASHBOARD_ADMIN] 
       },
       { 
         title: "Job Order", 
         path: "/dashboard/jobOrder", 
         icon: <Shuffle />, 
-        roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN, ROLES.USER_PROCUREMENT] 
       },
       { 
         title: "PL&CoC", 
@@ -96,17 +229,7 @@ const menuItems = [
       },
     ],
   },
- /* {
-    title: "Analytics",
-    list: [
-      { 
-        title: "Reports", 
-        path: "/dashboard/reports", 
-        icon: <MdAnalytics />, 
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN] 
-      },
-    ],
-  },*/
+
 ];
 
 const Sidebar = async () => {

@@ -291,20 +291,38 @@ const quotationSchema = new Schema(
     excluding: {
       type: String,
     },
+    currency: {
+  type: String,
+  enum: ['USD', 'SAR'],
+  default: 'USD',
+  required: true
+},
   },
   { timestamps: true }
 );
 
 
 
-
-
 const purchaseOrderSchema = new Schema(
   {
-    user: {
+     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: false 
+    },
+     userPro: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true, // Changed from false to true
+      validate: {
+        validator: async function(userId) {
+          // Validate that the user has procurement role
+          const User = this.model('User');
+          const user = await User.findById(userId);
+          return user && (user.role === ROLES.USER_PROCUREMENT);
+        },
+        message: 'User must have procurement role (proAdmin or userPro) to create purchase orders'
+      }
     },
 
     purchaseId: {
@@ -321,16 +339,12 @@ const purchaseOrderSchema = new Schema(
       required: true
     
     },
-   quotation: {
+   jobOrder: {
     type: Schema.Types.ObjectId,
-    ref: 'Quotation',
+    ref: 'JobOrder',
     required:true,
    },
-   sale: {
-    type: Schema.Types.ObjectId,
-    ref: 'Sale',
-    required:true,
-   },
+
    deliveryLocation: {
     type: String,
     required: true,
@@ -364,14 +378,28 @@ const purchaseOrderSchema = new Schema(
       type: String,
       required: true,
     },
-    paymentDelivery: {
+    deliveryTerm: {
       type: String,
       required: true,
     },
-    note: {
+    validityPeriod: {
       type: String,
       required: true,
     },
+    delayPenalties: {
+      type: String,
+      required: true,
+    },
+    sellingPolicy: {
+      type: String,
+      required: true,
+    },
+    currency: {
+  type: String,
+  enum: ['USD', 'SAR'],
+  default: 'USD',
+  required: true
+},
   },
   { timestamps: true }
 );

@@ -3,7 +3,8 @@ import MenuLinks from "./menuLinks/menuLinks";
 import styles from "./sidebar.module.css";
 import { auth, signOut } from "@/app/auth";
 import { ROLES } from '@/app/lib/role';
-import { FileChartColumn, LayoutDashboard, LogOut, UsersRound } from 'lucide-react';
+import { BadgePlus, BriefcaseBusiness, Building2, CalendarCheck, CalendarClock, CalendarHeart, Clock, FileChartColumn, LayoutDashboard, LogOut, Sparkles, UsersRound } from 'lucide-react';
+
 
 const menuItems = [
   {
@@ -11,7 +12,7 @@ const menuItems = [
     list: [
       { 
         title: "Dashboard", 
-        path: "/dashboard", 
+        path: "/dashboard",  
         icon: <LayoutDashboard />,
         roles: [ROLES.ADMIN] 
       },
@@ -19,16 +20,56 @@ const menuItems = [
         title: "HR_Dashboard", 
         path: "/hr_dashboard", 
         icon: <LayoutDashboard />,
-        roles: [ROLES.HR_ADMIN] 
+        roles: [ROLES.HR_ADMIN, ROLES.ADMIN ] 
       },
-      
       { 
         title: "Employees", 
         path: "/hr_dashboard/employees", 
         icon: <UsersRound />,
-        roles: [ROLES.HR_ADMIN,ROLES.ADMIN] 
+        roles: [ROLES.HR_ADMIN, ROLES.ADMIN] 
       },
-  
+      { 
+        title: "Leaves",
+        path: "/",
+        icon: <CalendarCheck />,
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+      },
+      { 
+        title: "Shift Roaster",
+        path: "/",
+        icon: <CalendarClock />,
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+      },
+      { 
+        title: "Attendance",
+        path: "/",
+        icon: <Clock />,
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+      },
+      { 
+        title: "Holiday",
+        path: "/",
+        icon: <CalendarHeart />,
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+      },
+      { 
+        title: "Designation",
+        path: "/",
+        icon: <BadgePlus />,
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+      },
+      { 
+        title: "Department",
+        path: "/",
+        icon: <Building2 />,
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+      },
+      { 
+        title: "Appreciation",
+        path: "/",
+        icon: <Sparkles />,
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+      },
     ],
   },
   {

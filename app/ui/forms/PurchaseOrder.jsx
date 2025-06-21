@@ -24,14 +24,16 @@ import { useRouter } from 'next/navigation';
 
   
   const purchaseSchema = z.object({
-    saleId: z.string().min(1, "Sale Representative is required"),
+    userId: z.string().min(1, "User Pro is required"),
     supplierId: z.string().min(1, "Supplier is required"),
-    quotationId: z.string().min(1, "Quotation is required"),
+    jobOrderId: z.string().min(1, "Job Order is required"),
     products: z.array(productSchema),
     paymentTerm: z.string().optional(),
-    paymentDelivery: z.string().optional(),
     deliveryLocation: z.string().optional(),
-    note: z.string().optional(),
+    sellingPolicy:z.string().optional(),
+    deliveryTerm:z.string().optional(),
+    validityPeriod:z.string().optional(),
+    delayPenalties:z.string().optional(),
  
   });
 
@@ -40,8 +42,8 @@ const AddPurchaseOrder = () => {
   const router = useRouter();
   const [rows, setRows] = React.useState([{ number: 1 }]);
   const[suppliers, setSuppliers] = useState([]); 
-  const[quotations, setQuotations] = useState([]); 
-  const[sales, setSales] = useState([]); 
+  const[jobOrders, setJobOrders] = useState([]); 
+    const[userPro, setUserPro] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -68,39 +70,39 @@ const AddPurchaseOrder = () => {
 
 
 
+
   useEffect(() => { 
-    const fetchQuotations = async () => {
+    const fetchJobs = async () => {
       try {
-        const response = await fetch(`${domain}/api/allQuotations`, { method: 'GET' });
+        const response = await fetch(`${domain}/api/allJobs`, { method: 'GET' });
         const data = await response.json();
-        console.log('Quotations fetched:', data);
-        setQuotations(data);
+        console.log('Job Orders fetched:', data);
+        setJobOrders(data);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching suppliers:', error);
+        console.error('Error fetching jobs:', error);
         setLoading(false);
       }
     };
   
-    fetchQuotations();
+    fetchJobs();
   }, []);
 
-
   useEffect(() => { 
-    const fetchSales = async () => {
+    const fetchUserPro = async () => {
       try {
-        const response = await fetch(`${domain}/api/allSales`, { method: 'GET' });
+        const response = await fetch(`${domain}/api/allUserPro`, { method: 'GET' });
         const data = await response.json();
-        console.log('sales fetched:', data);
-        setSales(data);
+        console.log('user pro fetched:', data);
+        setUserPro(data);
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching sales:', error);
+        console.error('Error fetching user pro:', error);
         setLoading(false);
       }
     };
   
-    fetchSales();
+    fetchUserPro();
   }, []);
 
 
@@ -118,9 +120,10 @@ const AddPurchaseOrder = () => {
   const handleSubmit = async (event) => {
     event.preventDefault();
     const formData = {
-      saleId: event.target.saleId.value, 
+      userId: event.target.userId.value, 
       supplierId: event.target.supplierId.value, 
-      quotationId: event.target.quotationId.value, 
+      jobOrderId: event.target.jobOrderId.value, 
+ 
       deliveryLocation: event.target.deliveryLocation.value,
       products: rows.map((row, index) => ({
         number: index + 1,
@@ -135,9 +138,13 @@ const AddPurchaseOrder = () => {
         description: event.target[`description${index}`].value,
 })),
       paymentTerm: event.target.paymentTerm.value,
-      paymentDelivery: event.target.paymentDelivery.value,
-      note: event.target.note.value,
-    };
+      deliveryTerm: event.target.deliveryTerm.value,
+      deliveryLocation: event.target.deliveryLocation.value,
+      sellingPolicy: event.target.sellingPolicy.value,
+      validityPeriod: event.target.validityPeriod.value,
+      delayPenalties: event.target.delayPenalties.value,
+
+       };
 
 
      try {
@@ -171,14 +178,14 @@ const AddPurchaseOrder = () => {
         <div className={styles.container}>
           <div className={styles.form1}>
           <div className={styles.inputContainer}>
-                <label htmlFor="saleId" className={styles.label}>
-                Select Sale Representative:
+                <label htmlFor="userId" className={styles.label}>
+               Select Procurement User:               
                 </label>
-          <select name='saleId' className={styles.input} defaultValue="">
-          <option value="" disabled >Select Sale Representative </option>
-          {sales.map((sale) => (
-              <option key={sale._id} value={sale._id}>
-                  {sale.name}
+          <select name='userId' className={styles.input} defaultValue="">
+          <option value="" disabled >Select Procurement User </option>
+          {userPro.map((user) => (
+              <option key={user._id} value={user._id}>
+                  {user.username}
               </option>
             ))}
           </select>
@@ -196,20 +203,15 @@ const AddPurchaseOrder = () => {
             ))}
           </select>
           </div>
-          <div className={styles.inputContainer}>
-                <label htmlFor="quotationId" className={styles.label}>
-                Quotation Number:
+            <div className={styles.inputContainer}>
+                <label htmlFor="jobOrder" className={styles.label}>
+                Job Order:
                 </label>
-
-
-
-
-
-          <select name='quotationId' className={styles.input} defaultValue="">
-          <option value="" disabled >Select Quotation</option>
-          {quotations.map((quotation) => (
-              <option key={quotation._id} value={quotation._id}>
-                  {quotation.quotationId}
+          <select name='jobOrderId' className={styles.input} defaultValue="">
+          <option value="" disabled >Select Job Order</option>
+          {jobOrders.map((jobOrder) => (
+              <option key={jobOrder._id} value={jobOrder._id}>
+{jobOrder.jobOrderId}
               </option>
             ))}
           </select>
@@ -285,19 +287,31 @@ const AddPurchaseOrder = () => {
                 <label htmlFor="paymentTerm" className={styles.label}>
                 Payment Term:
                 </label>
-            <textarea type='text' name='paymentTerm' className={styles.input} placeholder='Payment Term' />
+            <textarea type='text' name='paymentTerm' className={styles.input} placeholder='Payment Terms' />
             </div>
             <div className={styles.inputContainer}>
-                <label htmlFor="paymentDelivery" className={styles.label}>
-                Payment Delivery:
+                <label htmlFor="deliveryTerm" className={styles.label}>
+                Delivery Terms
                 </label>
-            <textarea type='text' name='paymentDelivery' className={styles.input} placeholder='Payment Delivery' />
+            <textarea type='text' name='deliveryTerm' className={styles.input} placeholder='Delivery Terms' />
+            </div>
+             <div className={styles.inputContainer}>
+                <label htmlFor="validityPeriod" className={styles.label}>
+                Validity Period:
+                </label>
+            <textarea type='text' name='validityPeriod' className={styles.input} placeholder='Validity Period' />
+            </div>
+             <div className={styles.inputContainer}>
+                <label htmlFor="delayPenalties" className={styles.label}>
+                Delay Penalties:
+                </label>
+            <textarea type='text' name='delayPenalties' className={styles.input} placeholder='Delay Penalties' />
             </div>
             <div className={styles.inputContainer}>
-                <label htmlFor="note" className={styles.label}>
-                Note:
+                <label htmlFor="sellingPolicy" className={styles.label}>
+                Selling Policy:
                 </label>
-            <textarea type='text' name='note' className={styles.input} placeholder='Note' />
+            <textarea type='text' name='sellingPolicy' className={styles.input} placeholder='Selling Policy' />
             </div>
             <button type="submit">Submit</button>
           </div>

@@ -25,8 +25,7 @@ const PurchaseOrderPage = async ({searchParams}) => {
             <tr>
               <td>Supplier Name</td>
               <td>Purchase Order Number</td>
-              <td>Quotation Number</td>
-              <td>Quotation Date</td>
+              <td>Job Order Number</td>
               <td>Created At</td> 
               <td>Action</td>
             </tr>
@@ -38,8 +37,7 @@ const PurchaseOrderPage = async ({searchParams}) => {
               <tr key={purchaseOrder.id}>
               <td>{purchaseOrder.supplier?.name || 'No supplier name'}</td>
               <td>{purchaseOrder.purchaseId || 'No Quotation Number'}</td>
-              <td>{purchaseOrder.quotation?.quotationId || 'No Quotation Number'}</td>
-              <td>{purchaseOrder.quotation?.createdAt ? new Date(purchaseOrder.quotation.createdAt).toDateString().slice(4, 16) : 'No Quotation Date'}</td>
+              <td>{purchaseOrder.jobOrder?.jobOrderId || 'No Job Order Number'}</td>
               <td>{purchaseOrder.createdAt?.toString().slice(4,16)}</td>
               <td> 
                 <div className={styles.buttons}>

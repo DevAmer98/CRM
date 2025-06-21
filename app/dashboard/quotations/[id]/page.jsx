@@ -13,7 +13,6 @@ const SingleQuotation = ({params}) => {
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
-    saleName:'',
     clientName: '', 
     projectName: '',
     projectLA: '',
@@ -404,6 +403,14 @@ const SingleQuotation = ({params}) => {
   disabled={!formData.userName || formData.userName.trim() === 'N/A'}
 >
   Upload To Synology
+</button>
+ <button
+  type="button"
+  className={`${styles.DownloadButton}`}
+  onClick={downloadQuotationDocument}
+  disabled={!formData.userName || formData.userName.trim() === 'N/A'}
+>
+  Download PDF
 </button>
 
           <div className={styles.form1}>
