@@ -12,8 +12,8 @@ import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMe
 import Link from "next/link";
 import HeaderNavigation from "@/components/ui/HeaderNavigation";
  
-
-const Project = () => {
+ 
+const Projects = () => {
 
   const [counts, setCounts] = useState({
       userCount: null,
@@ -268,4 +268,4 @@ const formatRoleName = (role) => {
   );
 };
 
-export default Project;
+export default Projects;
