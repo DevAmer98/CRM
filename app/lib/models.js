@@ -70,12 +70,12 @@ const clientSchema = new Schema(
     },
     email: {
       type: String,
-      required: true,
-      unique: true,
+      required: false,
+      unique: false,
     },
     address: {
       type: String,
-      required: true,
+      required: false,
 
     },
   },
@@ -149,6 +149,14 @@ const supplierSchema = new Schema(
       required: true,
       unique: true,
     },
+     VAT: {
+      type: String,
+        required: false,
+    },
+      CR: {
+      type: String,
+      required: false,
+  },
     address: {
       type: String,
     },
@@ -374,6 +382,11 @@ const purchaseOrderSchema = new Schema(
         },
       },
     ],
+    totalPrice: {              
+      type: Number,
+      required: true,
+      default: 0,
+    },
     paymentTerm: {
       type: String,
       required: true,
@@ -400,6 +413,19 @@ const purchaseOrderSchema = new Schema(
   default: 'USD',
   required: true
 },
+
+remainingAmount: {        
+    type: Number,
+    required: true,
+    default: 0,
+  },
+
+  paymentStatus: {
+  type: String,
+  enum: ['unpaid', 'partial', 'paid'],
+  default: 'unpaid',
+},
+
   },
   { timestamps: true }
 );
@@ -554,6 +580,26 @@ const jobOrderSchema = new Schema({
 }, { timestamps: true })
 
 
+const taskSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: String,
+  deadline: Date,
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  status: { type: String, enum: ['pending', 'in-progress', 'done'], default: 'pending' },
+}, { timestamps: true });
+
+
+const ticketSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: String,
+  deadline: Date,
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  status: { type: String, enum: ['pending', 'in-progress', 'done'], default: 'pending' },
+}, { timestamps: true });
+
+
 
 
 
@@ -570,6 +616,8 @@ export const Supplier = mongoose.models.Supplier || mongoose.model("Supplier", s
 export const User = mongoose.models.User || mongoose.model("User", userSchema);
 export const Client = mongoose.models.Client || mongoose.model("Client", clientSchema);
 export const Employee = mongoose.models.Employee || mongoose.model("Employee", employeeSchema);
+export const Task = mongoose.models.Task || mongoose.model("Task", taskSchema);
+export const Ticket = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema)
 
 
 

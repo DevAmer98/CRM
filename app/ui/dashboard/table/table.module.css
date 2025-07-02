@@ -1,0 +1,273 @@
+.wrapper {
+  padding: 2rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.header {
+  padding: 1.5rem 2rem;
+  background: var(--bgSoft);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.title {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+    color: var(--textSoft);
+    margin-bottom: 15px;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+}
+
+.showBtn {
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.spinner {
+  margin: 0 auto 0.5rem;
+  border: 2px solid var(--textSoft);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+.filterButtons {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.filterBtn {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s, color 0.2s;
+}
+
+.filterBtn:hover {
+  background: var(--color-primary-light, #f0f8ff);
+}
+
+.activeFilter {
+  background: var(--color-primary, #0070f3);
+  color: white;
+  border-color: var(--color-primary, #0070f3);
+}
+
+.emptyContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;  /* fill td height */
+  width: 100%;   /* fill td width */
+}
+
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 3rem;
+  color: var(--textSoft);
+}
+
+.emptyIcon {
+  width: 24px;
+  height: 24px;
+  margin: 0 auto 0.5rem;
+}
+
+.loadingCell {
+  text-align: center;
+  padding: 3rem;
+}
+
+.statusBase {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.statusPending {
+  background: rgba(255, 200, 0, 0.1);
+  color: #facc15;
+  border: 1px solid #facc15;
+}
+
+.statusInProgress {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid #60a5fa;
+}
+
+.statusDone {
+  background: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid #4ade80;
+}
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  padding: 2rem;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.closeBtn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  color: var(--textSoft);
+  cursor: pointer;
+}
+
+.dialogTitle {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+
+.dialogContent label {
+  font-size: 0.75rem;
+  color: var(--textSoft);
+  text-transform: uppercase;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.dialogContent p {
+  margin-bottom: 1rem;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-light);
+  padding-top: 1rem;
+  margin-top: 2rem;
+}
+
+.doneBtn {
+  background-color: #16a34a;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+}
+
+.closeDialogBtn {
+  background: var(--primary);
+  color: var(--bg);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  border: none;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+
+
+.emptyCell {
+  vertical-align: middle;  /* ✅ tell the cell to center its content vertically */
+  height: 100px;           /* give it enough height */
+  padding: 4rem 2rem;
+  color: var(--textSoft);
+  text-align: center;
+}
+
+
+.emptyIcon {
+  width: 36px;
+  height: 36px;
+  color: var(--textSoft);
+  opacity: 0.7;
+}
+
+
+.summaryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.summaryTable th,
+.summaryTable td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-light);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summaryTable th {
+  background-color: var(--bgSoft);
+  color: var(--textSoft);
+  font-weight: bold;
+}
+
+.summaryTable tr:nth-child(even) {
+  background-color: var(--bg);
+}
+
+.summaryTable tr:hover {
+  background-color: var(--bgSoft);
+}

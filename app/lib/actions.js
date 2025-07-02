@@ -3,7 +3,9 @@ import { revalidatePath } from "next/cache";
 import { connectToDB } from "./utils";
 import { redirect } from "next/navigation";
 import bcrypt from 'bcrypt';
-import { signIn } from "../auth";
+import { signIn,currentUser } from "../auth";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
+
 import {
   gregorianToHijri as toHijriObj,
   hijriToGregorian as toGregorianObj
@@ -12,7 +14,7 @@ import {
 
 
 
-const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee } = require('@/app/lib/models')
+const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Task, Ticket } = require('@/app/lib/models')
 
 
 
@@ -164,44 +166,6 @@ export const hijriToGregorian = ({ year, month, day }) => {
 
 
 
-/*const hijriToGregorian = (hijriYear, hijriMonth, hijriDay) => {
-  try {
-    const hijriEpoch = new Date('622-07-16');
-    const avgHijriYear = 354.367;
-    const avgHijriMonth = 29.53;
-    
-    const totalHijriDays = (hijriYear - 1) * avgHijriYear + 
-                          (hijriMonth - 1) * avgHijriMonth + 
-                          hijriDay - 1;
-    
-    const gregorianDate = new Date(hijriEpoch.getTime() + totalHijriDays * 24 * 60 * 60 * 1000);
-    return gregorianDate.toISOString().split('T')[0];
-  } catch (error) {
-    console.error('Error in hijriToGregorian:', error);
-    return null;
-  }
-};
-
-const gregorianToHijri = (gregorianDate) => {
-  try {
-    const date = new Date(gregorianDate);
-    const hijriEpoch = new Date('622-07-16');
-    const daysDiff = Math.floor((date - hijriEpoch) / (24 * 60 * 60 * 1000));
-    const avgHijriYear = 354.367;
-    const avgHijriMonth = 29.53;
-    
-    const hijriYear = Math.floor(daysDiff / avgHijriYear) + 1;
-    const remainingDays = daysDiff - (hijriYear - 1) * avgHijriYear;
-    const hijriMonth = Math.min(12, Math.max(1, Math.floor(remainingDays / avgHijriMonth) + 1));
-    const hijriDay = Math.min(30, Math.max(1, Math.floor(remainingDays % avgHijriMonth) + 1));
-    
-    return `${Math.max(1, hijriYear)}/${String(hijriMonth).padStart(2, '0')}/${String(hijriDay).padStart(2, '0')}`;
-  } catch (error) {
-    console.error('Error in gregorianToHijri:', error);
-    return null;
-  }
-};
-*/
 // Helper function to parse Hijri date string
 const parseHijriDate = (hijriDateString) => {
   if (!hijriDateString) return null;
@@ -448,124 +412,6 @@ export const addEmployeeWithDualDates = async (employeeData) => {
   console.log('Final enhancedData before saving:', enhancedData);
   return addEmployee(enhancedData);
 };
-/*
-export const addEmployee = async ({ 
-  employeeNo,
-    name,
-    contactMobile,
-    email,
-    iqamaNo,
-    iqamaExpirationDate,
-    passportNo,
-    passportExpirationDate,
-    dateOfBirth,
-    jobTitle,
-    directManager,
-    contractDuration,
-    contractStartDate,
-    contractEndDate }) => {
-  try {
-    connectToDB();
-
-    const newEmployee = new Employee({
-      employeeNo,
-      name,
-        contactMobile,
-        email,
-        iqamaNo,
-        iqamaExpirationDate,
-        passportNo,
-        passportExpirationDate,
-        dateOfBirth,
-        jobTitle,
-        directManager,
-        contractDuration,
-        contractStartDate,
-        contractEndDate,
-    });
-
-    await newEmployee.save();
-    revalidatePath("/dashboard/employees");
-    return { success: true };  // Indicate success
-  } catch (err) {
-    console.error(err);
-    if (err.code === 11000) {
-      const field = Object.keys(err.keyValue)[0];
-      const value = err.keyValue[field];
-      return { success: false, message: `An Employee with the same ${field} "${value}" already exists.` }; // Custom error response
-    }
-    return { success: false, message: 'Failed to add employee!' }; // Generic error response
-  
-  }
-};
-export const updateEmployee = async (formData) => {
-  const {
-    id,
-    employeeNo,
-    name,
-    contactMobile,
-    email,
-    iqamaNo,
-    iqamaExpirationDate,
-    passportNo,
-    passportExpirationDate,
-    dateOfBirth,
-    jobTitle,
-    directManager,
-    contractDuration,
-    contractStartDate,
-    contractEndDate,
-  } = formData;
-
-  if (!id) {
-    throw new Error('Employee ID is required');
-  }
-
-  try {
-    connectToDB();
-
-    const updateFields = {
-      name,
-      employeeNo,
-      contactMobile,
-      email,
-      iqamaNo,
-      iqamaExpirationDate,
-      passportNo,
-      passportExpirationDate,
-      dateOfBirth,
-      jobTitle,
-      directManager,
-      contractDuration,
-      contractStartDate,
-      contractEndDate,
-    };
-
-    // Remove empty or undefined fields
-    Object.keys(updateFields).forEach(
-      (key) =>
-        (updateFields[key] === "" || updateFields[key] === undefined) && delete updateFields[key]
-    );
-
-    console.log('Final Update Fields:', updateFields); // Debugging
-
-    const updatedEmployee = await Employee.findByIdAndUpdate(id, updateFields, { new: true });
-    console.log('Updated Employee:', updatedEmployee); // Debugging
-
-    if (!updatedEmployee) {
-      throw new Error('Employee not found');
-    }
-
-    revalidatePath('/dashboard/employees');
-revalidatePath(`/dashboard/employees/${id}`);
-
-    return { success: true };
-  } catch (err) {
-    console.log(err);
-    throw new Error("Failed to update employee!");
-  }
-  
-};*/
 
 
 export const updateClient = async (formData) => {
@@ -797,10 +643,55 @@ export const deleteJobOrder = async (formData) => {
 
 
 
+export const addSupplier = async ({ name, phone, contactName, contactMobile, email, VAT, CR, address }) => {
+  try {
+    connectToDB();
+    const year = new Date().getFullYear();
+
+    const latestSupplier = await Supplier.findOne({
+      supplierId: { $regex: `^SVS-S-${year}-\\d{3}$` } // strict 3-digit sequence
+    }).sort({ supplierId: -1 });
+
+    let sequenceNumber = '001';
+    if (latestSupplier) {
+      const match = latestSupplier.supplierId.match(/^SVS-S-\d{4}-(\d{3})$/);
+      if (match) {
+        const currentNumber = parseInt(match[1], 10);
+        sequenceNumber = String(currentNumber + 1).padStart(3, '0');
+      }
+    }
+
+    const customSupplierId = `SVS-S-${year}-${sequenceNumber}`;
+
+    const newSupplier = new Supplier({
+      name,
+      phone,
+      contactName,
+      contactMobile,
+      email,
+      VAT,
+      CR,
+      address,
+      supplierId: customSupplierId,
+    });
+
+    await newSupplier.save();
+    revalidatePath("/dashboard/suppliers");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue)[0];
+      const value = err.keyValue[field];
+      return { success: false, message: `A supplier with the same ${field} "${value}" already exists.` };
+    }
+    return { success: false, message: 'Failed to add supplier!' };
+  }
+};
 
 
-
-export const addSupplier = async ({ name, phone, contactName, contactMobile, email, address }) => {
+/*
+export const addSupplier = async ({ name, phone, contactName, contactMobile, email, VAT, CR,address }) => {
  
 
   try {
@@ -821,7 +712,7 @@ export const addSupplier = async ({ name, phone, contactName, contactMobile, ema
     }
 
 
-    const customSupplierId = `SVS-S-${sequenceNumber}`;
+const customSupplierId = `SVS-S-${year}-${sequenceNumber}`;
 
 
 
@@ -832,6 +723,8 @@ export const addSupplier = async ({ name, phone, contactName, contactMobile, ema
       contactName,
       contactMobile,
       email,
+      VAT,
+      CR,
       address,
       supplierId:customSupplierId,
 
@@ -850,6 +743,7 @@ export const addSupplier = async ({ name, phone, contactName, contactMobile, ema
     return { success: false, message: 'Failed to add supplier!' }; // Generic error response
   }
 };
+*/
 
 export const deleteSupplier = async (formData) => {
   const { id } = Object.fromEntries(formData);
@@ -868,7 +762,7 @@ export const deleteSupplier = async (formData) => {
 
 
 export const updateSupplier = async (formData) => {
-  const { id, name, phone, contactName, contactMobile, email, address } =
+  const { id, name, phone, contactName, contactMobile, email,VAT,CR, address } =
     Object.fromEntries(formData);
 
   try {
@@ -880,6 +774,8 @@ export const updateSupplier = async (formData) => {
       contactName,
       contactMobile,
       email,
+      VAT,
+      CR,
       address
     };
 
@@ -999,125 +895,9 @@ export const addPoApprove = async (formData) => {
 };
 
 
-/*
-export const addQuotation = async (formData) => {
-  const { saleId, clientId,  projectName, projectLA, products, paymentTerm, paymentDelivery, note, excluding } = formData;
-
-  try {
-    await connectToDB();
-
-    const sale = await Sale.findById(saleId);
-    if (!sale) {
-      throw new Error('Sale not found'); 
-    }
-
-    const client = await Client.findById(clientId);
-    if (!client) {
-      throw new Error('Client not found');
-    }
-   
-
-    const year = new Date().getFullYear();
-    const startingNumber = 0;
-    const count = await incrementCounter(year);
-    const paddedCount = String(startingNumber + count).padStart(3, '0');
-    const customQuotationId = `SVSSQ-${year}-${paddedCount}`;
-
-
-    const newQuotation = new Quotation({
-      client: client._id,
-      sale: sale._id,
-      projectName,
-      projectLA,
-      products,
-      paymentTerm,
-      paymentDelivery,
-      note,
-      excluding,
-      quotationId: customQuotationId, 
-      revisionNumber: 0
-    });
-
-    const savedQuotation = await newQuotation.save();
-    console.log('Quotation added successfully:', savedQuotation);
-
-    return savedQuotation;
-  } catch (err) {
-    console.error("Error adding quotation:", err.message);
-    throw new Error('Failed to add Quotation!');
-  } finally {
-    revalidatePath("/dashboard/quotations"); 
-    redirect("/dashboard/quotations");
-  }
-};*/
-
-/*
-export const addQuotation = async (formData) => {
-  const { saleId, clientId, projectName, projectLA, products, paymentTerm, paymentDelivery, note,validityPeriod, excluding } = formData;
-
-  try {
-    await connectToDB();
-
-    const sale = await Sale.findById(saleId);
-    if (!sale) {
-      throw new Error('Sale not found');
-    }
-
-    const client = await Client.findById(clientId);
-    if (!client) {
-      throw new Error('Client not found');
-    }
-
-    // Get current year
-    const year = new Date().getFullYear();
-    
-    // Find the latest quotation for the current year
-    const latestQuotation = await Quotation.findOne({
-      quotationId: { $regex: `SVSSQ-${year}-` }
-    }).sort({ quotationId: -1 });
-
-    // Generate new sequence number
-    let sequenceNumber = '001';
-    if (latestQuotation) {
-      const currentNumber = parseInt(latestQuotation.quotationId.split('-')[2]);
-      sequenceNumber = String(currentNumber + 1).padStart(3, '0');
-    }
-
-    const customQuotationId = `SVSSQ-${year}-${sequenceNumber}`;
-
-    const newQuotation = new Quotation({
-      client: client._id,
-      sale: sale._id,
-      projectName,
-      projectLA,
-      products,
-      paymentTerm,
-      paymentDelivery,
-      note,
-      validityPeriod,
-      excluding,
-      quotationId: customQuotationId,
-      revisionNumber: 0
-    });
-
-    const savedQuotation = await newQuotation.save();
-    console.log('Quotation added successfully:', savedQuotation);
-
-    return savedQuotation;
-  } catch (err) {
-    console.error("Error adding quotation:", err.message);
-    throw new Error('Failed to add Quotation!');
-  } finally {
-    revalidatePath("/dashboard/quotations");
-    redirect("/dashboard/quotations");
-  }
-};
-
-*/
-
 
 export const addQuotation = async (formData) => {
-  const { saleId, clientId, projectName, projectLA, products, paymentTerm, paymentDelivery, note, validityPeriod, excluding } = formData;
+  const { saleId, clientId, projectName, projectLA, products, paymentTerm, paymentDelivery, note, validityPeriod, excluding, currency } = formData;
 
   try {
     await connectToDB();
@@ -1129,7 +909,7 @@ export const addQuotation = async (formData) => {
     if (!client) throw new Error('Client not found');
 
     const year = new Date().getFullYear();
-    const latestQuotation = await Quotation.findOne({
+    const latestQuotation = await Quotation.findOne({ 
       quotationId: { $regex: `SVSSQ-${year}-` }
     }).sort({ quotationId: -1 });
 
@@ -1152,6 +932,7 @@ export const addQuotation = async (formData) => {
       note,
       validityPeriod,
       excluding,
+      currency,
       quotationId: customQuotationId,
       revisionNumber: 0
     });
@@ -1316,21 +1097,6 @@ export const updateQuotationApprove = async (formData) => {
 
 
 
-/*
-export const deleteQuotation = async (formData) => {
-  const { id } = Object.fromEntries(formData);
-
-  try {
-     connectToDB();        
-    await Quotation.findByIdAndDelete(id)
-
-  } catch (err) {
-    console.log(err)
-    throw new Error('failed to delete Quotation!')
-  }
-
-  revalidatePath("/dashboard/quotations");
-};*/
 
 export const deleteQuotation = async (formData) => {
   const { id } = Object.fromEntries(formData);
@@ -1626,6 +1392,18 @@ export const deletePl = async (formData) => {
 
 
 
+export async function updatePurchaseOrderPayment(poId, newRemaining, status) {
+  await connectToDB();
+
+  const po = await PurchaseOrder.findById(poId);
+  if (!po) throw new Error("Purchase order not found");
+
+  po.remainingAmount = newRemaining;
+  po.paymentStatus = status;  // optional if you have a paymentStatus field
+  await po.save();
+
+  return { success: true };
+}
 
 export const addPurchaseOrder = async (formData) => {
 
@@ -1640,6 +1418,8 @@ export const addPurchaseOrder = async (formData) => {
     deliveryTerm,
     validityPeriod,
     delayPenalties,
+    totalPrice,
+    currency,
   } = formData
 
   try {
@@ -1689,13 +1469,16 @@ export const addPurchaseOrder = async (formData) => {
       supplier: supplier._id,
       jobOrder: jobOrder._id,
       products,
+      totalPrice,
       paymentTerm,
+        remainingAmount: totalPrice, 
       deliveryLocation,
      sellingPolicy,
      deliveryTerm,
      validityPeriod,
      delayPenalties,
       purchaseId:customPurchaseId,
+      currency,
       revisionNumber: 0
 
 
@@ -1715,7 +1498,219 @@ export const addPurchaseOrder = async (formData) => {
   }
 };
 
- 
+
+export const getAssignedTasks = async () => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) throw new Error("Not authenticated");
+
+  const userId = session.user.id;
+
+  const tasks = await Task.find({
+    createdBy: userId,
+    assignedTo: { $exists: true, $ne: userId }, // assigned to someone else
+  })
+    .populate('assignedTo', 'username email')
+    .select('title status deadline assignedTo _id')
+    .sort({ deadline: 1 })
+    .lean();
+
+  return tasks.map(task => ({
+    id: task._id.toString(),
+    title: task.title,
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+    assignedTo: task.assignedTo
+      ? (task.assignedTo.username || task.assignedTo.email || 'Unassigned')
+      : 'Unassigned',
+  }));
+};
+
+
+
+export const getTasks = async () => {
+  await connectToDB();
+
+  const session = await auth(); // this gives you the current user session
+  if (!session || !session.user?.id) {
+    return []; // or throw new Error("Not authenticated");
+  }
+
+  const tasks = await Task.find({ assignedTo: session.user.id })
+    .select('title status deadline _id')
+    .sort({ deadline: 1 });
+
+  return tasks.map(task => ({
+    id: task._id.toString(),
+    title: task.title,
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+  }));
+};
+
+
+
+export const getTaskById = async (id) => {
+  await connectToDB();
+  const task = await Task.findById(id)
+    .populate('assignedTo', 'username') // populate assigned user
+    .populate('createdBy', 'username')  // populate creator user
+    .select('title description status deadline assignedTo createdBy');
+
+  if (!task) throw new Error("Task not found");
+
+  return {
+    id: task._id.toString(),
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+    assignedTo: task.assignedTo 
+      ? (task.assignedTo.username || task.assignedTo.email || task.assignedTo.toString())
+      : 'Unassigned',
+    createdBy: task.createdBy
+      ? (task.createdBy.username || task.createdBy.email || task.createdBy.toString())
+      : 'Unknown',
+  };
+};
+
+
+export const markTaskAsDone = async (id) => {
+  await connectToDB();
+
+  const task = await Task.findById(id);
+  if (!task) throw new Error("Task not found");
+
+  task.status = 'done';
+  await task.save();
+
+  return {
+    id: task._id.toString(),
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+  };
+};
+
+
+
+export const markTicketsAsDone = async (id) => {
+  await connectToDB();
+
+  const ticket = await Ticket.findById(id);
+  if (!ticket) throw new Error("Ticket not found");
+
+  ticket.status = 'done';
+  await ticket.save();
+
+  return {
+    id: ticket._id.toString(),
+    title: ticket.title,
+    description: ticket.description,
+    status: ticket.status,
+    deadline: ticket.deadline?.toISOString().split('T')[0] || '—',
+  };
+};
+
+
+
+
+export const getAssignedTickets = async () => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) throw new Error("Not authenticated");
+
+  const userId = session.user.id;
+
+  const tickets = await Ticket.find({
+    createdBy: userId,
+    assignedTo: { $exists: true, $ne: userId }, // assigned to someone else
+  })
+    .populate('assignedTo', 'username email')
+    .select('title status deadline assignedTo _id')
+    .sort({ deadline: 1 })
+    .lean();
+
+  return tickets.map(ticket => ({
+    id: ticket._id.toString(),
+    title: ticket.title,
+    status: ticket.status,
+    deadline: ticket.deadline?.toISOString().split('T')[0] || '—',
+    assignedTo: ticket.assignedTo
+      ? (ticket.assignedTo.username || ticket.assignedTo.email || 'Unassigned')
+      : 'Unassigned',
+  }));
+};
+
+
+
+export const getTickets = async () => {
+  await connectToDB();
+
+  const session = await auth(); // this gives you the current user session
+  if (!session || !session.user?.id) {
+    return []; // or throw new Error("Not authenticated");
+  }
+
+  const tickets = await Ticket.find({ assignedTo: session.user.id })
+    .select('title status deadline _id')
+    .sort({ deadline: 1 });
+
+  return tickets.map(ticket => ({
+    id: ticket._id.toString(),
+    title: ticket.title,
+    status: ticket.status,
+    deadline: ticket.deadline?.toISOString().split('T')[0] || '—',
+  }));
+};
+
+
+
+export const getTicketById = async (id) => {
+  await connectToDB();
+  const ticket = await Ticket.findById(id)
+    .populate('assignedTo', 'username') // populate assigned user
+    .populate('createdBy', 'username')  // populate creator user
+    .select('title description status deadline assignedTo createdBy');
+
+  if (!ticket) throw new Error("Ticket not found");
+
+  return {
+    id: ticket._id.toString(),
+    title: ticket.title,
+    description: ticket.description,
+    status: ticket.status,
+    deadline: ticket.deadline?.toISOString().split('T')[0] || '—',
+    assignedTo: ticket.assignedTo 
+      ? (ticket.assignedTo.username || ticket.assignedTo.email || ticket.assignedTo.toString())
+      : 'Unassigned',
+    createdBy: ticket.createdBy
+      ? (ticket.createdBy.username || ticket.createdBy.email || ticket.createdBy.toString())
+      : 'Unknown',
+  };
+};
+
+
+export const markTicketAsDone = async (id) => {
+  await connectToDB();
+
+  const ticket = await Ticket.findById(id);
+  if (!ticket) throw new Error("Ticket not found");
+
+  ticket.status = 'done';
+  await ticket.save();
+
+  return {
+    id: ticket._id.toString(),
+    title: ticket.title,
+    description: ticket.description,
+    status: ticket.status,
+    deadline: ticket.deadline?.toISOString().split('T')[0] || '—',
+  };
+};
+
+
 
 
 
@@ -1970,43 +1965,29 @@ export const updatePurchaseOrderApproval = async (formData) => {
   
 
 
-  export const authenticate = async (prevState, formData) => {
-    const { username, password } = Object.fromEntries(formData);
-    
-    try {
-      // First, manually fetch the user to get the role
-      await connectToDB();
-      const user = await User.findOne({ username });
-      
-      if (!user) {
-        return { error: "Wrong Credentials" };
-      }
-      
-      const isPasswordCorrect = await bcrypt.compare(
-        password,
-        user.password
-      );
-      
-      if (!isPasswordCorrect) {
-        return { error: "Wrong Credentials" };
-      }
-      
-      // Now sign in
-      const result = await signIn("credentials", { 
-        username, 
-        password,
-        redirect: false 
-      });
-      
-      if (result?.error) {
-        return { error: "Authentication failed" };
-      }
-      
-      return { 
-        success: true,
-        userRole: user.role
-      };
-    } catch (error) {
-      return { error: error?.message || "Authentication failed" };
+export const authenticate = async (prevState, formData) => {
+  const { username, password } = Object.fromEntries(formData);
+
+  try {
+    await connectToDB();
+    const user = await User.findOne({ username });
+
+    if (!user) {
+      return { error: "Wrong credentials" };
     }
-  };
+
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) {
+      return { error: "Wrong credentials" };
+    }
+
+    // ✅ Just return success info; no signIn() on server
+    return {
+      success: true,
+      userRole: user.role,
+    };
+  } catch (error) {
+    console.error("Authentication error:", error);
+    return { error: error?.message || "Authentication failed" };
+  }
+};

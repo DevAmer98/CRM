@@ -7,22 +7,17 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 const clientSchema = z.object({
-    name: z.string()
-      .min(3, 'Name must be at least 3 characters long.')
-      .max(20, 'Name must not exceed 20 characters long.'),
+    name: z.string(),
     phone: z.string()
-      .min(1, 'Phone is required.')
-      .regex(/^\+?[1-9]\d{1,14}$/, 'Phone number must be a valid international phone number format.'),
+      .min(1, 'Phone is required.'),
     contactName: z.string()
       .min(1, 'Contact Name is required.'),
     contactMobile: z.string()
-      .min(1, 'Contact Mobile is required.')
-      .regex(/^\+?[1-9]\d{1,14}$/, 'Contact Mobile must be a valid international phone number format.'),
+      .min(1, 'Contact Mobile is required.'),
     email: z.string()
-      .email('Invalid email format.')
-      .min(1, 'Email is required.'),
+  .optional(),
     address: z.string()
-      .min(1, 'Address is required.')
+  .optional(),
   });
 
 

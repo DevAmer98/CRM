@@ -1,16 +1,24 @@
+import CredentialsProvider from "next-auth/providers/credentials";
+
 export const authConfig = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
   },
-  providers: [],
-  pages: {
+ providers: [
+    CredentialsProvider({
+      async authorize(credentials) {
+        const user = await login(credentials);
+        return user; // must return user object or null
+      },
+    }),
+  ],  pages: {
     signIn: "/login",
   },
   callbacks: {
     authorized({ auth, request }) {
       const isLoggedIn = auth?.user;
-      const isOnDashboard = request.nextUrl?.pathname.startsWith("/dashboard");
+      const isOnDashboard = request.nextUrl?.pathname.startsWith("/dashboard/private");
       const isOnHrDashboard = request.nextUrl?.pathname.startsWith("/hr_dashboard");
 
       if (isOnDashboard || isOnHrDashboard) {
@@ -18,7 +26,7 @@ export const authConfig = {
       }
 
       if (isLoggedIn) {
-        const redirectPath = auth.user.role === "hrAdmin" ? "/hr_dashboard" : "/dashboard";
+        const redirectPath = auth.user.role === "hrAdmin" ? "/hr_dashboard" : "/dashboard/private";
         return Response.redirect(new URL(redirectPath, request.nextUrl));
       }
       return true;

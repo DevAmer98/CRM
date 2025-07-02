@@ -1,10 +1,10 @@
+"use client"; 
 import React from 'react';
 import MenuLinks from "./menuLinks/menuLinks";
 import styles from "./sidebar.module.css";
-import { auth, signOut } from "@/app/auth";
+import { signOut } from "next-auth/react";
 import { ROLES } from '@/app/lib/role';
-import { BriefcaseBusiness, Check, CircleUserRound, DollarSign, FileBadge, FileBox, FileCheck, FileClock, Handshake, LayoutDashboard, LogOut, PackageCheck, ShieldCheck, Shuffle, TicketCheck, UsersRound } from 'lucide-react';
-import { redirect } from 'next/navigation';
+import { BriefcaseBusiness, Check, CircleUserRound, DollarSign, FileBadge, FileBox, FileCheck, FileClock, Handshake, LayoutDashboard, ListChecks, LogOut, PackageCheck, ShieldCheck, Shuffle, TicketCheck, UsersRound } from 'lucide-react';
 
 const menuItems = [
   {
@@ -13,21 +13,21 @@ const menuItems = [
      {
   title: "Dashboard",
   icon: <LayoutDashboard />,
-  roles: [ROLES.ADMIN],
+  roles: [ROLES.ADMIN,ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.USER_PROCUREMENT,ROLES.SALES_USER],
   children: [
     {
       title: "Private Dahboard",
       path: "/dashboard/private",
-      roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN]
+  roles: [ROLES.ADMIN,ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.USER_PROCUREMENT,ROLES.SALES_USER],
     },
     {
       title: "Advanced Dahboard",
       path: "/dashboard",
-      roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN]
+      roles: [ROLES.ADMIN]
     },
   ],
 },
-      { 
+      {
         title: "HR", 
         path: "/hr_dashboard", 
         icon: <LayoutDashboard /> ,
@@ -149,7 +149,7 @@ const menuItems = [
     },
      {
       title: "Bank Account ",
-      path: "/",
+      path: "/", 
       roles: [ROLES.ADMIN]
     },
     
@@ -219,29 +219,27 @@ const menuItems = [
         title: "Job Order", 
         path: "/dashboard/jobOrder", 
         icon: <Shuffle />, 
-        roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN, ROLES.USER_PROCUREMENT] 
+        roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
       },
       { 
         title: "PL&CoC", 
         path: "/dashboard/pl_coc", 
         icon: <ShieldCheck />, 
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
+      },
+       { 
+        title: "Picklist", 
+        path: "/dashboard/pl_coc/pl", 
+        icon: <ListChecks />,
+        roles: [ROLES.USER_PROCUREMENT] 
       },
     ],
   },
 
 ];
 
-const Sidebar = async () => {
-
- 
-const session = await auth();
-  const user = session?.user || null;
-
-  if (!user) {
-    redirect("/login");
-  } 
-
+const Sidebar = ({ session }) => {
+  const user = session?.user;
   const userRole = user?.role || ROLES.USER;
 
   const filteredMenuItems = menuItems.map(category => ({
@@ -278,12 +276,12 @@ const session = await auth();
           </li>
         ))}
       </ul>
-      <form action={async () => {
-        "use server"
-        await signOut();
-      }}>
-        <button className={styles.logout}><LogOut /> Logout</button>
-      </form>
+      <button
+        onClick={() => signOut({ callbackUrl: "/login" })}
+        className={styles.logout}
+      >
+        <LogOut /> Logout
+      </button>
     </div>
   );
 };

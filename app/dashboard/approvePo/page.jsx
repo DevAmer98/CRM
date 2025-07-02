@@ -40,7 +40,7 @@ const ApprovePo = async({searchParams}) => {
                   </td>
                   <td>{purchaseOrder?.deliveryLocation}</td>
                   <td>{purchaseOrder?.purchaseId}</td>
-                  <td>{purchaseOrder?.jobOrder.jobOrderId}</td>
+<td>{purchaseOrder?.jobOrder?.jobOrderId || 'No Job Order'}</td>
                   <td>{purchaseOrder?.createdAt?.toString().slice(4,16)}</td>
                   <td>
                   {purchaseOrder.user?.username

@@ -28,9 +28,11 @@ import { useRouter } from 'next/navigation';
     validityPeriod: z.string().optional(),
     note: z.string().optional(),
     excluding: z.string().optional(),
+      currency: z.enum(["USD", "SAR"], { message: "Currency is required" }), // ✅ Add this line
+
  
   });
-
+ 
 
 
 
@@ -44,6 +46,8 @@ const AddQuotation = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    const [selectedCurrency, setSelectedCurrency] = useState('USD'); 
+  
 
 
   
@@ -133,6 +137,8 @@ products: rows.map((row, index) => ({
       validityPeriod: event.target.validityPeriod.value,
       note: event.target.note.value,
       excluding: event.target.excluding.value,
+        currency: selectedCurrency,  
+
     };
 
       try {
@@ -213,6 +219,20 @@ products: rows.map((row, index) => ({
         <div className={styles.container}>
           <div className={styles.form2}>
             <p className={styles.title}>Products</p>
+             <div className={styles.selectContainer}>
+            <div className={styles.selectWrapper}>
+            <label htmlFor="currency" className={styles.selectLabel}>Select Currency:</label>
+          <select
+          id="currency"
+          value={selectedCurrency}
+          onChange={(e) => setSelectedCurrency(e.target.value)}
+          className={styles.select}
+          >
+          <option value="USD">USD</option>
+          <option value="SAR">SAR</option>
+        </select>
+        </div>
+        </div>
             <table className={styles.table}> 
               <thead>
                 <tr>

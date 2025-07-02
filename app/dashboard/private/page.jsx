@@ -14,7 +14,7 @@ const PrivateDahbaord = () => {
     <Suspense fallback={<div>Loading...</div>}>
       <div className={styles.wrapper}>
         <div className={styles.main}>
-       {/* <AdminPage />*/} 
+        <AdminPage />
         </div>
       </div>
     </Suspense>

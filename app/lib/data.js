@@ -447,32 +447,146 @@ export const fetchPl = async (id) => {
 
 
 
-export const fetchSuppliersWithPurchaseOrders = async () => {
+export const fetchPurchaseOrdersForSupplier = async (supplierId) => {
+  try {
+    const purchaseOrders = await PurchaseOrder.find({ supplier: supplierId })
+      .populate('supplier')
+      .populate({
+        path: 'jobOrder',
+        populate: [
+          { path: 'client' },
+          { path: 'quotation' }
+        ]
+      })
+      .populate('userPro')
+      .lean();
+
+    const safePurchaseOrders = purchaseOrders.map(po => ({
+      ...po,
+      _id: po._id.toString(),
+      supplier: po.supplier
+        ? { ...po.supplier, _id: po.supplier._id.toString() }
+        : null,
+      jobOrder: po.jobOrder
+        ? {
+            ...po.jobOrder,
+            _id: po.jobOrder._id.toString(),
+            client: po.jobOrder.client
+              ? { ...po.jobOrder.client, _id: po.jobOrder.client._id.toString() }
+              : null,
+            quotation: po.jobOrder.quotation
+              ? { ...po.jobOrder.quotation, _id: po.jobOrder.quotation._id.toString() }
+              : null,
+          }
+        : null,
+      userPro: po.userPro
+        ? { ...po.userPro, _id: po.userPro._id.toString() }
+        : null,
+    }));
+
+    return safePurchaseOrders;
+  } catch (error) {
+    console.error(`Error fetching purchase orders for supplier ${supplierId}:`, error);
+    throw new Error('Failed to fetch purchase orders');
+  }
+};
+
+export const fetchSuppliersWithPurchaseOrders = async (q = "", page = 1, pageSize = 10) => {
   try {
     await connectToDB();
 
-    const suppliers = await fetchAllSupliers();
+    const filter = q
+      ? { name: { $regex: q, $options: "i" } }
+      : {};
 
-    const suppliersWithInfo = await Promise.all(suppliers.map(async (supplier) => {
-      const purchaseOrders = await fetchPurchaseOrdersForSupplier(supplier._id);
+    const skip = (page - 1) * pageSize;
 
-    
-      return {
-        ...supplier.toObject(),
-        _id: supplier._id.toString(),
-        purchaseOrders,
-      };
-    }));
+    const [suppliers, count] = await Promise.all([
+      Supplier.find(filter)
+        .skip(skip)
+        .limit(pageSize)
+        .lean()
+        .then(async (suppliers) =>
+          Promise.all(
+            suppliers.map(async (supplier) => {
+              const purchaseOrders = await PurchaseOrder.find({ supplier: supplier._id })
+                .populate({
+                  path: 'jobOrder',
+                  populate: [
+                    { path: 'client' },
+                    {
+                      path: 'quotation',
+                      populate: [
+                        { path: 'sale' },
+                        { path: 'client' },
+                      ]
+                    },
+                  ],
+                })
+                .populate('userPro')
+                .lean();
 
-    return suppliersWithInfo;
+              const safePurchaseOrders = purchaseOrders.map(po => ({
+                ...po,
+                _id: po._id.toString(),
+               remainingAmount:
+  po.remainingAmount !== undefined && po.remainingAmount !== null
+    ? po.remainingAmount  
+    : po.totalPrice,
+
+                supplier: po.supplier?.toString?.() ?? po.supplier,
+                jobOrder: po.jobOrder
+                  ? {
+                      ...po.jobOrder,
+                      _id: po.jobOrder._id.toString(),
+                      client: po.jobOrder.client
+                        ? { ...po.jobOrder.client, _id: po.jobOrder.client._id.toString() }
+                        : null,
+                      quotation: po.jobOrder.quotation
+                        ? {
+                            ...po.jobOrder.quotation,
+                            _id: po.jobOrder.quotation._id.toString(),
+                            sale: po.jobOrder.quotation.sale
+                              ? { ...po.jobOrder.quotation.sale, _id: po.jobOrder.quotation.sale._id.toString() }
+                              : null,
+                            client: po.jobOrder.quotation.client
+                              ? { ...po.jobOrder.quotation.client, _id: po.jobOrder.quotation.client._id.toString() }
+                              : null,
+                            products: po.jobOrder.quotation.products?.map(prod => ({
+                              ...prod,
+                              _id: prod._id.toString(),
+                            })) ?? [],
+                          }
+                        : null,
+                    }
+                  : null,
+                userPro: po.userPro
+                  ? { ...po.userPro, _id: po.userPro._id.toString() }
+                  : null,
+                products: Array.isArray(po.products)
+                  ? po.products.map(prod => ({
+                      ...prod,
+                      _id: prod._id.toString(),
+                    }))
+                  : [],
+              }));
+
+              return {
+                ...supplier,
+                _id: supplier._id.toString(),
+                purchaseOrders: safePurchaseOrders,
+              };
+            })
+          )
+        ),
+      Supplier.countDocuments(filter),
+    ]);
+
+    return { suppliers, count };
   } catch (error) {
     console.error('Error fetching suppliers with purchaseOrders:', error);
     throw new Error('Failed to fetch suppliers with purchaseOrders');
   }
-};
-const fetchPurchaseOrdersForSupplier = async (supplierId) => {
-  const purchaseOrders = await PurchaseOrder.find({ supplier: supplierId }).lean();
-  return purchaseOrders.map(q => ({ ...q, _id: q._id.toString() }));
 };
 
 

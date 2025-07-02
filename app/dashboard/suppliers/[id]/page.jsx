@@ -45,6 +45,18 @@ const SingleSupplierPage = async ({params}) => {
                 </label>
             <input className={styles.input} type='email' name='email' placeholder={supplier.email} />
             </div>
+             <div className={styles.inputContainer}>
+                <label  className={styles.label}>
+                VAT Number:
+                </label>            
+             <input className={styles.input} type='text' name='VAT' placeholder={supplier.VAT} />
+             </div>
+              <div className={styles.inputContainer}>
+                <label  className={styles.label}>
+                CR Number:
+                </label>            
+             <input className={styles.input} type='text' name='CR' placeholder={supplier.CR} />
+             </div>
             <div className={styles.inputContainer}>
                 <label className={styles.label}>
                 Address:

@@ -27,7 +27,7 @@ const UsersPage = async ({searchParams}) => {
         return 'Admin';
       case ROLES.SALES_ADMIN:
         return 'Sales Admin';
-      case ROLES.SALES_PROCUREMENT:
+      case ROLES.USER_PROCUREMENT:
         return 'Sales Procurement';
          case ROLES.DASHBOARD_ADMIN:
           return 'Dashboard Admin';

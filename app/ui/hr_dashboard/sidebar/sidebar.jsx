@@ -1,9 +1,9 @@
 import React from 'react';
 import MenuLinks from "./menuLinks/menuLinks";
 import styles from "./sidebar.module.css";
-import { auth, signOut } from "@/app/auth";
 import { ROLES } from '@/app/lib/role';
 import { BadgePlus, BriefcaseBusiness, Building2, CalendarCheck, CalendarClock, CalendarHeart, Clock, FileChartColumn, LayoutDashboard, LogOut, Sparkles, UsersRound } from 'lucide-react';
+import { auth } from '@/app/api/auth/[...nextauth]/route';
 
 
 const menuItems = [

@@ -22,6 +22,8 @@ const supplierSchema = z.object({
     email: z.string()
       .email('Invalid email format.') 
       .min(1, 'Email is required.'),
+       VAT: z.string().optional(),
+       CR: z.string().optional(),
     address: z.string()
       .min(1, 'Address is required.')
   });
@@ -100,6 +102,18 @@ const AddSupplierForm = () => {
                 Email Address:
                 </label>
         <input className={styles.input} type="email" name="email" />
+        </div>
+           <div className={styles.inputContainer}>
+                <label  className={styles.label}>
+                VAT Number:
+                </label>
+        <input className={styles.input} type="text"  name="VAT" />
+        </div>
+           <div className={styles.inputContainer}>
+                <label  className={styles.label}>
+                CR Number:
+                </label>
+        <input className={styles.input} type="text"  name="CR" />
         </div>
         <div className={styles.inputContainer}>
                 <label  className={styles.label}>

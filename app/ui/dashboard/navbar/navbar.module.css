@@ -15,6 +15,75 @@
   gap: 24px;
 }
 
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem; /* consistent clickable area */
+  color: var(--textSoft);
+  transition: color 0.3s ease;
+}
+
+.iconButton:hover {
+  color: var(--primary);
+}
+
+
+.dropdown {
+  position: absolute;
+  right: 1rem; /* adds spacing from the bell icon */
+  margin-top: 1rem; /* spacing below the bell icon */
+  width: 20rem; /* modern, spacious dropdown */
+  background: var(--bgSoft);
+  border: 1px solid var(--border);
+  border-radius: 1rem; /* rounded corners */
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  color: var(--text);
+  animation: fadeIn 0.2s ease-out;
+  overflow: hidden; /* clip overflowing borders */
+}
+
+
+
+
+.dropdownHeader {
+  padding: 0.50rem;
+  font-weight: 300;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--textSoft);
+  font-size: 1.125rem; /* text-lg */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* spacing between icon and text */
+}
+.dropdownList {
+  max-height: 15rem; /* same as 60 in Tailwind, controls scroll area */
+  overflow-y: auto;
+}
+
+.dropdownItem {
+  padding: 0.50rem 1rem; /* px-4 py-3 */
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-light);
+  transition: background 0.3s;
+}
+
+.dropdownItem:last-child {
+  border-bottom: none; /* remove border on last item */
+}
+
+.dropdownItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
 .search {
   display: flex;
   align-items: center;

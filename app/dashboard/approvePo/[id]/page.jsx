@@ -490,7 +490,7 @@ const SingleApprovePo = ({params}) => {
                <input
                 type="text"
                 className={styles.input}
-                placeholder="jobOrderId"
+                placeholder="No Job Order"
                 value={formData.jobOrderId}
                 onChange={(e) => handleInputChange('jobOrderId', e.target.value)}
                 readOnly 

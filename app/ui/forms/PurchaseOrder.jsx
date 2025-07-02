@@ -2,7 +2,7 @@
 import React, {useState ,useEffect} from 'react'; 
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
 import { addPurchaseOrder } from '@/app/lib/actions';
-import { FaPlus, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaTrash } from 'react-icons/fa'; 
 import toast from 'react-hot-toast';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
@@ -22,31 +22,33 @@ import { useRouter } from 'next/navigation';
  
 
 
-  
   const purchaseSchema = z.object({
-    userId: z.string().min(1, "User Pro is required"),
-    supplierId: z.string().min(1, "Supplier is required"),
-    jobOrderId: z.string().min(1, "Job Order is required"),
-    products: z.array(productSchema),
-    paymentTerm: z.string().optional(),
-    deliveryLocation: z.string().optional(),
-    sellingPolicy:z.string().optional(),
-    deliveryTerm:z.string().optional(),
-    validityPeriod:z.string().optional(),
-    delayPenalties:z.string().optional(),
- 
-  });
+  userId: z.string().min(1, "User Pro is required"),
+  supplierId: z.string().min(1, "Supplier is required"),
+  jobOrderId: z.string().min(1, "Job Order is required"),
+  products: z.array(productSchema),
+  paymentTerm: z.string().optional(),
+  deliveryLocation: z.string().optional(),
+  sellingPolicy: z.string().optional(),
+  deliveryTerm: z.string().optional(),
+  validityPeriod: z.string().optional(),
+  delayPenalties: z.string().optional(),
+  totalPrice: z.number().min(0, "Total price must be 0 or higher"),  // ✅ ADD THIS LINE
+});
+
 
 
 const AddPurchaseOrder = () => {
   const router = useRouter();
-  const [rows, setRows] = React.useState([{ number: 1 }]);
+const [rows, setRows] = useState([{ number: 1 }]);
   const[suppliers, setSuppliers] = useState([]); 
   const[jobOrders, setJobOrders] = useState([]); 
     const[userPro, setUserPro] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    const [selectedCurrency, setSelectedCurrency] = useState('SAR'); 
+  
 
 
 
@@ -116,7 +118,7 @@ const AddPurchaseOrder = () => {
     const updatedRowsWithNumbers = updatedRows.map((row, i) => ({ ...row, number: i + 1 }));
     setRows(updatedRowsWithNumbers);
   };
-
+/*
   const handleSubmit = async (event) => {
     event.preventDefault();
     const formData = {
@@ -143,8 +145,13 @@ const AddPurchaseOrder = () => {
       sellingPolicy: event.target.sellingPolicy.value,
       validityPeriod: event.target.validityPeriod.value,
       delayPenalties: event.target.delayPenalties.value,
+      totalPrice,
+
+      
+      
 
        };
+const totalPrice = products.reduce((sum, p) => sum + p.unitPrice, 0);
 
 
      try {
@@ -168,6 +175,117 @@ const AddPurchaseOrder = () => {
         }
 
   };
+
+  */
+
+
+    const handleRowInputChange = (index, fieldName, value) => {
+    setRows((prevRows) =>
+      prevRows.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              [fieldName]: value,
+              unitPrice:
+                fieldName === 'qty' && !isNaN(value) && !isNaN(row.unit)
+                  ? Number(value) * Number(row.unit)
+                  : fieldName === 'unit' && !isNaN(value) && !isNaN(row.qty)
+                  ? Number(value) * Number(row.qty)
+                  : row.unitPrice,
+            }
+          : row
+      )
+    );
+  };
+
+
+
+  
+
+
+const handleRowChange = (index, field, value) => {
+  setRows((prevRows) => {
+    const updatedRows = [...prevRows];
+    updatedRows[index][field] = Number(value);
+
+    const qty = updatedRows[index].qty;
+    const unit = updatedRows[index].unit;
+    updatedRows[index].unitPrice = !isNaN(qty) && !isNaN(unit) ? qty * unit : 0;
+
+    return updatedRows;
+  });
+};
+
+
+const handleSubmit = async (event) => {
+  event.preventDefault();
+
+  
+const products = rows.map(row => ({
+  number: row.number,
+  productCode: row.productCode,
+  description: row.description,
+  qty: row.qty,
+  unit: row.unit,
+  unitPrice: row.unitPrice,
+}));
+
+
+  const totals = calculateTotalUnitPrice();
+
+  const totalWithVat = Number(totals.totalUnitPriceWithVAT); 
+  
+
+
+  const formData = {
+    userId: event.target.userId.value,
+    supplierId: event.target.supplierId.value,
+    jobOrderId: event.target.jobOrderId.value,
+    deliveryLocation: event.target.deliveryLocation.value,
+    products,
+    paymentTerm: event.target.paymentTerm.value,
+    deliveryTerm: event.target.deliveryTerm.value,
+    sellingPolicy: event.target.sellingPolicy.value,
+    validityPeriod: event.target.validityPeriod.value,
+    delayPenalties: event.target.delayPenalties.value,
+     totalPrice: totalWithVat,
+    currency: selectedCurrency,
+  };
+
+  console.log("Submitting with totalPrice:", totalWithVat, "products:", products);
+
+  try {
+    const validatedData = purchaseSchema.parse(formData);
+    const result = await addPurchaseOrder(validatedData);
+    if (result.success) {
+      toast.success('Purchase order added successfully!');
+      router.push('/dashboard/purchaseOrder');
+    }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      error.errors.forEach((err) => toast.error(err.message));
+    } else {
+      toast.error(error.message);
+    }
+  }
+};
+
+
+ const calculateTotalUnitPrice = () => {
+    const totalUnitPrice = rows.reduce((total, row) => total + (Number(row.unitPrice) || 0), 0);
+    const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
+    const vatAmount = totalUnitPrice * vatRate;
+    const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+  
+   
+  
+    return {
+      totalUnitPrice: totalUnitPrice.toFixed(2), // Format to 2 decimal places
+      vatAmount: vatAmount.toFixed(2), // Format to 2 decimal places
+      totalUnitPriceWithVAT: totalUnitPriceWithVAT.toFixed(2), // Format to 2 decimal places
+    };
+  };
+
 
   return (
     <div>
@@ -228,6 +346,24 @@ const AddPurchaseOrder = () => {
         <div className={styles.container}>
           <div className={styles.form2}>
             <p className={styles.title}>Products</p>
+              <div className={styles.selectContainer}>
+            <div className={styles.selectWrapper}>
+            <div className={styles.inputContainer}>
+                <label htmlFor="paymentTerm" className={styles.label}>
+                Select Currency:
+                </label>
+          <select
+          id="currency"
+          value={selectedCurrency}
+          onChange={(e) => setSelectedCurrency(e.target.value)}
+          className={styles.select}
+          >
+          <option value="USD">USD</option>
+          <option value="SAR">SAR</option>
+        </select>
+        </div>
+        </div>
+        </div>
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -250,10 +386,41 @@ const AddPurchaseOrder = () => {
                         readOnly
                       />
                     </td>
-                    <td><input type='text' name={`productCode${index}`} className={styles.input1} /></td>
-                    <td><textarea name={`description${index}`} className={`${styles.input1} ${styles.textarea}`}></textarea></td>
-                    <td><input type='number' name={`qty${index}`} className={styles.input1} /></td>
-                    <td><input type='number' name={`unit${index}`} className={styles.input1} /></td>
+                    <td>
+                      <input
+                        className={styles.input}
+                        placeholder={row.productCode}
+                        value={row.productCode}
+                        onChange={(e) => handleRowInputChange(index, 'productCode', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                    <textarea
+                        className={`${styles.input} ${styles.textarea}`}
+                        placeholder={row.description}
+                        value={row.description}
+                        onChange={(e) => handleRowInputChange(index, 'description', e.target.value)}
+                      ></textarea>
+</td>
+                    <td>
+           <input
+  type="number"
+  name={`qty${index}`}
+  className={styles.input1}
+  value={row.qty}
+  onChange={(e) => handleRowChange(index, 'qty', e.target.value)}
+/>
+</td>
+<td>
+<input
+  type="number"
+  name={`unit${index}`}
+  className={styles.input1}
+  value={row.unit}
+  onChange={(e) => handleRowChange(index, 'unit', e.target.value)}
+/>
+
+          </td>
                     <td>{row.unitPrice}</td>
                     <td>
                       {index === rows.length - 1 ? (
@@ -278,6 +445,14 @@ const AddPurchaseOrder = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+           <div className={styles.container}>
+          <div className={styles.form5}>
+          <p>Total Unit Price (Excluding VAT): {calculateTotalUnitPrice().totalUnitPrice}</p>
+            <p>VAT (15%): {calculateTotalUnitPrice().vatAmount}</p>
+            <p>Total Unit Price (Including VAT): {calculateTotalUnitPrice().totalUnitPriceWithVAT}</p>
           </div>
         </div>
 
