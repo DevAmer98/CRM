@@ -660,7 +660,7 @@ export const addSupplier = async ({ name, phone, contactName, contactMobile, ema
       }
     }
 
-    const customSupplierId = `SVS-S-${year}-${sequenceNumber}`;
+    const customSupplierId = `SVS-VN-${year}-${sequenceNumber}`;
 
     const newSupplier = new Supplier({
       name,
