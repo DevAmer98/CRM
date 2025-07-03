@@ -141,10 +141,8 @@ const handleCancel = () => {
             <td>Supplier ID</td>
             <td>Supplier Name</td>
             <td>Supplier Phone</td>
-            <td>Email Address</td>
             <td>Total</td>
             <td>Remaining </td>
-
             <td>Action</td>
           </tr>
         </thead>
@@ -161,7 +159,6 @@ const handleCancel = () => {
         <td>{supplier.supplierId}</td>
         <td>{supplier.name}</td>
         <td>{supplier.phone}</td>
-        <td>{supplier.email}</td>
         <td>{totalAmount.toFixed(2)}</td>  {/* ✅ Show computed total */}
 <td>{supplier.purchaseOrders.reduce(
   (sum, po) => sum + (
