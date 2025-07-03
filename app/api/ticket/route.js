@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/app/auth'; // use your exported auth()
 import { connectToDB } from '@/app/lib/utils';
 import { Ticket } from '@/app/lib/models';
+import { auth } from '../auth/[...nextauth]/route';
 
 export const revalidate = 0;
 
