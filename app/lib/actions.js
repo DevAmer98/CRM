@@ -648,12 +648,12 @@ export const addSupplier = async ({ name, phone, contactName, contactMobile, ema
     const year = new Date().getFullYear();
 
     const latestSupplier = await Supplier.findOne({
-      supplierId: { $regex: `^SVS-S-${year}-\\d{3}$` } // strict 3-digit sequence
+      supplierId: { $regex: `^SVS-VN-${year}-\\d{3}$` } // strict 3-digit sequence
     }).sort({ supplierId: -1 });
 
     let sequenceNumber = '001';
     if (latestSupplier) {
-      const match = latestSupplier.supplierId.match(/^SVS-S-\d{4}-(\d{3})$/);
+const match = latestSupplier.supplierId.match(/^SVS-VN-\d{4}-(\d{3})$/);
       if (match) {
         const currentNumber = parseInt(match[1], 10);
         sequenceNumber = String(currentNumber + 1).padStart(3, '0');
