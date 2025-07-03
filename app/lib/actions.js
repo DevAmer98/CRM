@@ -3,7 +3,6 @@ import { revalidatePath } from "next/cache";
 import { connectToDB } from "./utils";
 import { redirect } from "next/navigation";
 import bcrypt from 'bcrypt';
-import { signIn,currentUser } from "../auth";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 
 import {
