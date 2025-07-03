@@ -128,26 +128,25 @@ const supplierSchema = new Schema(
       type: String,
       required: true,
       unique: true,
-      min: 3,
-      max: 20,
+      min: 1,
+      max: 50,
     },
     phone: {
       type: String,
-      required: true,
-      unique: true,
+      required: false,
     },
     contactName: {
       type: String,
-      required: true,
+      required: false,
     },
     contactMobile: {
       type: String,
-      required: true,
+      required: false,
     },
     email: {
       type: String,
-      required: true,
-      unique: true,
+      required: false,
+      unique: false,
     },
      VAT: {
       type: String,
@@ -159,6 +158,8 @@ const supplierSchema = new Schema(
   },
     address: {
       type: String,
+            required: false,
+
     },
   },
   { timestamps: true }

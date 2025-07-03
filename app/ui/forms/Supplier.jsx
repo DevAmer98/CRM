@@ -11,21 +11,14 @@ import { z } from 'zod';
 
 const supplierSchema = z.object({
     name: z.string()
-      .min(3, 'Name must be at least 3 characters long.')
-      .max(20, 'Name must not exceed 20 characters long.'),
-    phone: z.string()
-      .min(1, 'Phone is required.'),
-    contactName: z.string()
-      .min(1, 'Contact Name is required.'),
-    contactMobile: z.string()
-      .min(1, 'Contact Mobile is required.'),
-    email: z.string()
-      .email('Invalid email format.') 
-      .min(1, 'Email is required.'),
+      .min(1, 'Name must be at least 3 characters long.'),
+    phone: z.string().optional(),
+    contactName: z.string().optional(),
+    contactMobile: z.string().optional(),
+    email: z.string().optional(),
        VAT: z.string().optional(),
        CR: z.string().optional(),
-    address: z.string()
-      .min(1, 'Address is required.')
+    address: z.string().optional(),
   });
 
 
@@ -83,7 +76,7 @@ const AddSupplierForm = () => {
                 <label  className={styles.label}>
                 Supplier Phone:
                 </label>
-        <input className={styles.input}  type="phone"  name="phone" required />
+        <input className={styles.input}  type="phone"  name="phone" />
         </div> 
         <div className={styles.inputContainer}>
                 <label  className={styles.label}>
