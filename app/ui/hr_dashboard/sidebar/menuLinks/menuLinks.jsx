@@ -1,11 +1,33 @@
+/*"use client"
+import Link from 'next/link'
+import styles from './menuLinks.module.css'
+import { usePathname } from 'next/navigation'
+
+const MenuLinks = ({item}) => {
+
+  const pathname = usePathname()
+
+  return (
+    <Link href={item.path} className={`${styles.container} ${pathname === item.path && styles.active}`}>
+      {item.icon}
+      {item.title}
+    </Link>
+  )
+}
+
+export default MenuLinks 
+*/
+
+
 "use client"
 import Link from 'next/link'
 import styles from './menuLinks.module.css'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
-const MenuLinks = ({item}) => {
+const MenuLinks = ({ item }) => {
   const pathname = usePathname()
+  const [open, setOpen] = useState(false)
 
   const isActive = (path) => pathname === path
 
@@ -41,14 +63,6 @@ const MenuLinks = ({item}) => {
   }
 
   return (
-    <Link href={item.path} className={`${styles.container} ${pathname === item.path && styles.active}`}>
-      {item.icon}
-      {item.title}
-    </Link>
-  )
-
-
-  return (
     <Link href={item.path} className={`${styles.container} ${isActive(item.path) ? styles.active : ''}`}>
       {item.icon}
       <span className={styles.title}>{item.title}</span>
@@ -56,9 +70,4 @@ const MenuLinks = ({item}) => {
   )
 }
 
-export default MenuLinks 
-
-
-
-
-
+export default MenuLinks

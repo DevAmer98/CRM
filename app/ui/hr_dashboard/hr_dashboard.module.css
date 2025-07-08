@@ -15,7 +15,7 @@
   position: sticky;
   top: 0;
   height: 100vh;
-  max-width: 500px;
+  max-width: 600px;
 }
 
 .content {
@@ -65,7 +65,7 @@
 
 .button {
   background-color: var(--primary);
-  color: white;
+  color: black;
   padding: 10px 20px;
   border-radius: var(--border-radius);
   border: none;

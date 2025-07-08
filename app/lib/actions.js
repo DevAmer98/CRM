@@ -9,51 +9,52 @@ import {
   gregorianToHijri as toHijriObj,
   hijriToGregorian as toGregorianObj
 } from '@tabby_ai/hijri-converter';
+import { ROLES } from "./role";
 
 
 
 
-const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Task, Ticket } = require('@/app/lib/models')
-
+const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Task, Ticket, Leave, Shift } = require('@/app/lib/models')
 
 
 export const addUser = async (formData) => {
-  const { username, email, password, phone, address,isActive, role } = Object.fromEntries(formData);
-  console.log("Role submitted:", role); // This will help verify what role is being sent
-
+  const { username, email, password, phone, address, isActive, role, employeeId } = Object.fromEntries(formData);
+  console.log("Role submitted:", role);
+  console.log("Employee ID submitted:", employeeId);
 
   try {
-     connectToDB();
+    await connectToDB();
 
-    const salt = await bcrypt.genSalt(10)
-    const hashPassword = await bcrypt.hash(password, salt)
+    const salt = await bcrypt.genSalt(10);
+    const hashPassword = await bcrypt.hash(password, salt);
+
     const newUser = new User({
       username,
-      email, 
+      email,
       password: hashPassword,
       phone,
       address,
       role,
-      isActive
+      isActive,
+      employee: employeeId, // ✅ link user to selected employee
     });
 
     await newUser.save();
   } catch (err) {
-    console.log(err)
-    throw new Error('failed to add user!')
+    console.log(err);
+    throw new Error('Failed to add user!');
   }
 
   revalidatePath("/dashboard/users");
   redirect("/dashboard/users");
 };
 
-
 export const updateUser = async (formData) => {
-  const { id, username, email, password, phone, address, role, isActive } =
+  const { id, username, email, password, phone, address, role, isActive, employeeId } =
     Object.fromEntries(formData);
 
   try {
-    connectToDB();
+    await connectToDB();
 
     const updateFields = {
       username,
@@ -64,12 +65,17 @@ export const updateUser = async (formData) => {
       isActive,
     };
 
+    if (employeeId) {
+      updateFields.employee = employeeId; // ✅ update employee link
+    }
+
     if (password) {
       const salt = await bcrypt.genSalt(10);
       const hashPassword = await bcrypt.hash(password, salt);
       updateFields.password = hashPassword;
     }
 
+    // Remove empty or undefined fields to avoid overwriting with empty values
     Object.keys(updateFields).forEach(
       (key) =>
         (updateFields[key] === "" || updateFields[key] === undefined) && delete updateFields[key]
@@ -84,6 +90,7 @@ export const updateUser = async (formData) => {
   revalidatePath("/dashboard/users");
   redirect("/dashboard/users");
 };
+
 
 
 export const deleteUser = async (formData) => {
@@ -132,82 +139,200 @@ export const addClient = async ({ name, phone, contactName, contactMobile, email
   
   }
 };
-// Gregorian → Hijri
-export const gregorianToHijri = (gregorianDateString) => {
+
+export const addLeave = async ({ 
+  employeeId,
+  contactMobile,
+  leaveType,
+  startDate,
+  endDate,
+  addressWhileOnVacation,
+  exitReentryVisa,
+}) => {
   try {
-    const date = new Date(gregorianDateString);
-    const hijri = toHijriObj({
-      year: date.getFullYear(),
-      month: date.getMonth() + 1,
-      day: date.getDate(),
-    });
-    const m = String(hijri.month).padStart(2, '0');
-    const d = String(hijri.day).padStart(2, '0');
-    return `${hijri.year}/${m}/${d}`;
-  } catch (error) {
-    console.error('Error in gregorianToHijri:', error);
-    return null;
-  }
-};
+    await connectToDB();
 
-// Hijri → Gregorian
-export const hijriToGregorian = ({ year, month, day }) => {
-  try {
-    const greg = toGregorianObj({ year, month, day });
-    const m = String(greg.month).padStart(2, '0');
-    const d = String(greg.day).padStart(2, '0');
-    return `${greg.year}-${m}-${d}`;
-  } catch (error) {
-    console.error('Error in hijriToGregorian:', error);
-    return null;
-  }
-};
-
-
-
-// Helper function to parse Hijri date string
-const parseHijriDate = (hijriDateString) => {
-  if (!hijriDateString) return null;
-  
-  const parts = hijriDateString.split('/');
-  if (parts.length !== 3) return null;
-  
-  return {
-    year: parseInt(parts[0]),
-    month: parseInt(parts[1]),
-    day: parseInt(parts[2])
-  };
-};
-
-// Helper function to convert dates between formats
-export const convertDateFormats = (dateString, fromFormat, toFormat) => {
-  if (!dateString) return null;
-
-  try {
-    if (fromFormat === 'gregorian' && toFormat === 'hijri') {
-      return gregorianToHijri(dateString);
-    } else if (fromFormat === 'hijri' && toFormat === 'gregorian') {
-      // Validate Hijri string format
-      if (!/^\d{4}\/\d{2}\/\d{2}$/.test(dateString)) {
-        console.warn(`Invalid Hijri date format: ${dateString}`);
-        return null;
-      }
-
-      const hijriDate = parseHijriDate(dateString);
-      if (!hijriDate) return null;
-      return hijriToGregorian(hijriDate.year, hijriDate.month, hijriDate.day);
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new Error('Employee not found');
     }
 
-    return dateString;
-  } catch (error) {
-    console.error('Date conversion error:', error);
-    return null;
+    const leaveStart = new Date(startDate);
+    const leaveEnd = new Date(endDate);
+    const daysRequested = Math.ceil((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1;
+
+    // DO NOT DEDUCT BALANCE HERE!
+
+    const newLeave = new Leave({
+      employee: employeeId,
+      contactMobile,
+      leaveType,
+      startDate,
+      endDate,
+      addressWhileOnVacation,
+      leaveBalance: employee.leaveBalance, // snapshot at request time (unchanged)
+      exitReentryVisa,
+      approvals: {
+        admin: {
+          approved: false,
+          approvedBy: null,
+          approvedAt: null,
+          rejected: false,
+          rejectedBy: null,
+          rejectedAt: null,
+          rejectionReason: null,
+        },
+        hrAdmin: {
+          approved: false,
+          approvedBy: null,
+          approvedAt: null,
+          rejected: false,
+          rejectedBy: null,
+          rejectedAt: null,
+          rejectionReason: null,
+        },
+      },
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    await newLeave.save();
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { success: false, message: 'Failed to add Leave request!' };
   }
 };
 
 
 
+export const updateLeave = async (formData) => {
+  const { 
+    id,
+    employeeId,
+    contactMobile,
+    leaveType,
+    startDate,
+    endDate,
+    addressWhileOnVacation,
+    exitReentryVisa,
+  } = formData;
 
+  try {
+    await connectToDB();
+    const leave = await Leave.findById(id).populate('employee');
+
+    if (!leave) {
+      throw new Error('Leave not found');
+    }
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new Error('Employee not found');
+    }
+
+    // Calculate old leave duration
+    const oldStart = new Date(leave.startDate);
+    const oldEnd = new Date(leave.endDate);
+    const oldDays = Math.ceil((oldEnd - oldStart) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Restore previous days back to employee balance
+    employee.leaveBalance += oldDays;
+
+    // Calculate new leave duration
+    const newStart = new Date(startDate);
+    const newEnd = new Date(endDate);
+    const newDays = Math.ceil((newEnd - newStart) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Deduct new days from employee balance
+    employee.leaveBalance -= newDays;
+    await employee.save();
+
+    // Update fields on the leave document
+    const updateFields = {
+      employee: employeeId,
+      contactMobile,
+      leaveType,
+      startDate,
+      endDate,
+      addressWhileOnVacation,
+      exitReentryVisa,
+      leaveBalance: employee.leaveBalance, // ✅ update leave snapshot with current balance
+    };
+
+    Object.entries(updateFields).forEach(([key, value]) => {
+      if (value !== "" && value !== undefined) {
+        leave[key] = value;
+      }
+    });
+
+    // Reset approvals
+    leave.approvals = {
+      admin: { approved: false, approvedBy: null, approvedAt: null, rejected: false, rejectedBy: null, rejectionReason: null },
+      hrAdmin: { approved: false, approvedBy: null, approvedAt: null, rejected: false, rejectedBy: null, rejectionReason: null },
+    };
+
+    await leave.save();
+
+    return { success: true, leave };
+  } catch (err) {
+    console.error(err);
+    return { success: false, message: "Failed to update leave!" };
+  } 
+};
+
+
+export const addShift = async ({
+  employeeId,
+  date,
+  shiftType,
+  startTime,
+  endTime,
+  location,
+}) => {
+  try {
+    await connectToDB();
+
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+      throw new Error('Employee not found');
+    }
+
+    const newShift = new Shift({
+      employee: employeeId,
+      date,
+      shiftType,
+      startTime,
+      endTime,
+      location,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await newShift.save();
+    return { success: true };
+  } catch (err) {
+    console.error('addShift error:', err);
+    return { success: false, message: 'Failed to add Shift!' };
+  }
+};
+
+
+export const deleteShift = async (formData) => {
+  const { id } = Object.fromEntries(formData);
+
+  try {
+    await connectToDB();        
+    await Shift.deleteOne({ shiftId: id });
+  } catch (err) {
+    console.log(err);
+    throw new Error('Failed to delete Shift!');
+  }
+
+  revalidatePath("/hr_dashboard/sifts");
+};
+
+/*
 export const addEmployee = async ({ 
   employeeNo,
   name,
@@ -271,6 +396,86 @@ export const addEmployee = async ({
     return { success: false, message: 'Failed to add employee!' };
   }
 };
+
+*/
+
+
+export const addEmployee = async ({ 
+  employeeNo,
+  name,
+  contactMobile,
+  email,
+  iqamaNo,
+  iqamaExpirationDate,
+  iqamaExpirationDateHijri,
+  passportNo,
+  passportExpirationDate,
+  passportExpirationDateHijri,
+  dateOfBirth,
+  dateOfBirthHijri,
+  jobTitle,
+  directManager,
+  contractDuration,
+  contractStartDate,
+  contractStartDateHijri,
+  contractEndDate,
+  contractEndDateHijri,
+  dateFormat
+}) => {
+  try {
+    await connectToDB();
+
+    let initialLeaveBalance = 0;
+
+    if (contractStartDate) {
+      const parsedStart = new Date(contractStartDate);
+      if (!isNaN(parsedStart)) {
+        const today = new Date();
+        const monthsWorked = Math.max(0, (today.getFullYear() - parsedStart.getFullYear()) * 12 + today.getMonth() - parsedStart.getMonth());
+        initialLeaveBalance = Math.min(monthsWorked * 2.5); // cap at 30 if desired
+      }
+    }
+
+    const newEmployee = new Employee({
+      employeeNo,
+      name,
+      contactMobile,
+      email,
+      iqamaNo,
+      iqamaExpirationDate,
+      iqamaExpirationDateHijri,
+      passportNo,
+      passportExpirationDate,
+      passportExpirationDateHijri,
+      dateOfBirth,
+      dateOfBirthHijri,
+      jobTitle,
+      directManager,
+      contractDuration,
+      contractStartDate,
+      contractStartDateHijri,
+      contractEndDate,
+      contractEndDateHijri,
+      dateFormat,
+      leaveBalance: initialLeaveBalance, // ✅ SET INITIAL BALANCE
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    await newEmployee.save();
+    revalidatePath("/dashboard/employees");
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue)[0];
+      const value = err.keyValue[field];
+      return { success: false, message: `An Employee with the same ${field} "${value}" already exists.` };
+    }
+    return { success: false, message: 'Failed to add employee!' };
+  }
+};
+
 
 export const updateEmployee = async (formData) => {
   const {
@@ -593,7 +798,7 @@ export const addJobOrder = async (formData) => {
     }).sort({ jobOrderId: -1 });
 
     // Generate new sequence number
-    let sequenceNumber = '001';
+    let sequenceNumber = '050';
     if (latestJobOrder) {
       const currentNumber = parseInt(latestJobOrder.jobOrderId.split('-')[2]);
       sequenceNumber = String(currentNumber + 1).padStart(3, '0');
@@ -890,6 +1095,192 @@ export const addPoApprove = async (formData) => {
   } finally {
     revalidatePath("/dashboard/approvePo"); 
     redirect("/dashboard/approvePo");
+  }
+};
+/*
+export const approveLeave = async ({ leaveId, role }) => {
+  const session = await auth();
+  const currentUser = session?.user;
+
+  if (!currentUser) {
+    throw new Error("You must be signed in to approve leaves.");
+  }
+
+  if (role === 'Admin' && currentUser.role !== ROLES.ADMIN) {
+    throw new Error("Only Admins can approve as Admin.");
+  }
+  if (role === 'HRAdmin' && currentUser.role !== ROLES.HR_ADMIN) {
+    throw new Error("Only HR Admins can approve as HR Admin.");
+  }
+
+  const approvalsPath = role === 'HRAdmin' ? 'hrAdmin' : 'admin';
+
+  try {
+    const updatedLeave = await Leave.findByIdAndUpdate(
+      leaveId,
+      {
+        $set: {
+          [`approvals.${approvalsPath}.approved`]: true,
+          [`approvals.${approvalsPath}.approvedAt`]: new Date(),
+          [`approvals.${approvalsPath}.approvedBy`]: currentUser.id,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    )
+    .populate("employee", "name")
+    .populate(`approvals.${approvalsPath}.approvedBy`, "username");
+
+    if (!updatedLeave) throw new Error("Leave not found!");
+
+    const plainLeave = updatedLeave.toObject();
+
+    revalidatePath("/hr_dashboard/leaves"); // ✅ keep this!
+
+    return { success: true, leave: plainLeave };
+
+  } catch (err) {
+    console.error("Error approving leave:", err);
+    throw new Error('Failed to approve leave!');
+  }
+};
+*/
+
+
+export const approveLeave = async ({ leaveId, role }) => {
+  const session = await auth();
+  const currentUser = session?.user;
+
+  if (!currentUser) throw new Error("You must be signed in to approve leaves.");
+  if (role === 'Admin' && currentUser.role !== ROLES.ADMIN) {
+    throw new Error("Only Admins can approve as Admin.");
+  }
+  if (role === 'HRAdmin' && currentUser.role !== ROLES.HR_ADMIN) {
+    throw new Error("Only HR Admins can approve as HR Admin.");
+  }
+
+  const approvalsPath = role === 'HRAdmin' ? 'hrAdmin' : 'admin';
+
+  try {
+    // ✅ First, mark this approval
+    const updatedLeave = await Leave.findByIdAndUpdate(
+      leaveId,
+      {
+        $set: {
+          [`approvals.${approvalsPath}.approved`]: true,
+          [`approvals.${approvalsPath}.approvedAt`]: new Date(),
+          [`approvals.${approvalsPath}.approvedBy`]: currentUser.id,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    )
+    .populate("employee")
+    .populate(`approvals.${approvalsPath}.approvedBy`, "username");
+
+    if (!updatedLeave) throw new Error("Leave not found!");
+
+    // ✅ Check if both approvals are now granted
+   // ✅ Reload latest leave after marking approval, to get fresh state
+const latestLeave = await Leave.findById(leaveId).populate('employee');
+if (!latestLeave) throw new Error("Leave not found after approval update!");
+
+// ✅ Check if both approvals are granted and deduction not yet done
+if (
+  latestLeave.approvals.admin.approved &&
+  latestLeave.approvals.hrAdmin.approved &&
+  !latestLeave.balanceDeducted
+) {
+  const employee = await Employee.findById(latestLeave.employee._id);
+  if (!employee) throw new Error("Employee not found!");
+
+  const leaveStart = new Date(latestLeave.startDate);
+  const leaveEnd = new Date(latestLeave.endDate);
+
+  if (isNaN(leaveStart) || isNaN(leaveEnd) || leaveEnd < leaveStart) {
+    throw new Error("Invalid leave start/end dates.");
+  }
+
+
+    latestLeave.pastLeaveBalance = employee.leaveBalance;
+
+    
+  const daysRequested = Math.ceil((leaveEnd - leaveStart) / (1000 * 60 * 60 * 24)) + 1;
+
+  employee.leaveBalance -= daysRequested;
+  await employee.save();
+
+  latestLeave.leaveBalance = employee.leaveBalance;
+  latestLeave.balanceDeducted = true; // ✅ ensure one-time deduction
+  await latestLeave.save();
+}
+
+// ✅ Revalidate based on user role
+if (currentUser.role === ROLES.HR_ADMIN) {
+  revalidatePath("/hr_dashboard/leaves");
+} else {
+  revalidatePath("/dashboard/leaves");
+}
+
+    const plainLeave = latestLeave.toObject();
+    return { success: true, leave: plainLeave };
+
+  } catch (err) {
+    console.error("Error approving leave:", err);
+    throw new Error('Failed to approve leave!');
+  }
+};
+
+
+export const rejectLeave = async ({ leaveId, role, reason }) => {
+  const session = await auth();
+  const currentUser = session?.user;
+
+  if (!currentUser) {
+    throw new Error("You must be signed in to reject leaves.");
+  }
+
+  if (role === 'Admin' && currentUser.role !== ROLES.ADMIN) {
+    throw new Error("Only Admins can reject as Admin.");
+  }
+  if (role === 'HRAdmin' && currentUser.role !== ROLES.HR_ADMIN) {
+    throw new Error("Only HR Admins can reject as HR Admin.");
+  }
+
+  if (!reason || reason.trim() === "") {
+    throw new Error("A rejection reason is required.");
+  }
+
+  const approvalsPath = role === 'HRAdmin' ? 'hrAdmin' : 'admin';
+
+  try {
+    const updatedLeave = await Leave.findByIdAndUpdate(
+      leaveId,
+      {
+        $set: {
+          [`approvals.${approvalsPath}.rejected`]: true,
+          [`approvals.${approvalsPath}.rejectedAt`]: new Date(),
+          [`approvals.${approvalsPath}.rejectedBy`]: currentUser.id,
+          [`approvals.${approvalsPath}.rejectionReason`]: reason,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    )
+    .populate("employee", "name")
+    .populate(`approvals.${approvalsPath}.rejectedBy`, "username");
+
+    if (!updatedLeave) throw new Error("Leave not found!");
+
+    const plainLeave = updatedLeave.toObject();
+
+    revalidatePath("/hr_dashboard/leaves"); // ✅ ensures UI refresh
+
+    return { success: true, leave: plainLeave };
+
+  } catch (err) {
+    console.error("Error rejecting leave:", err);
+    throw new Error('Failed to reject leave!');
   }
 };
 
@@ -1431,7 +1822,7 @@ export const addPurchaseOrder = async (formData) => {
   }).sort({ purchaseId: -1 });
 
   // Generate new sequence number
-  let sequenceNumber = '001';
+  let sequenceNumber = '063';
   if (latestPurchaseOrder) {
     const currentNumber = parseInt(latestPurchaseOrder.purchaseId.split('-')[2]);
     sequenceNumber = String(currentNumber + 1).padStart(3, '0');
@@ -1546,6 +1937,40 @@ export const getTasks = async () => {
     deadline: task.deadline?.toISOString().split('T')[0] || '—',
   }));
 };
+
+
+export const getLeaveRequests = async () => {
+  await connectToDB();
+
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    return []; // Or throw an error if you want
+  }
+
+  const leaves = await Leave.find({ employee: session.user.id })
+    .select('leaveType startDate endDate status approvals _id')
+    .sort({ createdAt: -1 });
+
+  return leaves.map(leave => ({
+    id: leave._id.toString(),
+    leaveType: leave.leaveType,
+    startDate: leave.startDate?.toISOString().split('T')[0] || '—',
+    endDate: leave.endDate?.toISOString().split('T')[0] || '—',
+    status: determineLeaveStatus(leave),
+  }));
+};
+
+// Helper to determine status from approvals
+const determineLeaveStatus = (leave) => {
+  if (leave.approvals?.admin?.rejected || leave.approvals?.hrAdmin?.rejected) {
+    return 'Rejected';
+  }
+  if (leave.approvals?.admin?.approved && leave.approvals?.hrAdmin?.approved) {
+    return 'Approved';
+  }
+  return 'Pending';
+};
+
 
 
 

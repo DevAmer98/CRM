@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb'; // Import ObjectId for validation
-import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee } from "@/app/lib/models";
+import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Leave, Shift } from "@/app/lib/models";
 import { connectToDB } from './utils';
 import { ROLES } from './role';
 
@@ -87,6 +87,45 @@ export const fetchUsers = async (q, page) => {
         throw new Error('Failed to fetch Employees!')
     }
   };
+
+
+  export const fetchLeaves = async (q, page) => {
+  const regex = new RegExp(q, "i");
+  const ITEMS_PER_PAGE = 10;
+  try {
+    await connectToDB();
+
+    const count = await Leave.countDocuments({
+      $or: [
+        { leaveType: { $regex: regex } },
+        { addressWhileOnVacation: { $regex: regex } },
+      ],
+    });
+    
+
+    const leaves = await Leave.find({
+      $or: [
+        { leaveType: { $regex: regex } },
+        { addressWhileOnVacation: { $regex: regex } },
+      ],
+    })
+.populate('employee', 'name leaveBalance contractStartDate')
+      .populate('approvals.admin.approvedBy', 'username')
+      .populate('approvals.hrAdmin.approvedBy', 'username')
+      .populate('approvals.admin.rejectedBy', 'username')    // ✅ ADD THIS
+      .populate('approvals.hrAdmin.rejectedBy', 'username')  // ✅ AND THIS
+      .limit(ITEMS_PER_PAGE)
+      .skip(ITEMS_PER_PAGE * (page - 1))
+      .sort({ createdAt: -1 });
+
+    return { count, leaves };
+  } catch (err) {
+    console.error(err);
+    throw new Error("Failed to fetch Leaves!");
+  }
+};
+
+
 
   export const fetchSales = async (q, page) => {
     const regex = new RegExp(q, "i");
@@ -203,6 +242,78 @@ export const fetchAllSupliers = async () => {
       throw new Error('Failed to fetch Employee!');
     }
   };
+
+
+
+export const fetchShift = async (id) => {
+  try {
+    if (!ObjectId.isValid(id)) throw new Error(`Invalid Shift ID: ${id}`);
+    await connectToDB();
+
+    const shift = await Shift.findById(id).populate('employee', 'name employeeNo contactMobile');
+
+    if (!shift) throw new Error(`Shift with ID ${id} not found`);
+    return shift;
+  } catch (err) {
+    console.error('Error in fetchShift:', err);
+    throw new Error('Failed to fetch Shift!');
+  }
+};
+
+
+export const fetchShifts = async (q = "", page = 1, limit = 10) => {
+  try {
+    await connectToDB();
+
+    const query = q
+      ? {
+          $or: [
+            { 'employee.name': { $regex: q, $options: 'i' } },
+            { 'employee.employeeNo': { $regex: q, $options: 'i' } },
+          ],
+        }
+      : {};
+
+    const total = await Shift.countDocuments(query);
+
+    const shifts = await Shift.find(query)
+      .populate('employee', 'name employeeNo contactMobile email')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    return { count: total, shifts };
+  } catch (err) {
+    console.error('Error in fetchShifts:', err);
+    throw new Error('Failed to fetch shifts!');
+  }
+};
+
+
+
+
+
+export const fetchLeave = async (id) => {
+  try {
+    if (!ObjectId.isValid(id)) throw new Error(`Invalid Leave ID: ${id}`);
+    await connectToDB();
+
+    const leave = await Leave.findById(id)
+    .populate('employee', 'name leaveBalance contractStartDate')
+      .populate('approvals.admin.approvedBy', 'username')
+      .populate('approvals.hrAdmin.approvedBy', 'username')
+      .populate('approvals.admin.rejectedBy', 'username')    // ✅ add rejectedBy for admin
+      .populate('approvals.hrAdmin.rejectedBy', 'username'); // ✅ add rejectedBy for HR
+
+    console.log('FETCHED LEAVE:', leave);
+
+    if (!leave) throw new Error(`Leave with ID ${id} not found`);
+    return leave;
+  } catch (err) {
+    console.error('Error in fetchLeave:', err);
+    throw new Error('Failed to fetch Leave!');
+  }
+};
 
 
   export const fetchSale = async (id) => {

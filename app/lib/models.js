@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { ROLES } from "./role";
 
 const {Schema} =mongoose;
-// Mongoose Schema
+
 const userSchema = new Schema(
   {
     username: {
@@ -27,7 +27,7 @@ const userSchema = new Schema(
     role: {
       type: String,
       enum: Object.values(ROLES),
-      default: ROLES.USER
+      default: ROLES.USER,
     },
     isActive: {
       type: Boolean,
@@ -39,10 +39,15 @@ const userSchema = new Schema(
     address: {
       type: String,
     },
+
+    employee: {
+      type: Schema.Types.ObjectId,
+      ref: 'Employee',
+      required: true,
+    },
   },
   { timestamps: true }
 );
-
 
 
 
@@ -165,7 +170,7 @@ const supplierSchema = new Schema(
   { timestamps: true }
 );
 
-
+ 
 
 const employeeSchema = new Schema(
   {
@@ -225,6 +230,11 @@ const employeeSchema = new Schema(
     contractEndDate: {
       type: String,
     },
+    leaveBalance: {
+  type: Number,
+  default: 0, // or set an initial balance if you want (e.g., 30)
+},
+
   },
   { timestamps: true }
 );
@@ -602,11 +612,105 @@ const ticketSchema = new mongoose.Schema({
 
 
 
+const leaveSchema = new mongoose.Schema({
+  employee: {
+    type: Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true
+  },
+  contactMobile: {
+       type: String,
+    required: true
+  },
+  leaveType: {
+    type: String,
+    required: true
+  },
+  startDate: {
+    type: String,
+    required: true
+  },
+  endDate: {
+    type: String,
+    required: true
+  },
+  addressWhileOnVacation: String,
+  exitReentryVisa: {
+    type: String,
+    required: true
+  },
+   leaveBalance: Number,            
+  pastLeaveBalance: Number,       
+  balanceDeducted: {            
+    type: Boolean,
+    default: false
+  },
+approvals: {
+  admin: {
+    approved: Boolean,
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    approvedAt: Date,
+    rejected: Boolean,
+    rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rejectedAt: Date,
+    rejectionReason: {
+      type: String,
+      required: function() { 
+        return this.rejected === true;
+      }
+    }
+  },
+  hrAdmin: {
+    approved: Boolean,
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    approvedAt: Date,
+    rejected: Boolean,
+    rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    rejectedAt: Date,
+    rejectionReason: {
+      type: String,
+      required: function() {
+        return this.rejected === true;
+      }
+    }
+  },
+},
+
+
+}, { timestamps: true });
+const shiftSchema = new mongoose.Schema({
+  employee: {
+    type: Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true
+  },
+  date: {
+    type: String,
+    required: true
+  },
+  shiftType: {
+    type: String,
+    required: true
+  },
+  startTime: {
+    type: String,
+    required: true
+  },
+  endTime: {
+    type: String,
+    required: true
+  },
+  location: {
+    type: String,
+    required: false
+  }
+}, { timestamps: true });
 
 
 
 
 
+ 
 export const Coc = mongoose.models.Coc || mongoose.model("Coc", cocSchema);
 export const Pl = mongoose.models.Pl || mongoose.model("Pl", plSchema);
 export const Sale = mongoose.models.Sale || mongoose.model("Sale", salesSchema);
@@ -619,6 +723,10 @@ export const Client = mongoose.models.Client || mongoose.model("Client", clientS
 export const Employee = mongoose.models.Employee || mongoose.model("Employee", employeeSchema);
 export const Task = mongoose.models.Task || mongoose.model("Task", taskSchema);
 export const Ticket = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema)
+export const Leave = mongoose.models.Leave || mongoose.model("Leave", leaveSchema)
+export const Shift = mongoose.models.Shift || mongoose.model("Shift", shiftSchema)
+
+ 
 
 
 

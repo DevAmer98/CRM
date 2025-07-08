@@ -1,74 +1,70 @@
+"use client"; 
 import React from 'react';
 import MenuLinks from "./menuLinks/menuLinks";
 import styles from "./sidebar.module.css";
+import { signOut } from "next-auth/react";
 import { ROLES } from '@/app/lib/role';
 import { BadgePlus, BriefcaseBusiness, Building2, CalendarCheck, CalendarClock, CalendarHeart, Clock, FileChartColumn, LayoutDashboard, LogOut, Sparkles, UsersRound } from 'lucide-react';
-import { auth } from '@/app/api/auth/[...nextauth]/route';
 
 
 const menuItems = [
   {
     title: "Pages",
     list: [
-      { 
-        title: "Dashboard", 
-        path: "/dashboard",  
-        icon: <LayoutDashboard />,
-        roles: [ROLES.ADMIN] 
-      },
-      { 
-        title: "HR_Dashboard", 
-        path: "/hr_dashboard", 
-        icon: <LayoutDashboard />,
-        roles: [ROLES.HR_ADMIN, ROLES.ADMIN ] 
-      },
+          {
+       title: "Dashboard", 
+       icon: <LayoutDashboard />,
+       roles: [ROLES.HR_ADMIN],
+       children: [
+         {
+           title: "Private Dahboard", 
+           path: "/hr_dashboard/private",
+       roles: [ROLES.HR_ADMIN],
+         },
+         {
+           title: "Advanced Dahboard",
+           path: "/hr_dashboard",
+           roles: [ROLES.HR_ADMIN]
+         },
+       ],
+     },
       { 
         title: "Employees", 
         path: "/hr_dashboard/employees", 
         icon: <UsersRound />,
         roles: [ROLES.HR_ADMIN, ROLES.ADMIN] 
       },
+       { 
+        title: "Shift Roster",
+        path: "/hr_dashboard/shifts",
+        icon: < CalendarClock/>,
+        roles: [ROLES.HR_ADMIN]
+      },
       { 
-        title: "Leaves",
-        path: "/",
+        title: "Leave Requests",
+        path: "/hr_dashboard/leaves",
         icon: <CalendarCheck />,
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+        roles: [ROLES.HR_ADMIN]
       },
-      { 
-        title: "Shift Roaster",
-        path: "/",
-        icon: <CalendarClock />,
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
-      },
+      
       { 
         title: "Attendance",
         path: "/",
         icon: <Clock />,
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+        roles: [ROLES.HR_ADMIN]
       },
-      { 
-        title: "Holiday",
-        path: "/",
-        icon: <CalendarHeart />,
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
-      },
-      { 
-        title: "Designation",
-        path: "/",
-        icon: <BadgePlus />,
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
-      },
+      
       { 
         title: "Department",
         path: "/",
         icon: <Building2 />,
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+        roles: [ROLES.HR_ADMIN]
       },
       { 
         title: "Appreciation",
         path: "/",
         icon: <Sparkles />,
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.DASHBOARD_ADMIN]
+        roles: [ROLES.HR_ADMIN]
       },
     ],
   },
@@ -85,18 +81,18 @@ const menuItems = [
   },
 ];
 
-const Sidebar = async () => {
-  const { user } = await auth();
-
-  const userRole = user?.role || ROLES.USER;
-
-  const filteredMenuItems = menuItems.map(category => ({
-    title: category.title,
-    list: category.list.filter(item => {
-      const hasAccess = !item.roles || item.roles.includes(userRole);
-      return hasAccess;
-    })
-  })).filter(category => category.list.length > 0);
+const Sidebar = ({ session }) => {
+  const user = session?.user;
+    const userRole = user?.role || ROLES.USER;
+  
+    const filteredMenuItems = menuItems.map(category => ({
+      title: category.title,
+      list: category.list.filter(item => {
+        const hasAccess = !item.roles || item.roles.includes(userRole);
+        return hasAccess;
+      })
+    })).filter(category => category.list.length > 0);
+  
 
   return (
     <div className={styles.container}>
@@ -105,7 +101,7 @@ const Sidebar = async () => {
           src={user.img || "/noavatar.png"} 
           alt="" 
           width='50' 
-          height='50' 
+          height='50'  
           className={styles.userImage} 
         />
         <div className={styles.userDetail}>
@@ -124,12 +120,12 @@ const Sidebar = async () => {
           </li>
         ))}
       </ul>
-      <form action={async () => {
-        "use server"
-        await signOut();
-      }}>
-        <button className={styles.logout}><LogOut /> Logout</button>
-      </form>
+      <button
+        onClick={() => signOut({ callbackUrl: "/login" })}
+        className={styles.logout}
+      >
+        <LogOut /> Logout
+      </button>
     </div>
   );
 };

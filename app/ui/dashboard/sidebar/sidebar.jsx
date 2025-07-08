@@ -33,39 +33,19 @@ const menuItems = [
         icon: <LayoutDashboard /> ,
         roles: [ROLES.ADMIN ,ROLES.HR_ADMIN],
          children: [
-          {
-     title: "Dashboard", 
-          path: "/hr_dashboard", 
-      roles: [ROLES.ADMIN]
-    },
+         
     {
      title: "Employees", 
-          path: "/hr_dashboard/employees", 
+      path: "/dashboard/employees", 
       roles: [ROLES.ADMIN]
     },
-    {
-      title: "Leaves",
-      path: "/",
-      roles: [ROLES.ADMIN]
-    },
-     {
-      title: "Shift Roaster",
-      path: "/",
+    { 
+        title: "Leave Requests",
+      path: "/dashboard/leaves",
       roles: [ROLES.ADMIN]
     },
      {
       title: "Attendance",
-      path: "/",
-      roles: [ROLES.ADMIN]
-    },
-     
-     {
-      title: "Holiday",
-      path: "/",
-      roles: [ROLES.ADMIN]
-    },
-     {
-      title: "Designation",
       path: "/",
       roles: [ROLES.ADMIN]
     },

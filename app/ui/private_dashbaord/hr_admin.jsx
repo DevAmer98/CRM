@@ -2,33 +2,19 @@
 import React, { useEffect, useState } from "react";
 import styles from "../dashboard/main/main.module.css";
 import TaskTable from "../dashboard/table/TaskTable";
-import { getLeaveRequests, getTasks } from "@/app/lib/actions";
+import { getTasks } from "@/app/lib/actions";
 import TicketTable from "../dashboard/table/TicketTable";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import RequestTable from "../dashboard/table/RequestsTable";
 
 
 
+ 
 
 
-
-const AdminPage = () => {
+const HR_AdminPage = () => {
    const { data: session, status } = useSession();
-   const router = useRouter()
-   const [requests, setRequests] = useState([]);
-const [loadingRequests, setLoadingRequests] = useState(true);
+console.log("Session data:", session);
 
-const reloadRequests = async () => {
-  setLoadingRequests(true);
-  const data = await getLeaveRequests();
-  setRequests(data || []);
-  setLoadingRequests(false);
-}; 
-
-useEffect(() => {
-  reloadRequests();
-}, []);
 
   const [counts, setCounts] = useState({
       userCount: null,
@@ -129,8 +115,6 @@ useEffect(() => {
 
   return (
     <div className={styles.container}>
-
-      
       {/* Header */}
       <div className={styles.header}>
          <h1 className={styles.headerTitle}>
@@ -154,39 +138,6 @@ useEffect(() => {
 <div className={styles.cardHeader}></div>
 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
   {/* Projects Card */}
-  <div className={styles.taskItem}>
-    {(() => {
-      const deptShifts = shifts.filter(s => s.department === "Projects");
-      const activeCount = deptShifts.filter(s => s.status === "active").length;
-      return (
-        <>
-          <div className={styles.taskContent}>
-            <div className={styles.taskDetails}>
-              <p className={`${styles.taskTitle} ${styles.taskTitleActive}`}>
-                Projects
-              </p>
-              <p className={styles.taskStatus}>
-                {deptShifts.length} In Progress • {activeCount} Overdue
-              </p>
-            </div>
-          </div>
-          <div className={styles.chartLegend}>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendDot} ${styles.legendDotGreen}`}></div>
-              <span className={styles.legendText}>{activeCount}</span>
-            </div>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendDot} ${styles.legendDotBlue}`}></div>
-              <span className={styles.legendText}>{deptShifts.length - activeCount}</span>
-            </div>
-          </div>
-        </>
-      );
-    })()}
-  </div>
-
-  
-
   <div className={styles.taskItem}>
     {(() => {
       const deptShifts = shifts.filter(s => s.department === "My Task");
@@ -217,18 +168,45 @@ useEffect(() => {
       );
     })()} 
   </div>
+
+  <div className={styles.taskItem}>
+    {(() => {
+      const deptShifts = shifts.filter(s => s.department === "My Task");
+      const activeCount = deptShifts.filter(s => s.status === "active").length;
+      return (
+        <>
+          <div className={styles.taskContent}>
+            <div className={styles.taskDetails}>
+              <p className={`${styles.taskTitle} ${styles.taskTitleActive}`}>
+                Tickets
+              </p>
+              <p className={styles.taskStatus}>
+                {pendingTasks.length} Pending • {doneTasks.length} Done
+              </p>
+            </div>
+          </div>
+          <div className={styles.chartLegend}>
+            <div className={styles.legendItem}>
+              <div className={`${styles.legendDot} ${styles.legendDotRed}`}></div>
+      <span className={styles.legendText}>{pendingTasks.length}</span>
+            </div>
+            <div className={styles.legendItem}>
+              <div className={`${styles.legendDot} ${styles.legendDotBlue}`}></div>
+      <span className={styles.legendText}>{doneTasks.length}</span>
+            </div>
+          </div>
+        </>
+      );
+    })()} 
+  </div>
 </div>
- 
-
       </div>
-
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 <TaskTable tasks={tasks} loading={loadingTasks} reloadTasks={reloadTasks} />
 <TicketTable tasks={tasks} loading={loadingTasks} reloadTasks={reloadTasks} />
-
 </div>
     </div>
   );
 };
 
-export default AdminPage;
+export default HR_AdminPage;

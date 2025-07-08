@@ -5,10 +5,11 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import {updateEmployee } from '@/app/lib/actions';
+import { useSession } from 'next-auth/react';
 
 const employeeSchema = z.object({
   id: z.string(),  // Add ID to the schema
-  employeeNo: z.string(),	
+  employeeNo: z.string().optional(),
     name: z.string().optional(),
     contactMobile: z.string().optional(),
     email: z.string().optional(),
@@ -16,7 +17,7 @@ const employeeSchema = z.object({
     iqamaExpirationDate: z.string().optional(),
     passportNo: z.string().optional(),
     passportExpirationDate: z.string().optional(),
-    dateOfBirth: z.string(), 
+    dateOfBirth: z.string().optional(),
     jobTitle: z.string().optional(),
     directManager: z.string().optional(),
     contractDuration: z.string().optional(),
@@ -33,6 +34,58 @@ const employeeSchema = z.object({
     const [managers, setManagers] = useState([]);
     const [loading, setLoading] = useState(true); // Updated to true initially
     const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    const { data: session } = useSession();
+    const userRole = session?.user?.role || 'user'; 
+
+
+    const [formData, setFormData] = useState({
+  employeeNo: employee.employeeNo || '',
+  name: employee.name || '',
+  contactMobile: employee.contactMobile || '',
+  email: employee.email || '',
+  iqamaNo: employee.iqamaNo || '',
+  iqamaExpirationDate: employee.iqamaExpirationDate ? formatDateToISO(employee.iqamaExpirationDate) : '',
+  passportNo: employee.passportNo || '',
+  passportExpirationDate: employee.passportExpirationDate ? formatDateToISO(employee.passportExpirationDate) : '',
+  dateOfBirth: employee.dateOfBirth ? formatDateToISO(employee.dateOfBirth) : '',
+  jobTitle: employee.jobTitle || '',
+  directManager: employee.directManager || '',
+  contractDuration: employee.contractDuration || '',
+  contractStartDate: employee.contractStartDate ? formatDateToISO(employee.contractStartDate) : '',
+  contractEndDate: employee.contractEndDate ? formatDateToISO(employee.contractEndDate) : '',
+});
+
+
+const handleInputChange = (field, value) => {
+  setFormData(prev => ({
+    ...prev,
+    [field]: value,
+  }));
+};
+
+useEffect(() => {
+  if (employee && employee._id) {
+    setFormData({
+      employeeNo: employee.employeeNo || '',
+      name: employee.name || '',
+      contactMobile: employee.contactMobile || '',
+      email: employee.email || '',
+      iqamaNo: employee.iqamaNo || '',
+      iqamaExpirationDate: employee.iqamaExpirationDate ? formatDateToISO(employee.iqamaExpirationDate) : '',
+      passportNo: employee.passportNo || '',
+      passportExpirationDate: employee.passportExpirationDate ? formatDateToISO(employee.passportExpirationDate) : '',
+      dateOfBirth: employee.dateOfBirth ? formatDateToISO(employee.dateOfBirth) : '',
+      jobTitle: employee.jobTitle || '',
+      directManager: employee.directManager || '',
+      contractDuration: employee.contractDuration || '',
+      contractStartDate: employee.contractStartDate ? formatDateToISO(employee.contractStartDate) : '',
+      contractEndDate: employee.contractEndDate ? formatDateToISO(employee.contractEndDate) : '',
+    });
+  }
+}, [employee]);
+
+
+
   
     useEffect(() => {
       setIsEmployee(typeof window !== 'undefined');
@@ -54,6 +107,17 @@ const employeeSchema = z.object({
         setLoading(false);
       }
     };
+
+    function formatDateToISO(dateStr) {
+  if (!dateStr) return '';
+  const [day, month, year] = dateStr.split('/');
+  if (year && month && day) {
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  // fallback: return as-is
+  return dateStr;
+}
+
   
     const employeeActions = async (event) => {
       event.preventDefault();
@@ -64,7 +128,7 @@ formObj.id = employee._id;  // Set ID explicitly
       // Explicitly extract the `id` from the form
       const id = formData.get('id');
       console.log('Extracted ID from form:', id); // Debugging
-    
+     
       
     
       if (isEmployee) {
@@ -74,11 +138,16 @@ formObj.id = employee._id;  // Set ID explicitly
           const result = await updateEmployee(validatedData);
           console.log('Update Result:', result); // Debugging
     
-          if (result.success) {
-            toast.success('Employee updated successfully!');
-            router.refresh();
-            router.push('/hr_dashboard/employees');
-          }
+         if (result.success) {
+  toast.success('Employee added successfully!');
+  if (userRole === 'admin') {
+    router.push('/dashboard/employees');
+  } else if (userRole === 'hr_admin') {
+    router.push('/hr_dashboard/employees');
+  } else {
+    router.push('/');
+  }
+}
         } catch (error) {
           if (error instanceof z.ZodError) {
             error.errors.forEach((err) => {
@@ -124,7 +193,15 @@ formObj.id = employee._id;  // Set ID explicitly
                                 <div className={styles.inputRow}>
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>Date of birth:</label>
-                                    <input className={styles.input} type="date" name="dateOfBirth" placeholder={employee.dateOfBirth}/>
+<input
+  className={styles.input}
+  type="date"
+  name="dateOfBirth"
+    value={formData.dateOfBirth}
+      onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+
+
+/>
                                 </div>
                             </div>
                             </div>
@@ -140,7 +217,14 @@ formObj.id = employee._id;  // Set ID explicitly
                                 </div>
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>ID or Iqama expiry date:</label>
-                                    <input className={styles.input} type="date" name="iqamaExpirationDate" placeholder={employee.iqamaExpirationDate}/>
+                                    <input
+  className={styles.input}
+  type="date"
+  name="iqamaExpirationDate"
+  value={formData.iqamaExpirationDate}
+        onChange={(e) => handleInputChange('iqamaExpirationDate', e.target.value)}
+
+/>
                                 </div>
                             </div>
                         </div>
@@ -155,7 +239,15 @@ formObj.id = employee._id;  // Set ID explicitly
                                 </div>
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>Passport expiry date:</label>
-                                    <input className={styles.input} type="date" name="passportExpirationDate" placeholder={employee.passportExpirationDate}/>
+                                     <input
+  className={styles.input}
+  type="date"
+  name="passportExpirationDate"
+  value={formData.passportExpirationDate}
+        onChange={(e) => handleInputChange('passportExpirationDate', e.target.value)}
+
+/>
+                                    
                                 </div>
                             </div>
                       
@@ -170,22 +262,29 @@ formObj.id = employee._id;  // Set ID explicitly
                             <div className={styles.inputRow}>
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>Job title:</label>
-                                    <input className={styles.input} type="text" name="jobTitle" placeholder={employee.passportNo} />
+                                    <input className={styles.input} type="text" name="jobTitle" placeholder={employee.jobTitle} />
                                 </div>
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>Direct manager:</label>
-                                    <select name='directManager' className={styles.input} defaultValue="" disabled={loading}>
-                                        <option value="" disabled>Select Direct Manager</option>
-                                        {managers.length > 0 ? (
-                                            managers.map((manager) => (
-                                                <option key={manager._id} value={manager._id}>
-                                                    {manager.username}
-                                                </option>
-                                            ))
-                                        ) : (
-                                            <option value="" disabled>Loading managers...</option>
-                                        )}
-                                    </select>
+                                  <select
+                                name="directManager"
+                                className={styles.input}
+                                value={employee.directManager || ""}
+                                onChange={(e) => {/* handle if you plan to update local state */}}
+                                disabled={loading}
+                                >
+                                <option value="" disabled>Select Direct Manager</option>
+                                {managers.length > 0 ? (
+                                    managers.map((manager) => (
+                                     <option key={manager._id} value={manager._id}>
+                                                                    {manager.username}
+                                     </option>
+                                    ))
+                                ) : (
+                                 <option value="" disabled>Loading managers...</option>
+                                 )}
+                                </select>
+
                                 </div>
                             </div>
                         </div>
@@ -196,23 +295,38 @@ formObj.id = employee._id;  // Set ID explicitly
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>Contract duration:</label>
                                     <input className={styles.input} type="text" name="contractDuration" placeholder={employee.contractDuration} />
+                                    
                                 </div>
                             </div>
                             <div className={styles.inputRow}>
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>Contract start date:</label>
-                                    <input className={styles.input} type="date" name="contractStartDate" placeholder={employee.contractStartDate}/>
+                                    <input
+  className={styles.input}
+  type="date"
+  name="contractStartDate"
+  value={formData.contractStartDate}
+        onChange={(e) => handleInputChange('contractStartDate', e.target.value)}
+
+/>
                                 </div>
                                 <div className={styles.inputContainer}>
                                     <label className={styles.label}>Contract end date:</label>
-                                    <input className={styles.input} type="date" name="contractEndDate" placeholder={employee.contractEndDate}/>
+                                    <input
+  className={styles.input}
+  type="date"
+  name="contractEndDate"
+  value={formData.contractEndDate}
+        onChange={(e) => handleInputChange('contractEndDate', e.target.value)}
+
+/>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <button className={styles.button} type="submit">Add Employee</button>
+                <button className={styles.button} type="submit">Edit Information</button>
             </form>
         </div>
     );

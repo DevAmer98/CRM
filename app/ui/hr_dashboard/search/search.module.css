@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   gap: 12px; /* Slightly larger gap for better spacing */
-  background-color: #ebedf1;
+  background-color: #2e374a;
   padding: 12px 16px; /* Increased padding for better proportions */
   border-radius: 12px; /* Rounded corners for a modern look */
   width: max-content;
@@ -12,7 +12,7 @@
 }
 
 .container:hover {
-  background-color: #d4dbe9; /* Slightly lighter on hover */
+  background-color: #2e374b; /* Slightly lighter on hover */
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow on hover */
 }
  

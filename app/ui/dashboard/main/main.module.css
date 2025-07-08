@@ -22,13 +22,15 @@
   gap: 24px;
 }
 
+
+
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 24px;
   margin-bottom: 32px;
 }
-
 
 /* Header Styles */
 .header {

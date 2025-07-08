@@ -7,6 +7,54 @@
   backdrop-filter: blur(10px); /* Glassmorphism effect */
   border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border for depth */
 }
+.approvalBadge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.approved {
+  background-color: #4caf50;
+  color: #fff;
+}
+
+.pending {
+  background-color: #ff9800;
+  color: #fff;
+}
+
+.rejected {
+  background-color: #e53935;
+  color: #fff;
+}
+
+
+
+
+.approvalBadge:hover {
+  transform: scale(1.05);
+}
+
+/* In your clients.module.css */
+.eyeButton {
+  background-color: transparent;
+  border: none;
+  color: #00BFFF; /* Light blue accent */
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.eyeButton:hover {
+  color: #1e90ff; /* Stronger blue on hover */
+  transform: scale(1.1);
+}
 
 .top {
   display: flex;
@@ -17,9 +65,9 @@
 
 .addButton {
   padding: 10px 20px;
-  background-color: var(--border-color);
-  color: var(--text);
-  border: none;
+  background-color: #5d57c9;
+  color: white;
+  border: none; 
   border-radius: 8px; /* Rounded corners for a modern look */
   cursor: pointer;
   font-weight: 500; /* Slightly bolder text */

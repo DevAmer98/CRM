@@ -3,14 +3,14 @@
   max-width: 1200px;
   margin: 2rem auto;
   padding: 2rem;
-  background: #f8fafc;
-  border-radius: 16px;
+    background-color: var(--bgSoft);
+  border-radius: 16px; 
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
               0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .pageTitle {
-  color: #1a365d;
+  color: white;
   font-size: 1.75rem;
   font-weight: 600;
   margin-bottom: 2rem;
@@ -31,6 +31,47 @@
   border-radius: 2px;
 }
 
+
+.approvalsContainer {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.approvalBadge {
+  padding: 6px 14px;
+  border-radius: 9999px; /* pill shape */
+  font-weight: 600;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+  min-width: fit-content;
+}
+
+.approvalBadge:hover {
+  transform: scale(1.05);
+}
+
+.approvedBadge {
+  background-color: #28a745; /* Green */
+  color: #fff;
+}
+
+.pendingBadge {
+  background-color: #ffc107; /* Bright Yellow */
+  color: #212529;
+}
+
+.rejectedBadge {
+  background-color: #dc3545; /* Red */
+  color: #fff;
+}
+
+
 .formSections {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -39,14 +80,38 @@
 }
 
 .formSection {
-  background: white;
+    background-color: var(--bgSoft);
   border-radius: 12px;
   padding: 1.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #4a5c73;
 }
 
+.warningBox {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid #f59e0b; /* amber-500 */
+  background-color: #fef3c7;  /* amber-100 */
+  color: #78350f;             /* amber-800 */
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.infoBox {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background-color: var(--bg); /* subtle blue background */
+  border-left: 4px solid #3b82f6; /* vibrant blue accent */
+  border-radius: 8px;
+  color: white; /* dark blue text */
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+
 .sectionHeader {
-  color: #1a365d;
+  color: var(--primary);
   font-size: 1.25rem;
   font-weight: 600;
   padding-bottom: 0.75rem;
@@ -78,7 +143,7 @@
 }
 
 .formSubheader {
-  color: #4a5568;
+  color: #d7d8d9;
   font-size: 1rem;
   font-weight: 600;
   margin-bottom: 1rem;
@@ -99,34 +164,34 @@
 
 .label {
   display: block;
-  color: #4a5568;
+  color: var(--primary);
   font-size: 0.875rem;
   font-weight: 500;
   margin-bottom: 0.5rem;
   transition: color 0.2s ease;
 }
 
-.input {
+.input { 
   width: 100%;
   padding: 0.75rem 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  background: #f8fafc;
-  color: #2d3748;
+  background: var(--bgSoft);
+  color: white;
   font-size: 0.875rem;
   transition: all 0.2s ease;
 }
 
 .input:hover {
   border-color: #cbd5e0;
-  background: white;
+  background: var(--bgSoft);
 }
 
 .input:focus {
   outline: none;
   border-color: #3182ce;
   box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
-  background: white;
+  background: var(--bgSoft);
 }
 
 .button {
