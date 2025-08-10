@@ -1,4 +1,4 @@
-import Projects from '@/app/ui/dashboard/navComponents/Projects'
+import Projects from '@/app/ui/dashboard/navComponents/projects'
 import React from 'react'
 
 const TotalsPage = () => {
