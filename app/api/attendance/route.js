@@ -1,5 +1,4 @@
-// app/api/attendance/route.js
-import { NextResponse } from 'next/server';
+/*import { NextResponse } from 'next/server';
 
 export async function GET() {
   const deviceIP = '192.168.1.201';
@@ -29,3 +28,4 @@ export async function GET() {
     });
   }
 }
+*/
