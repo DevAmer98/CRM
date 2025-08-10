@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { ListTodoIcon } from 'lucide-react';
-import { getTaskById, getTasks, getAssignedTasks, markTaskAsDone } from '@/app/lib/actions';
+import { getTaskById, getTasks, getAssignedTasks, markTaskAsDone, markTaskAsInProgress } from '@/app/lib/actions';
 import styles from './table.module.css';
 import Pagination from '../pagination/pagination';
 
@@ -55,9 +55,16 @@ const TaskTable = () => {
     }
   }, [mode]);
 
-  const filteredTasks = activeTasks.filter(task =>
-    filter === 'all' ? true : task.status === 'pending'
-  );
+
+  const validFilters = ['all', 'pending', 'in-progress', 'done'];
+const appliedFilter = validFilters.includes(filter) ? filter : 'all';
+
+const filteredTasks = activeTasks.filter(task =>
+  appliedFilter === 'all' ? true : task.status === appliedFilter
+);
+
+
+
 
   const paginatedTasks = filteredTasks.slice(
     (currentPage - 1) * TASKS_PER_PAGE,
@@ -105,6 +112,12 @@ const TaskTable = () => {
               onClick={() => { setMode('all'); setFilter('pending'); setCurrentPage(1); }}
             >
               Pending
+            </button>
+            <button
+              className={`${styles.filterBtn} ${mode === 'all' && filter === 'in-progress' ? styles.activeFilter : ''}`}
+              onClick={() => { setMode('all'); setFilter('in-progress'); setCurrentPage(1); }}
+            >
+              In Progress
             </button>
 
             <button
@@ -218,6 +231,30 @@ const TaskTable = () => {
       ✅ Mark as Done
     </button>
   )}
+
+ {selectedTask?.status === 'pending' && mode !== 'assigned' && (
+  <button
+    className={styles.inProgressBtn}
+    onClick={async () => {
+      try {
+        const updatedTask = await markTaskAsInProgress(selectedTask.id);
+        setSelectedTask(prev => prev ? { ...prev, status: updatedTask.status } : prev);
+        setTasks(prevTasks =>
+          prevTasks.map(task =>
+            task.id === selectedTask.id
+              ? { ...task, status: updatedTask.status }
+              : task
+          )
+        );
+      } catch (error) {
+        console.error("Failed to mark task as in progress:", error);
+      }
+    }}
+  >
+    Mark as In Progress
+  </button>
+)}
+
   <button className={styles.closeDialogBtn} onClick={closeDialog}>Close</button>
 </div>
 

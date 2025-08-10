@@ -11,14 +11,21 @@ const leaveSchema = z.object({
   id: z.string(),
   employeeId: z.string().min(1, "Employee is required"),
   contactMobile: z.string(),
-  leaveType: z.enum(["Annual Leave", "Sick Leave"], { message: "Leave type is required" }),
+  leaveType: z.enum(["Annual Leave", "Sick Leave","Unpaid Leave", "Special Leave"], { message: "Leave type is required" }),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   addressWhileOnVacation: z.string().optional(),
   exitReentryVisa: z.boolean(),
+     reason: z.string().optional(),
+}).refine((data) => {
+  const needsReason = ["Unpaid Leave", "Sick Leave", "Special Leave"].includes(data.leaveType);
+  return !needsReason || (needsReason && data.reason?.trim());
+}, {
+  path: ["reason"],
+  message: "Reason is required for this type of leave"
 });
 
-const EditLeave = ({ leave, currentUser }) => {
+const EditLeave = ({ leave, currentUser,session }) => {
   const [isClient, setIsClient] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(leave.employee?._id || '');
   const router = useRouter();
@@ -34,6 +41,8 @@ const EditLeave = ({ leave, currentUser }) => {
   const adminApproval = leave.approvals?.admin || {};
   const hrApproval = leave.approvals?.hrAdmin || {};
 
+  const user = session?.user;
+      const userRole = user?.role || ROLES.USER;
 
   const [exitReentryVisa, setExitReentryVisa] = useState(() => {
     if (leave.exitReentryVisa === true || leave.exitReentryVisa === 'yes') return 'yes';
@@ -57,6 +66,8 @@ const EditLeave = ({ leave, currentUser }) => {
   startDate: leave.startDate || '',
   endDate: leave.endDate || '',
   addressWhileOnVacation: leave.addressWhileOnVacation || '',
+ reason: leave.reason || '', // ✅ new field
+
 });
 
 const selectedEmployee = employees.find(emp => emp._id === selectedEmployeeId);
@@ -91,6 +102,12 @@ const handleInputChange = (field, value) => {
 
       if (result.success) {
         toast.success('Leave updated successfully');
+
+  if (userRole === 'hrAdmin') {
+    router.push('/hr_dashboard/leaves');
+  } else {
+    router.push('/dashboard/leaves');
+  }
       } else {
         toast.error(result.message || 'Failed to update leave');
       }
@@ -160,11 +177,35 @@ const handleInputChange = (field, value) => {
             <div className={styles.formGroup}>
               <div className={styles.sectionHeader}>Leave Details</div>
               <label className={styles.label}>Leave Type:</label>
-              <select name="leaveType" className={styles.input} defaultValue={leave.leaveType} required>
-                <option value="">Select Leave Type</option>
-                <option value="Annual Leave">Annual Leave</option>
-                <option value="Sick Leave">Sick Leave</option>
-              </select>
+            <select
+  name="leaveType"
+  className={styles.input}
+  value={formData.leaveType}
+  onChange={(e) => handleInputChange("leaveType", e.target.value)}
+  required
+>
+  <option value="">Select Leave Type</option>
+  <option value="Annual Leave">Annual Leave</option>
+  <option value="Sick Leave">Sick Leave</option>
+  <option value="Unpaid Leave">Unpaid Leave</option>
+  <option value="Special Leave">Special Leave</option>
+</select>
+
+               {["Unpaid Leave", "Sick Leave", "Special Leave"].includes(formData.leaveType) && (
+  <div className={styles.formGroup}>
+    <label className={styles.label}>Reason:</label>
+   <textarea
+  className={styles.input}
+  name="reason"               // ✅ ADD THIS LINE
+  rows="4"
+  value={formData.reason}
+  onChange={(e) => handleInputChange('reason', e.target.value)}
+  required
+/>
+
+  </div>
+)}
+
             </div>
 
             <div className={styles.formGroup}>

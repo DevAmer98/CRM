@@ -35,8 +35,7 @@ const LeavesPage = async ({ searchParams }) => {
         <thead>
           <tr>
             <td>Employee Name</td>
-            <td>Leave Start Date</td>
-            <td>Leave End Date</td>
+            <td>Created At</td>
             <td>Leave Type</td>
             <td>Leave Balance</td>
             <td>Manager Approval</td>
@@ -55,8 +54,7 @@ if (leave.employee?.leaveBalance !== undefined) {
             return (
               <tr key={leave._id}>
                 <td>{leave.employee?.name}</td>
-                <td>{leave.startDate}</td>
-                <td>{leave.endDate}</td>
+                <td>{leave.createdAt?.toString().slice(4,16)}</td>
                 <td>{leave.leaveType}</td>
                 <td>{leaveBalance}</td>
 

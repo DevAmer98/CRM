@@ -22,6 +22,7 @@ const SingleQuotation = ({params}) => {
     validityPeriod: '',
     note: '', 
     excluding: '',
+    totalPrice: ''
   });
   const [rows, setRows] = useState([]);
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -246,6 +247,7 @@ const SingleQuotation = ({params}) => {
             validityPeriod: quotation.validityPeriod,
             note: quotation.note,
             excluding: quotation.excluding,
+            totalPrice: quotation.totalPrice || '', // Ensure totalPrice is set
           });
 
           setSelectedCurrency(quotation.currency || 'USD'); // Default to 'USD' if currency is not set
@@ -290,7 +292,15 @@ const SingleQuotation = ({params}) => {
  
 
   const addRow = () => {
-    const newRow = { id: rows.length + 1, number: rows.length + 1 };
+const newRow = {
+  id: rows.length + 1,
+  number: rows.length + 1,
+  productCode: '',
+  description: '',
+  qty: '',
+  unit: '',
+  unitPrice: 0,
+};
     setRows((prevRows) => [...prevRows, newRow]);
   };
 
@@ -343,29 +353,32 @@ const SingleQuotation = ({params}) => {
     });
   };
 
-  const handleEdit = async (e) => {
-    e.preventDefault();
+const handleEdit = async (e) => {
+  e.preventDefault();
 
-    const rowInputs = rows.map((row) => ({
-      productCode: row.productCode,
-      unitPrice: row.unitPrice,
-      unit: row.unit,
-      qty: row.qty,
-      description: row.description,
-    }));
+  const rowInputs = rows.map((row) => ({
+    productCode: row.productCode,
+    unitPrice: row.unitPrice,
+    unit: row.unit,
+    qty: row.qty,
+    description: row.description,
+  }));
 
-    const payload = {
-      id: params.id,
-      ...formData,
-      products: rowInputs,
-      currency: selectedCurrency, // Include the selected currency
-    };
-  
-    console.log('Payload being sent:', payload); // Debugging line
-  
-    await editQuotation(payload);
+  // ✅ Call the function first
+  const totals = calculateTotalUnitPrice();
 
+  const payload = {
+    id: params.id,
+    ...formData,
+    products: rowInputs,
+    currency: selectedCurrency,
+    totalPrice: Number(totals.totalUnitPrice), // ✅ use the returned value
   };
+
+  console.log('Payload being sent:', payload);
+
+  await editQuotation(payload);
+};
 
     const calculateTotalUnitPrice = () => {
       const totalUnitPrice = rows.reduce((total, row) => total + (Number(row.unitPrice) || 0), 0);

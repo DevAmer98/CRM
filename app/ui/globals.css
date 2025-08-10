@@ -139,6 +139,40 @@
   text-align: center !important;
 }
 
+/* Ensure this is below all variable declarations */
+
+:global(.react-clock) {
+  background-color: #0f172a;
+  border-radius: 50%;
+}
+
+:global(.react-clock__face) {
+  stroke: #e2e8f0; /* light gray ring */
+}
+
+:global(.react-clock__mark) {
+  background-color: #cbd5e1 !important; /* tick marks */
+}
+
+:global(.react-clock__center) {
+  background-color: #f8fafc !important; /* center dot */
+}
+
+/* Clock hands: hour & minute */
+:global(.react-clock__hand__body),
+:global(.react-clock__hour-hand line),
+:global(.react-clock__minute-hand line) {
+  stroke: #7dd3fc !important; /* light blue */
+  stroke-width: 3px !important;
+  stroke-linecap: round !important;
+}
+
+/* Second hand */
+:global(.react-clock__second-hand line) {
+  stroke: #f87171 !important; /* red */
+  stroke-width: 2px !important;
+}
+
 /* Force Western/Latin numerals */
 .rdp-caption_label::before {
   content: attr(data-year) !important;

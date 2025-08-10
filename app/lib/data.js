@@ -89,41 +89,85 @@ export const fetchUsers = async (q, page) => {
   };
 
 
-  export const fetchLeaves = async (q, page) => {
+
+export const fetchLeaves = async (q, page) => {
   const regex = new RegExp(q, "i");
   const ITEMS_PER_PAGE = 10;
+
   try {
     await connectToDB();
 
-    const count = await Leave.countDocuments({
-      $or: [
-        { leaveType: { $regex: regex } },
-        { addressWhileOnVacation: { $regex: regex } },
-      ],
-    });
-    
+    const pipeline = [
+      {
+        $lookup: {
+          from: "employees",
+          localField: "employee",
+          foreignField: "_id",
+          as: "employee"
+        }
+      },
+      {
+        $unwind: "$employee"
+      },
+      {
+        $match: {
+          $or: [
+            { "employee.name": { $regex: regex } },
+            { leaveType: { $regex: regex } },
+            { addressWhileOnVacation: { $regex: regex } }
+          ]
+        }
+      },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          data: [
+            { $sort: { createdAt: -1 } },
+            { $skip: ITEMS_PER_PAGE * (page - 1) },
+            { $limit: ITEMS_PER_PAGE }
+          ]
+        }
+      }
+    ];
 
-    const leaves = await Leave.find({
-      $or: [
-        { leaveType: { $regex: regex } },
-        { addressWhileOnVacation: { $regex: regex } },
-      ],
-    })
-.populate('employee', 'name leaveBalance contractStartDate')
-      .populate('approvals.admin.approvedBy', 'username')
-      .populate('approvals.hrAdmin.approvedBy', 'username')
-      .populate('approvals.admin.rejectedBy', 'username')    // ✅ ADD THIS
-      .populate('approvals.hrAdmin.rejectedBy', 'username')  // ✅ AND THIS
-      .limit(ITEMS_PER_PAGE)
-      .skip(ITEMS_PER_PAGE * (page - 1))
-      .sort({ createdAt: -1 });
+    const result = await Leave.aggregate(pipeline);
+
+    const count = result[0]?.metadata[0]?.total || 0;
+    const rawLeaves = result[0]?.data || [];
+
+    // Re-populate user fields on the already filtered result
+    const leaves = await Leave.populate(rawLeaves, [
+      { path: "approvals.admin.approvedBy", select: "username" },
+      { path: "approvals.hrAdmin.approvedBy", select: "username" },
+      { path: "approvals.admin.rejectedBy", select: "username" },
+      { path: "approvals.hrAdmin.rejectedBy", select: "username" },
+    ]);
 
     return { count, leaves };
   } catch (err) {
-    console.error(err);
+    console.error("Error in fetchLeaves:", err);
     throw new Error("Failed to fetch Leaves!");
   }
 };
+
+
+// lib/data.js or a new file
+export const getPendingLeavesCount = async () => {
+  try {
+    await connectToDB();
+    const count = await Leave.countDocuments({
+      $or: [
+        { "approvals.admin.approved": false, "approvals.admin.rejected": false },
+        { "approvals.hrAdmin.approved": false, "approvals.hrAdmin.rejected": false }
+      ]
+    });
+    return count;
+  } catch (err) {
+    console.error("Error getting pending leaves count", err);
+    return 0;
+  }
+};
+
 
 
 
@@ -387,19 +431,19 @@ export const fetchLeave = async (id) => {
       throw new Error('Failed to fetch fetchAllPurchase!');
     }
   };
+export const fetchAllJobs = async () => {
+  try {
+    await connectToDB();
+    const jobOrders = await JobOrder.find({}).populate('quotation','products');
+    return jobOrders;
+  } catch (err) {
+    console.log("Error in jobOrders:", err);
+    throw new Error('Failed to fetch jobOrders!');
+  }
+};
 
-  export const fetchAllJobs = async () => {
-    try {
-      await connectToDB();
-      const jobOrders = await JobOrder.find({});
-      return jobOrders;
-    } catch (err) {
-      console.log("Error in jobOrders:", err);
-      throw new Error('Failed to fetch jobOrders!');
-    }
-  };
   
-  
+  /*
   export const fetchQuotations = async (projectName, page = 1) => {
     const ITEM_PER_PAGE = 10;
     let query = {};
@@ -428,6 +472,36 @@ export const fetchLeave = async (id) => {
         throw new Error('Failed to fetch quotations');
     }
 };
+*/
+
+
+export const fetchQuotations = async (projectName, page = 1) => {
+  const ITEM_PER_PAGE = 10;
+  let query = {};
+
+  if (projectName) {
+    query.projectName = { $regex: new RegExp(projectName, "i") };
+  }
+
+  try {
+    await connectToDB();
+    const count = await Quotation.countDocuments(query);
+    const quotations = await Quotation.find(query)
+      .populate('sale')
+      .populate('client')
+      .populate({ path: 'user', select: 'username' })
+      .limit(ITEM_PER_PAGE)
+      .skip((page - 1) * ITEM_PER_PAGE);
+
+    // ✅ This is the fix — convert to plain objects
+    const quotationsPlain = quotations.map((q) => q.toObject());
+
+    return { count, quotations: quotationsPlain };
+  } catch (err) {
+    console.error('Error fetching quotations:', err);
+    throw new Error('Failed to fetch quotations');
+  }
+};
 
 export const fetchQuotation = async (id) => {
   try {
@@ -444,26 +518,39 @@ export const fetchQuotation = async (id) => {
 };
 
 
-  
-export const fetchJobOrders = async (q, page) => {
+  export const fetchJobOrders = async (q, page) => {
   const regex = new RegExp(q, "i");
   const ITEM_PER_PAGE = 10;
 
   try {
     await connectToDB();
+
     const count = await JobOrder.countDocuments({ poNumber: { $regex: regex } });
 
     const jobOrders = await JobOrder.find({ poNumber: { $regex: regex } })
-      .populate('quotation')
-      .populate('client')
+      .populate({
+        path: 'quotation',
+        select: 'quotationId projectName totalPrice paymentTerm paymentDelivery sale',
+        populate: {
+      path: 'sale',
+      select: 'name', 
+    }
+      })
+      .populate({
+        path: 'client',
+        select: 'name', // only what you need
+      })
       .limit(ITEM_PER_PAGE)
-      .skip((page - 1) * ITEM_PER_PAGE);
-    return { count, jobOrders }; // Fix the variable name here from `jobs` to `jobOrders`
+      .skip((page - 1) * ITEM_PER_PAGE)
+      .lean(); // ✅ prevent circular references
+
+    return { count, jobOrders };
   } catch (err) {
     console.log(err);
     throw new Error('Failed to fetch jobs!');
   }
 };
+
 
 
 export const fetchCocs = async (projectName, page = 1) => {
@@ -701,6 +788,196 @@ export const fetchSuppliersWithPurchaseOrders = async (q = "", page = 1, pageSiz
 };
 
 
+/*
+export async function fetchClientsWithQuotations(q = '', page = 1) {
+  await connectToDB();
+
+  const pageSize = 10;
+  const skip = (page - 1) * pageSize;
+
+  const matchStage = q
+    ? {
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          { phone: { $regex: q, $options: 'i' } },
+        ],
+      }
+    : {};
+
+  const clients = await Client.aggregate([
+    { $match: matchStage },
+    { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: pageSize },
+    {
+      $lookup: {
+        from: 'quotations', // must match the **actual MongoDB collection name**
+        localField: '_id',
+        foreignField: 'client',
+        as: 'quotations',
+      },
+    },
+  ]);
+
+  const count = await Client.countDocuments(matchStage);
+
+  return { clients, count };
+}
+
+*/
+
+
+export async function fetchClientsWithQuotations(q = '', page = 1) {
+  await connectToDB();
+
+  const pageSize = 10;
+  const skip = (page - 1) * pageSize;
+
+  const matchStage = q
+    ? {
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          { phone: { $regex: q, $options: 'i' } },
+        ],
+      }
+    : {};
+
+  const clients = await Client.aggregate([
+    { $match: matchStage },
+    { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: pageSize },
+    {
+      $lookup: {
+        from: 'quotations',
+        localField: '_id',
+        foreignField: 'client',
+        as: 'quotations',
+        pipeline: [
+          {
+            $lookup: {
+              from: 'sales', // <-- must match your actual users collection name
+              localField: 'sale',
+              foreignField: '_id',
+              as: 'sale',
+            },
+          },
+          {
+            $unwind: {
+              path: '$sale',
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  const count = await Client.countDocuments(matchStage);
+
+  return { clients, count };
+}
+
+/*
+export const fetchClientsWithQuotations = async (q = "", page = 1, pageSize = 10) => {
+  try {
+    await connectToDB();
+
+    const filter = q
+      ? { name: { $regex: q, $options: "i" } }
+      : {};
+
+    const skip = (page - 1) * pageSize;
+
+    const [clients, count] = await Promise.all([
+      Client.find(filter)
+        .skip(skip)
+        .limit(pageSize)
+        .lean()
+        .then(async (clients) =>
+          Promise.all(
+            clients.map(async (client) => {
+              const quotations = await Quotation.find({ quotation: client._id })
+                .populate({
+                  path: 'jobOrder',
+                  populate: [
+                    { path: 'client' },
+                    {
+                      path: 'quotation',
+                      populate: [
+                        { path: 'sale' },
+                        { path: 'client' },
+                      ]
+                    },
+                  ],
+                })
+                .populate('salesUser')
+                .lean();
+
+              const safeQuotations = quotations.map(quotation => ({
+                ...quotation,
+                _id: quotation._id.toString(),
+               remainingAmount:
+  quotation.remainingAmount !== undefined && quotation.remainingAmount !== null
+    ? quotation.remainingAmount  
+    : quotation.totalPrice,
+
+                client: quotation.client?.toString?.() ?? quotation.client,
+                jobOrder: quotation.jobOrder
+                  ? {
+                      ...quotation.jobOrder,
+                      _id: quotation.jobOrder._id.toString(),
+                      client: quotation.jobOrder.client
+                        ? { ...quotation.jobOrder.client, _id: quotation.jobOrder.client._id.toString() }
+                        : null,
+                      quotation: quotation.jobOrder.quotation
+                        ? {
+                            ...quotation.jobOrder.quotation,
+                            _id: quotation.jobOrder.quotation._id.toString(),
+                            sale: quotation.jobOrder.quotation.sale
+                              ? { ...quotation.jobOrder.quotation.sale, _id: quotation.jobOrder.quotation.sale._id.toString() }
+                              : null,
+                            client: quotation.jobOrder.quotation.client
+                              ? { ...quotation.jobOrder.quotation.client, _id: quotation.jobOrder.quotation.client._id.toString() }
+                              : null,
+                            products: quotation.jobOrder.quotation.products?.map(prod => ({
+                              ...prod,
+                              _id: prod._id.toString(),
+                            })) ?? [],
+                          }
+                        : null,
+                    }
+                  : null,
+                salesUser: quotation.salesUser
+                  ? { ...quotation.salesUser, _id: quotation.salesUser._id.toString() }
+                  : null,
+                products: Array.isArray(quotation.products)
+                  ? quotation.products.map(prod => ({
+                      ...prod,
+                      _id: prod._id.toString(),
+                    }))
+                  : [],
+              }));
+
+              return {
+                ...client,
+                _id: client._id.toString(),
+                quotations: safeQuotations,
+              };
+            })
+          )
+        ),
+      Client.countDocuments(filter),
+    ]);
+
+    return { clients, count };
+  } catch (error) {
+    console.error('Error fetching clients with quotations:', error);
+    throw new Error('Failed to fetch clients with quotations');
+  }
+};
+
+*/
 
 export const fetchClientsWithQuotationsAndPO = async () => {
   try {
@@ -771,7 +1048,7 @@ const fetchJobOrdersForClient = async (clientId) => {
   };
 
 
-  
+  /*
   export const fetchPurchaseOrders = async (supplierName, page = 1) => {
     const ITEMS_PER_PAGE = 10;
     let query = {};
@@ -801,6 +1078,45 @@ const fetchJobOrdersForClient = async (clientId) => {
       throw new Error('Failed to fetch purchase orders');
     }
   };
+
+  */
+
+
+  export const fetchPurchaseOrders = async (supplierName, page = 1) => {
+  const ITEMS_PER_PAGE = 10;
+  let query = {};
+
+  if (supplierName) {
+    query['supplier.name'] = { $regex: new RegExp(supplierName, "i") };
+  }
+
+  try {
+    await connectToDB();
+
+    const count = await PurchaseOrder.countDocuments(query);
+
+    const purchaseOrdersDocs = await PurchaseOrder.find(query)
+      .populate('supplier')
+      .populate('jobOrder')
+      .populate({
+        path: 'user',
+        select: 'username',
+      })
+      .limit(ITEMS_PER_PAGE)
+      .skip((page - 1) * ITEMS_PER_PAGE);
+
+    // ✅ Convert to plain JS objects
+    const purchaseOrders = purchaseOrdersDocs.map((doc) =>
+      doc.toObject({ virtuals: true })
+    );
+
+    return { count, purchaseOrders };
+  } catch (err) {
+    console.error('Error fetching purchase orders:', err);
+    throw new Error('Failed to fetch purchase orders');
+  }
+};
+
   
 
   export const fetchPurchaseOrder = async (id) => {

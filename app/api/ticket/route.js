@@ -9,10 +9,10 @@ export async function POST(req) {
   try {
     const session = await auth();
 
-    if (!session || session.user.role !== 'admin') {
+    /*if (!session || session.user.role !== 'admin') {
       return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
     }
-
+*/
     const body = await req.json();
     const { title, description, deadline, assignedTo } = body;
 

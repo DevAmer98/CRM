@@ -16,7 +16,7 @@ const Dashboard = () => {
       <div className={styles.wrapper}>
         <div className={styles.main}>
         </div>
-       {/* <Main />*/}
+        {/*<Main />*/}
        {/* <div className={styles.side}>
           <Rightbar />
         </div>*/}

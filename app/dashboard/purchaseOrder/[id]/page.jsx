@@ -17,7 +17,6 @@ const SinglePurchasePage =({params}) => {
     quotationNumber: '',
     products: [], 
     paymentTerm: '',
-    paymentDelivery: '',
     deliveryLocation: '',
       deliveryTerm: '',
       sellingPolicy: '',
@@ -25,6 +24,15 @@ const SinglePurchasePage =({params}) => {
       delayPenalties: '',
   });  
   const [rows, setRows] = useState([]);
+
+
+
+    const calculateTotalPrice = () => {
+  const totals = calculateTotalUnitPrice();
+  return selectedCurrency === 'SAR'
+    ? Number(totals.totalUnitPriceWithVAT)
+    : Number(totals.totalUnitPrice);
+};
 
 
   useEffect(() => {
@@ -127,8 +135,9 @@ const SinglePurchasePage =({params}) => {
               console.error('Error downloading the document:', error);
           }
       };
-              
-    
+
+
+
 
   
 
@@ -143,11 +152,13 @@ const SinglePurchasePage =({params}) => {
             products: purchaseOrder.products,
             paymentTerm: purchaseOrder.paymentTerm,
             deliveryLocation: purchaseOrder.deliveryLocation,
-            paymentDelivery: purchaseOrder.deliveryTerm,
+            deliveryTerm: purchaseOrder.deliveryTerm,
             sellingPolicy: purchaseOrder.sellingPolicy,
-            deliveryLocation: purchaseOrder.deliveryLocation,
+            deliveryLocation: purchaseOrder.deliveryLocation, 
             validityPeriod: purchaseOrder.validityPeriod,
-            delayPenalties: purchaseOrder.delayPenalties,          
+            delayPenalties: purchaseOrder.delayPenalties, 
+            currency: purchaseOrder.currency || 'USD',
+totalPrice: calculateTotalPrice()
           });
         
         setSelectedCurrency(purchaseOrder.currency || 'USD'); // ✅ Load saved currency
@@ -260,7 +271,8 @@ const SinglePurchasePage =({params}) => {
         id: params.id,
         ...formData,
         products: rowInputs,
-        currency: selectedCurrency, // Include the selected currency
+        currency: selectedCurrency,
+  totalPrice: calculateTotalPrice(),
    };
     
       console.log('Payload being sent:', payload); // Debugging line
@@ -311,7 +323,7 @@ const SinglePurchasePage =({params}) => {
 VatPrice: vatAmount.toFixed(2),
 NetPrice: totalUnitPriceWithVAT.toFixed(2),
 PaymentTerm: formData.paymentTerm,
-PaymentDelivery: formData.deliveryTerm,
+deliveryTerm: formData.deliveryTerm,
 SellingPolicy: formData.sellingPolicy,
 DeliveryLocation: formData.deliveryLocation,
 ValidityPeriod: formData.validityPeriod,
@@ -464,7 +476,10 @@ CreatedAt: purchaseOrder.createdAt
           <select
           id="currency"
           value={selectedCurrency}
-          onChange={(e) => setSelectedCurrency(e.target.value)}
+          onChange={(e) => {
+    setSelectedCurrency(e.target.value);
+    setFormData(prev => ({ ...prev, currency: e.target.value })); // ✅ ADD THIS
+  }}          
           className={styles.select}
           >
           <option value="USD">USD</option>
@@ -580,8 +595,9 @@ CreatedAt: purchaseOrder.createdAt
                 </label>
             <textarea
               className={styles.input}
-              value={formData.paymentDelivery}
-              onChange={(e) => handleInputChange('deliveryTerm', e.target.value)}
+             value={formData.deliveryTerm}
+onChange={(e) => handleInputChange('deliveryTerm', e.target.value)}
+
             />
             </div>
             <div className={styles.inputContainer}>

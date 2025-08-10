@@ -5,6 +5,28 @@
   min-height: 90vh; /* This assumes you want to center it in the viewport */
 }
 
+.tableContainer {
+  margin-top: 30px;
+}
+
+.productTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.productTable th,
+.productTable td {
+  border: 1px solid #ccc;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.productTable th {
+  background-color: var(--bgSoft);
+}
+
+
 .container {
 
   background-color: var(--bgSoft);

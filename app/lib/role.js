@@ -1,5 +1,3 @@
-// In a file named `roles.js` in your constants or utils directory
-
 export const ROLES = {
   ADMIN: 'admin',
   DASHBOARD_ADMIN: 'dashboardAdmin',

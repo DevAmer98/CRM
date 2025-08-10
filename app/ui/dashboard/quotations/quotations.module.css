@@ -5,11 +5,214 @@
   margin-top: 20px;
 }
 
+
+  .dialogOverlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  padding: 2rem;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+.closeBtn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  color: var(--textSoft);
+  cursor: pointer;
+}
+
+.dialogTitle {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+
+.dialogContent label {
+  font-size: 0.75rem;
+  color: var(--textSoft);
+  text-transform: uppercase;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.dialogContent p {
+  margin-bottom: 1rem;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-light);
+  padding-top: 1rem;
+  margin-top: 2rem;
+}
+
+.doneBtn {
+  background-color: #16a34a;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+}
+
+.closeDialogBtn {
+  background: var(--primary);
+  color: var(--bg);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  border: none;
+  margin-left: auto;
+  cursor: pointer;
+}
+
+
+
+.dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 500px;
+  padding: 2rem;
+  position: relative;
+  box-shadow: var(--shadow-lg);
+}
+
+
+.dialogButtons {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: space-around;
+}
+
+.confirm {
+  background-color: #4CAF50;
+  color: white;
+  padding: 0.5rem 1rem;
+}
+
+.cancel {
+  background-color: #f44336;
+  color: white;
+  padding: 0.5rem 1rem;
+}
+
+/* In your clients.module.css */
+.eyeButton {
+  background-color: transparent;
+  border: none;
+  color: #00BFFF; /* Light blue accent */
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.eyeButton:hover {
+  color: #1e90ff; /* Stronger blue on hover */
+  transform: scale(1.1);
+}
+
+
+.partialInput {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  border: 1px solid #ccc;      /* Add a light border */
+  border-radius: 4px;
+  background-color: #1f2a40;     /* Force white background */
+  color: white;                /* Ensure text is dark */
+  font-size: 1rem;
+}
+
+
+  .paymentButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.paid {
+  background-color: #4CAF50; /* green */
+  color: white;
+}
+
+.unpaid {
+  background-color: #f44336; /* red */
+  color: white;
+}
+
+.partial {
+  background-color: #FFC107; /* amber */
+  color: white;
+}
+
+
 .top{
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
+
+.exportButtons {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.exportButton {
+  padding: 10px 16px;
+  background-color: #5d57c9;
+  color: var(--text);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.exportButton:hover:not(:disabled) {
+  background-color: #4a45b2;
+}
+
+.exportButton:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+
 
 .addButton{
   padding: 10px;

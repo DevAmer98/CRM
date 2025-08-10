@@ -4,11 +4,10 @@ import Search from '@/app/ui/hr_dashboard/search/search';
 import Link from 'next/link';
 import { fetchLeaves } from '@/app/lib/data';
 import { Eye } from 'lucide-react';
-import { parseISO, isValid, differenceInMonths } from 'date-fns';
 
 const LeavesPage = async ({ searchParams }) => {
   const q = searchParams?.q || "";
-  const page = searchParams?.page || 1;
+  const page = searchParams?.page || 1; 
   const { count, leaves } = await fetchLeaves(q, page);
 
 
@@ -25,8 +24,7 @@ const LeavesPage = async ({ searchParams }) => {
         <thead>
           <tr>
             <td>Employee Name</td>
-            <td>Leave Start Date</td>
-            <td>Leave End Date</td>
+            <td>Created At</td>
             <td>Leave Type</td>
             <td>Leave Balance</td>
             <td>Manager Approval</td>
@@ -45,8 +43,7 @@ if (leave.employee?.leaveBalance !== undefined) {
         return (
               <tr key={leave._id}>
                 <td>{leave.employee?.name}</td>
-                <td>{leave.startDate}</td>
-                <td>{leave.endDate}</td>
+                <td>{leave.createdAt?.toString().slice(4,16)}</td>
                 <td>{leave.leaveType}</td>
                 <td>{leaveBalance}</td>
 

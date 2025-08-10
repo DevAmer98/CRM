@@ -20,15 +20,13 @@ const ShiftsPage = async ({ searchParams }) => {
         </Link>
       </div>
 
-      <table className={styles.table}>
+      <table className={styles.table}> 
         <thead>
           <tr>
             <td>Employee Name</td>
             <td>Date</td>
-            <td>Shift Type</td>
             <td>Start Time</td>
             <td>End Time</td>
-            <td>Location</td>
             <td>Actions</td>
           </tr>
         </thead>
@@ -37,10 +35,8 @@ const ShiftsPage = async ({ searchParams }) => {
             <tr key={shift._id}>
               <td>{shift.employee?.name || 'N/A'}</td>
               <td>{new Date(shift.date).toLocaleDateString()}</td>
-              <td>{shift.shiftType}</td>
               <td>{shift.startTime}</td>
               <td>{shift.endTime}</td>
-              <td>{shift.location || '-'}</td>
               <td>
                 <div className={styles.buttons}>
                   <Link href={`/hr_dashboard/shifts/${shift._id}`}>

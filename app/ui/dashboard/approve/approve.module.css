@@ -7,7 +7,43 @@
     color: var(--textSoft);
     margin-bottom: 8px;
   }
+
+
   
+.selectButton {
+  width: 100% !important;
+  padding: 0.875rem !important;
+  margin-top: 1.5rem !important;
+  background: #3182ce !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 1rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+
+
+
+.selectButton:hover {
+  background: #2c5282;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.selectButton:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+  
+
+
+
+
+
   .input {
     width: 100%;
     padding: 12px 16px;

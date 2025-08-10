@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 export const connectToDB = async () => {
+console.log("✅ Loaded MONGO URI:", process.env.MONGO?.slice(0, 25) + '...');
 
   if (mongoose.connection.readyState === 1) {
     console.log("Already connected to the database");

@@ -4,6 +4,7 @@ import path from 'path';
 import Docxtemplater from 'docxtemplater';
 import { exec } from 'child_process';
 import { NextResponse } from 'next/server';
+import os from 'os';
 
 // Function to write buffer to a temporary file
 function writeBufferToTempFile(buffer, fileName) {
@@ -35,6 +36,8 @@ async function fetchDocxTemplate(fileName) {
   return fs.readFileSync(filePath); // Return the file buffer
 }
 
+
+/*
 // Function to convert DOCX to PDF using LibreOffice
 async function convertDocxToPdf(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
@@ -57,6 +60,36 @@ async function convertDocxToPdf(inputPath, outputPath) {
     });
   });
 }
+*/
+
+async function convertDocxToPdf(inputPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    let libreOfficePath;
+    if (os.platform() === 'win32') {
+      libreOfficePath = `"C:\\Program Files\\LibreOffice\\program\\soffice.exe"`;
+    } else {
+      libreOfficePath = '/usr/bin/soffice';
+    }
+
+    const command = `${libreOfficePath} --headless --convert-to pdf --outdir ${path.dirname(outputPath)} ${inputPath}`;
+
+    console.log('Running command:', command);
+
+    exec(command, (error, stdout, stderr) => {
+      console.log('stdout:', stdout);
+      console.log('stderr:', stderr);
+
+      if (error) {
+        console.error('Error during conversion:', error);
+        reject(stderr || error);
+      } else {
+        console.log('Conversion successful:', stdout);
+        resolve(outputPath);
+      }
+    });
+  });
+}
+
 
 // Helper function to clean up temporary files
 function cleanupTempFiles(filePaths) {

@@ -23,7 +23,7 @@ const SingleLeavePage = async ({ params })  => {
 
     return (
       <div className={styles.container}>
-      <EditLeave leave={{ ...leave, id: leave._id }} currentUser={currentUser} />
+      <EditLeave leave={{ ...leave, id: leave._id }} currentUser={currentUser} session={session}/>
         
       </div>
     );

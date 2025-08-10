@@ -27,8 +27,10 @@ import { useRouter } from 'next/navigation';
     paymentDelivery: z.string().optional(),
     validityPeriod: z.string().optional(),
     note: z.string().optional(),
-    excluding: z.string().optional(),
+    excluding: z.string().optional(), 
       currency: z.enum(["USD", "SAR"], { message: "Currency is required" }), // ✅ Add this line
+        totalPrice: z.number().min(0, "Total price must be 0 or higher"),  // ✅ ADD THIS LINE
+
 
  
   });
@@ -114,6 +116,13 @@ useEffect(() => {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+
+
+  const totals = calculateTotalUnitPrice();
+
+  const totalWithVat = Number(totals.totalUnitPriceWithVAT); 
+  
+
     const formData = {
       saleId: event.target.saleId.value, 
       clientId: event.target.clientId.value, 
@@ -138,6 +147,8 @@ products: rows.map((row, index) => ({
       note: event.target.note.value,
       excluding: event.target.excluding.value,
         currency: selectedCurrency,  
+             totalPrice: totalWithVat,
+
 
     };
 
@@ -166,6 +177,25 @@ products: rows.map((row, index) => ({
   useEffect(() => {
     setIsClient(typeof window !== 'undefined');
   }, []);
+
+   const calculateTotalUnitPrice = () => {
+  let totalUnitPrice = 0;
+  rows.forEach((_, index) => {
+    const qty = Number(document.querySelector(`[name="qty${index}"]`)?.value || 0);
+    const unit = Number(document.querySelector(`[name="unit${index}"]`)?.value || 0);
+    totalUnitPrice += qty * unit;
+  });
+
+  const vatRate = selectedCurrency === 'USD' ? 0 : 0.15;
+  const vatAmount = totalUnitPrice * vatRate;
+  const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+
+  return {
+    totalUnitPrice: totalUnitPrice.toFixed(2),
+    vatAmount: vatAmount.toFixed(2),
+    totalUnitPriceWithVAT: totalUnitPriceWithVAT.toFixed(2),
+  };
+};
 
     
   return (

@@ -4,11 +4,6 @@ import { connectToDB } from "./utils";
 import { redirect } from "next/navigation";
 import bcrypt from 'bcrypt';
 import { auth } from "@/app/api/auth/[...nextauth]/route";
-
-import {
-  gregorianToHijri as toHijriObj,
-  hijriToGregorian as toGregorianObj
-} from '@tabby_ai/hijri-converter';
 import { ROLES } from "./role";
 
 
@@ -144,12 +139,15 @@ export const addLeave = async ({
   employeeId,
   contactMobile,
   leaveType,
-  startDate,
+  reason,
+  startDate, 
   endDate,
   addressWhileOnVacation,
   exitReentryVisa,
 }) => {
   try {
+     const session = await auth();
+  const currentUser = session?.user;
     await connectToDB();
 
     const employee = await Employee.findById(employeeId);
@@ -166,7 +164,8 @@ export const addLeave = async ({
     const newLeave = new Leave({
       employee: employeeId,
       contactMobile,
-      leaveType,
+      leaveType, 
+        reason,
       startDate,
       endDate,
       addressWhileOnVacation,
@@ -196,8 +195,17 @@ export const addLeave = async ({
       updatedAt: new Date()
     });
 
+
+    if (currentUser.role === ROLES.HR_ADMIN) {
+  revalidatePath("/hr_dashboard/leaves");
+} else {
+  revalidatePath("/dashboard/leaves");
+}
+
     await newLeave.save();
     return { success: true };
+
+    
   } catch (err) {
     console.error(err);
     return { success: false, message: 'Failed to add Leave request!' };
@@ -212,6 +220,8 @@ export const updateLeave = async (formData) => {
     employeeId,
     contactMobile,
     leaveType,
+      reason,
+
     startDate,
     endDate,
     addressWhileOnVacation,
@@ -221,6 +231,8 @@ export const updateLeave = async (formData) => {
   try {
     await connectToDB();
     const leave = await Leave.findById(id).populate('employee');
+     const session = await auth();
+  const currentUser = session?.user;
 
     if (!leave) {
       throw new Error('Leave not found');
@@ -253,6 +265,7 @@ export const updateLeave = async (formData) => {
       employee: employeeId,
       contactMobile,
       leaveType,
+        reason,
       startDate,
       endDate,
       addressWhileOnVacation,
@@ -271,6 +284,13 @@ export const updateLeave = async (formData) => {
       admin: { approved: false, approvedBy: null, approvedAt: null, rejected: false, rejectedBy: null, rejectionReason: null },
       hrAdmin: { approved: false, approvedBy: null, approvedAt: null, rejected: false, rejectedBy: null, rejectionReason: null },
     };
+
+
+    if (currentUser.role === ROLES.HR_ADMIN) {
+  revalidatePath("/hr_dashboard/leaves");
+} else {
+  revalidatePath("/dashboard/leaves");
+}
 
     await leave.save();
 
@@ -762,42 +782,35 @@ export const deleteSale = async (formData) => {
 
 
 
-
-
+/*
 export const addJobOrder = async (formData) => {
-  const { poNumber, poDate, clientId, quotationId } = formData;
+  const {
+    poNumber,
+    poDate,
+    clientId,
+    quotationId,
+    projectType,
+    projectStatus
+  } = formData;
 
   try {
     await connectToDB();
 
     const client = await Client.findById(clientId).lean();
-    console.log('Client:', client);
-    
     if (!client) {
-      console.error('Client not found with ID:', clientId);
       throw new Error('Client not found');
     }
-    
-    const quotation = await Quotation.findById(quotationId).lean();
-    console.log('Quotation:', quotation);
-    
-    // Log for troubleshooting
-    console.log(`Quotation client ID: ${quotation.client.toString()}, Provided client ID: ${client._id.toString()}`);
 
+    const quotation = await Quotation.findById(quotationId).lean();
     if (!quotation || quotation.client.toString() !== client._id.toString()) {
-      console.error('Quotation not found or does not belong to the client');
       throw new Error('Quotation not found or does not belong to the client');
     }
-   
 
     const year = new Date().getFullYear();
-
-    // Find the latest quotation for the current year
     const latestJobOrder = await JobOrder.findOne({
       jobOrderId: { $regex: `SVSJO-${year}-` }
     }).sort({ jobOrderId: -1 });
 
-    // Generate new sequence number
     let sequenceNumber = '050';
     if (latestJobOrder) {
       const currentNumber = parseInt(latestJobOrder.jobOrderId.split('-')[2]);
@@ -805,29 +818,34 @@ export const addJobOrder = async (formData) => {
     }
     const customJobOrderId = `SVSJO-${year}-${sequenceNumber}`;
 
-
     const jobOrder = new JobOrder({
-      jobOrderId:customJobOrderId ,
+      jobOrderId: customJobOrderId,
       poNumber,
-      poDate, 
-      client: client._id, 
+      poDate,
+      client: client._id,
       quotation: quotation._id,
+      projectType,
+      projectStatus: projectStatus || 'OPEN'
     });
 
     await jobOrder.save();
 
-    const populatedJobOrder = await JobOrder.findById(jobOrder._id).populate('quotation').lean();
+    const populatedJobOrder = await JobOrder.findById(jobOrder._id)
+      .populate('quotation')
+      .lean();
 
     return populatedJobOrder;
   } catch (error) {
     console.error('Error creating job order:', error);
-    throw error; // Throw the error to catch it where the function is called
-  
+    throw error;
   } finally {
     revalidatePath("/dashboard/jobOrder");
     redirect("/dashboard/jobOrder");
   }
 };
+*/
+
+
 
 export const deleteJobOrder = async (formData) => {
   const { id } = Object.fromEntries(formData);
@@ -1186,7 +1204,12 @@ const latestLeave = await Leave.findById(leaveId).populate('employee');
 if (!latestLeave) throw new Error("Leave not found after approval update!");
 
 // ✅ Check if both approvals are granted and deduction not yet done
+
+
+
+
 if (
+  latestLeave.leaveType === "Annual Leave" &&
   latestLeave.approvals.admin.approved &&
   latestLeave.approvals.hrAdmin.approved &&
   !latestLeave.balanceDeducted
@@ -1287,7 +1310,7 @@ export const rejectLeave = async ({ leaveId, role, reason }) => {
 
 
 export const addQuotation = async (formData) => {
-  const { saleId, clientId, projectName, projectLA, products, paymentTerm, paymentDelivery, note, validityPeriod, excluding, currency } = formData;
+  const { saleId, clientId, projectName, projectLA, products, paymentTerm, paymentDelivery, note, validityPeriod, excluding, totalPrice, currency } = formData;
 
   try {
     await connectToDB();
@@ -1322,6 +1345,7 @@ export const addQuotation = async (formData) => {
       note,
       validityPeriod,
       excluding,
+      totalPrice,
       currency,
       quotationId: customQuotationId,
       revisionNumber: 0
@@ -1342,7 +1366,7 @@ export const addQuotation = async (formData) => {
 
 
 export const updateQuotation = async (formData) => {
-  const { id, projectName, projectLA, products, paymentTerm, paymentDelivery, note, excluding } = formData;
+  const { id, projectName, projectLA, products, paymentTerm, paymentDelivery, note, excluding,totalPrice } = formData;
 
   try {
     await connectToDB();
@@ -1367,6 +1391,7 @@ export const updateQuotation = async (formData) => {
       paymentTerm,
       paymentDelivery,
       note,
+      totalPrice,
       excluding,
       user: null // Reset user/admin to null to require re-approval
     };
@@ -1393,51 +1418,53 @@ export const updateQuotation = async (formData) => {
   }
 };
 
+
+
 export const editQuotation = async (formData) => {
-  const { id, projectName, projectLA, products, paymentTerm, paymentDelivery, note, excluding, currency } = formData;
+  const {
+    id,
+    projectName,
+    projectLA,
+    products,
+    paymentTerm,
+    paymentDelivery,
+    note,
+    excluding,
+    totalPrice,
+    currency
+  } = formData;
 
   try {
     await connectToDB();
     const quotation = await Quotation.findById(id);
-
     if (!quotation) {
       throw new Error('Quotation not found');
     }
 
-   
+    // Update basic fields
+    quotation.projectName = projectName || quotation.projectName;
+    quotation.projectLA = projectLA || quotation.projectLA;
+    quotation.paymentTerm = paymentTerm || quotation.paymentTerm;
+    quotation.paymentDelivery = paymentDelivery || quotation.paymentDelivery;
+    quotation.note = note || quotation.note;
+    quotation.excluding = excluding || quotation.excluding;
+    quotation.currency = currency || quotation.currency;
+    quotation.totalPrice = totalPrice || quotation.totalPrice;
+    quotation.user = null; // Require re-approval
 
-    // Update fields as provided, reset user/admin information
-    const updateFields = {
-      projectName,
-      projectLA,
-      products,
-      paymentTerm,
-      paymentDelivery,
-      note,
-      excluding,
-      currency,
-      user: null // Reset user/admin to null to require re-approval
-    };
+    // ✅ Validate and update products
+    if (Array.isArray(products) && products.length > 0) {
+      quotation.products = products.filter(
+        p => p.productCode && p.qty && p.unit
+      );
+    }
 
-    // Clean up any fields that are empty or undefined to prevent overwriting with empty values
-    Object.keys(updateFields).forEach((key) => {
-      if (updateFields[key] === "" || updateFields[key] === undefined) {
-        delete updateFields[key];
-      } else {
-        quotation[key] = updateFields[key]; // Directly assign updated values
-      }
-    });
-
-   
-
-    // Save the updated quotation
     await quotation.save();
 
   } catch (err) {
     console.error(err);
     throw new Error("Failed to update quotation!");
   } finally {
-    // Revalidate and redirect as necessary
     revalidatePath("/dashboard/quotations");
     redirect("/dashboard/quotations");
   }
@@ -1447,7 +1474,7 @@ export const editQuotation = async (formData) => {
 
 
 export const updateQuotationApprove = async (formData) => {
-  const { id, projectName, projectLA, products, paymentTerm, paymentDelivery, note, excluding, user } = formData;
+  const { id, projectName, projectLA, products, paymentTerm, paymentDelivery, note, excluding, user,totalPrice } = formData;
 
   try {
     // Connect to the database
@@ -1463,6 +1490,7 @@ export const updateQuotationApprove = async (formData) => {
       paymentTerm,
       paymentDelivery,
       note,
+      totalPrice,
       excluding,
       ...(user && { user }) 
     };
@@ -1794,6 +1822,9 @@ export async function updatePurchaseOrderPayment(poId, newRemaining, status) {
 
   return { success: true };
 }
+
+
+
 
 export const addPurchaseOrder = async (formData) => {
 
@@ -2136,7 +2167,44 @@ export const markTicketAsDone = async (id) => {
 
 
 
+export const markTicketAsInProgress = async (id) => {
+  await connectToDB();
 
+  const ticket = await Ticket.findById(id);
+  if (!ticket) throw new Error("Ticket not found");
+
+  ticket.status = 'in-progress';
+  await ticket.save();
+
+  return {
+    id: ticket._id.toString(),
+    title: ticket.title,
+    description: ticket.description,
+    status: ticket.status,
+    deadline: ticket.deadline?.toISOString().split('T')[0] || '—',
+  };
+};
+
+
+
+
+export const markTaskAsInProgress = async (id) => {
+  await connectToDB();
+
+  const task = await Task.findById(id);
+  if (!task) throw new Error("Task not found");
+
+  task.status = 'in-progress';
+  await task.save();
+
+  return {
+    id: task._id.toString(),
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+  };
+};
 
 
 
@@ -2152,6 +2220,7 @@ export const updatePurchaseOrder = async (formData) => {
     deliveryTerm,
     validityPeriod,
     delayPenalties,
+    currency,
   } = formData;  
 
   try {
@@ -2185,6 +2254,7 @@ export const updatePurchaseOrder = async (formData) => {
     deliveryTerm,
     validityPeriod,
     delayPenalties, 
+    currency,
           user: null // Reset user to ensure re-approval is required
     };
 
@@ -2212,7 +2282,6 @@ export const updatePurchaseOrder = async (formData) => {
 };
 
 
-
 export const editPurchaseOrder = async (formData) => {
   const {
     id,
@@ -2224,60 +2293,56 @@ export const editPurchaseOrder = async (formData) => {
     deliveryTerm,
     validityPeriod,
     delayPenalties,
-     currency
-  } = formData;  
+    currency,
+    totalPrice,
+  } = formData;
 
   try {
     await connectToDB();
- 
-    // Find the document by ID
+
     const purchaseOrder = await PurchaseOrder.findById(id);
     if (!purchaseOrder) {
       throw new Error('PurchaseOrder not found');
     }
 
+    // ✅ Safely update basic fields only if provided
+    if (typeof supplierName === 'string') purchaseOrder.supplierName = supplierName;
+    if (typeof paymentTerm === 'string') purchaseOrder.paymentTerm = paymentTerm;
+    if (typeof deliveryLocation === 'string') purchaseOrder.deliveryLocation = deliveryLocation;
+    if (typeof sellingPolicy === 'string') purchaseOrder.sellingPolicy = sellingPolicy;
+    if (typeof deliveryTerm === 'string') purchaseOrder.deliveryTerm = deliveryTerm;
+    if (typeof validityPeriod === 'string') purchaseOrder.validityPeriod = validityPeriod;
+    if (typeof delayPenalties === 'string') purchaseOrder.delayPenalties = delayPenalties;
+    if (typeof currency === 'string') purchaseOrder.currency = currency;
+    if (typeof totalPrice === 'number') purchaseOrder.totalPrice = totalPrice;
 
+    // ✅ Re-approval logic
+    purchaseOrder.user = null;
 
-    // Prepare fields to update
-    const updateFields = {
-      supplierName,
-      products,
-      paymentTerm,
-      deliveryLocation,
-  sellingPolicy,
-    deliveryTerm,
-    validityPeriod,
-    delayPenalties,   
-     currency,   
-    user: null // Reset user to ensure re-approval is required
-    };
+    // ✅ Safely update products
+    if (Array.isArray(products) && products.length > 0) {
+      const validProducts = products.filter(
+        (p) => p.productCode && p.qty && p.unit
+      );
 
-    // Clean up any undefined or empty fields
-    Object.keys(updateFields).forEach(
-      (key) => {
-        if (updateFields[key] === "" || updateFields[key] === undefined) {
-          delete updateFields[key];
-        } else {
-          purchaseOrder[key] = updateFields[key]; // Update fields directly
-        }
-      }
-    );
+      purchaseOrder.products = validProducts;
+    }
 
-    // Save the updated document
+    // ✅ Log before saving
+    console.log("Saving updated Purchase Order:", purchaseOrder);
+
     await purchaseOrder.save();
 
+    console.log("✅ Purchase Order updated successfully");
+
   } catch (err) {
-    console.error(err);
+    console.error("❌ Error in editPurchaseOrder:", err);
     throw new Error("Failed to update purchase!");
   } finally {
-    revalidatePath("/dashboard/purchaseOrder");
-    redirect("/dashboard/purchaseOrder");
+    revalidatePath('/dashboard/purchaseOrder');
+    redirect('/dashboard/purchaseOrder');
   }
 };
-
-
-
-
 
 
 export const deletePurchseOrder = async (formData) => {

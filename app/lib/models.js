@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { ROLES } from "./role";
+import { ROLES } from "./role.js";
 
 const {Schema} =mongoose;
 
@@ -43,7 +43,7 @@ const userSchema = new Schema(
     employee: {
       type: Schema.Types.ObjectId,
       ref: 'Employee',
-      required: true,
+      required: false,
     },
   },
   { timestamps: true }
@@ -310,6 +310,24 @@ const quotationSchema = new Schema(
     excluding: {
       type: String,
     },
+     totalPrice: {              
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+remainingAmount: {        
+    type: Number,
+    required: true,
+    default: 0,
+  },
+
+  paymentStatus: {
+  type: String,
+  enum: ['unpaid', 'partial', 'paid'],
+  default: 'unpaid',
+},
+
     currency: {
   type: String,
   enum: ['USD', 'SAR'],
@@ -560,41 +578,72 @@ const plSchema = new Schema(
 );
 
 
-
 const jobOrderSchema = new Schema({
-
   jobOrderId: {
     type: String,
     required: true
   },
-
-  poNumber:{
-    type:String,
-    required:true
+  poNumber: {
+    type: String,
+    required: true
   },
-
-  poDate:{
-    type:String,
-    required:true,
+  poDate: {
+    type: String,
+    required: true,
   },
-
+  projectType: {
+    type: String,
+    required: true,
+  },
+  projectStatus: {
+    type: String,
+    enum: ['OPEN', 'CLOSE'],
+    default: 'OPEN'
+  },
   client: {
     type: Schema.Types.ObjectId,
-    ref: 'Client', 
+    ref: 'Client',
     required: true,
   },
   quotation: {
     type: Schema.Types.ObjectId,
-    ref: 'Quotation', 
+    ref: 'Quotation',
     required: true,
   },
-}, { timestamps: true })
+  value: { // 💰 value including VAT (if SAR)
+    type: Number,
+    required: true,
+    default: 0,
+  },
+  paidAmount: { 
+    type: Number,
+      default: 0,
+    },
+  baseValue: { // 💸 value before VAT (only applies to SAR)
+    type: Number,
+    required: function () { return this.currency === 'SAR'; },
+    default: 0,
+  },
+  currency: {
+    type: String,
+    enum: ['USD', 'SAR'],
+    default: 'USD',
+    required: true
+  },
+  remainingAmount: {
+    type: Number,
+    required: true,
+    default: 0,
+  }
+}, { timestamps: true });
+
 
 
 const taskSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: String,
   deadline: Date,
+  comment: String,
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['pending', 'in-progress', 'done'], default: 'pending' },
@@ -625,6 +674,12 @@ const leaveSchema = new mongoose.Schema({
   leaveType: {
     type: String,
     required: true
+  },
+  reason: {
+    type: String,
+    required: function () {
+      return ['Unpaid Leave', 'Sick Leave', 'Special Leave'].includes(this.leaveType);
+    }
   },
   startDate: {
     type: String,
@@ -678,6 +733,8 @@ approvals: {
 
 
 }, { timestamps: true });
+
+
 const shiftSchema = new mongoose.Schema({
   employee: {
     type: Schema.Types.ObjectId,

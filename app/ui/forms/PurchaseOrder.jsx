@@ -40,7 +40,7 @@ import { useRouter } from 'next/navigation';
 
 const AddPurchaseOrder = () => {
   const router = useRouter();
-const [rows, setRows] = useState([{ number: 1 }]);
+const [rows, setRows] = useState([]);
   const[suppliers, setSuppliers] = useState([]); 
   const[jobOrders, setJobOrders] = useState([]); 
     const[userPro, setUserPro] = useState([]); 
@@ -48,6 +48,8 @@ const [rows, setRows] = useState([{ number: 1 }]);
   const [error, setError] = useState(null);
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     const [selectedCurrency, setSelectedCurrency] = useState('SAR'); 
+    const [jobOrderProducts, setJobOrderProducts] = useState([]);
+
   
 
 
@@ -118,65 +120,6 @@ const [rows, setRows] = useState([{ number: 1 }]);
     const updatedRowsWithNumbers = updatedRows.map((row, i) => ({ ...row, number: i + 1 }));
     setRows(updatedRowsWithNumbers);
   };
-/*
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const formData = {
-      userId: event.target.userId.value, 
-      supplierId: event.target.supplierId.value, 
-      jobOrderId: event.target.jobOrderId.value, 
- 
-      deliveryLocation: event.target.deliveryLocation.value,
-      products: rows.map((row, index) => ({
-        number: index + 1,
-        productCode: event.target[`productCode${index}`].value,
-        unitPrice:
-        !isNaN(event.target[`qty${index}`].value) &&
-        !isNaN(event.target[`unit${index}`].value)
-          ? Number(event.target[`qty${index}`].value) * Number(event.target[`unit${index}`].value)
-          : 0, 
-        unit: Number(event.target[`unit${index}`].value),
-        qty: Number(event.target[`qty${index}`].value),
-        description: event.target[`description${index}`].value,
-})),
-      paymentTerm: event.target.paymentTerm.value,
-      deliveryTerm: event.target.deliveryTerm.value,
-      deliveryLocation: event.target.deliveryLocation.value,
-      sellingPolicy: event.target.sellingPolicy.value,
-      validityPeriod: event.target.validityPeriod.value,
-      delayPenalties: event.target.delayPenalties.value,
-      totalPrice,
-
-      
-      
-
-       };
-const totalPrice = products.reduce((sum, p) => sum + p.unitPrice, 0);
-
-
-     try {
-            const validatedData = purchaseSchema.parse(formData);
-            const result = await addPurchaseOrder(validatedData);
-            if (result.success) {
-              toast.success('Purchase order added successfully!');
-              router.push('/dashboard/purchaseOrder');
-            }
-          } catch (error) { 
-            if (error instanceof z.ZodError) {
-              error.errors.forEach((err) => {
-                toast.error(err.message);
-              });
-            } else if (error.message.includes("already exists")) { // Specific check for duplicate key error
-              toast.error(error.message);
-            } else {
-              toast.error(error.message);
-            }
-          
-        }
-
-  };
-
-  */
 
 
     const handleRowInputChange = (index, fieldName, value) => {
@@ -231,9 +174,12 @@ const products = rows.map(row => ({
 }));
 
 
-  const totals = calculateTotalUnitPrice();
+const totals = calculateTotalUnitPrice();
+const totalPrice = selectedCurrency === 'SAR'
+  ? Number(totals.totalUnitPriceWithVAT)
+  : Number(totals.totalUnitPrice); // Exclude VAT for USD
 
-  const totalWithVat = Number(totals.totalUnitPriceWithVAT); 
+
   
 
 
@@ -248,11 +194,10 @@ const products = rows.map(row => ({
     sellingPolicy: event.target.sellingPolicy.value,
     validityPeriod: event.target.validityPeriod.value,
     delayPenalties: event.target.delayPenalties.value,
-     totalPrice: totalWithVat,
-    currency: selectedCurrency,
+    totalPrice, 
+     currency: selectedCurrency,
   };
 
-  console.log("Submitting with totalPrice:", totalWithVat, "products:", products);
 
   try {
     const validatedData = purchaseSchema.parse(formData);
@@ -269,6 +214,40 @@ const products = rows.map(row => ({
     }
   }
 };
+
+
+const handleSelectProduct = (product) => {
+  setRows((prevRows) => {
+    const alreadyExists = prevRows.some(
+      (row) => row.productCode === product.productCode
+    );
+
+    if (alreadyExists) {
+      toast.error("Product already added!");
+      return prevRows;
+    }
+
+    const newRows = [
+      ...prevRows,
+      {
+        number: prevRows.length + 1,
+        productCode: product.productCode || '',
+        description: product.description || '',
+        qty: product.qty || 0,
+   
+      },
+    ];
+
+    // Scroll to editable table
+    setTimeout(() => {
+      document.getElementById("poTable")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+
+    return newRows;
+  });
+};
+
+
 
 
  const calculateTotalUnitPrice = () => {
@@ -325,7 +304,24 @@ const products = rows.map(row => ({
                 <label htmlFor="jobOrder" className={styles.label}>
                 Job Order:
                 </label>
-          <select name='jobOrderId' className={styles.input} defaultValue="">
+<select
+  name="jobOrderId"
+  className={styles.input}
+  defaultValue=""
+ onChange={(e) => {
+  const selectedId = e.target.value;
+  const jobOrder = jobOrders.find((jo) => jo._id === selectedId);
+  console.log("Selected Job Order:", jobOrder); // <-- DEBUG here
+
+  if (jobOrder?.quotation?.products) {
+    setJobOrderProducts(jobOrder.quotation.products);
+  } else {
+    console.warn("No quotation products found for job order");
+    setJobOrderProducts([]);
+  }
+}
+}
+>
           <option value="" disabled >Select Job Order</option>
           {jobOrders.map((jobOrder) => (
               <option key={jobOrder._id} value={jobOrder._id}>
@@ -333,6 +329,56 @@ const products = rows.map(row => ({
               </option>
             ))}
           </select>
+
+          {jobOrderProducts.length > 0 && (
+  <div className={styles.jobOrderTableContainer}>
+    <p className={styles.title}>Job Order Products</p>
+<table className={styles.table} id="poTable">
+      <thead>
+        <tr>
+          <td>#</td>
+          <td>Product Code</td>
+          <td>Description</td>
+          <td>Qty</td>
+          <td>Action</td>
+
+        </tr>
+      </thead>
+     <tbody>
+  {jobOrderProducts.map((product, index) => (
+    <tr key={index}> 
+      <td>{(index + 1).toString().padStart(3, '0')}</td>
+      <td>{product.productCode || '-'}</td>
+      <td>{product.description || '-'}</td>
+      <td>{product.qty || '-'}</td>
+      <td>
+ 
+      <div className={styles.buttons}>
+        
+       {rows.some((row) => row.productCode === product.productCode) ? (
+  <button className={`${styles.selectButton} ${styles.DisabledButton}`} disabled>
+    Added
+  </button>
+) : (
+  <button
+    type="button"
+    onClick={() => handleSelectProduct(product)}
+    className={styles.selectButton}
+  >
+    Add
+  </button>
+)}
+
+        </div>
+      </td>
+    </tr>
+  ))}
+</tbody>
+
+    </table>
+  </div>
+)}
+
           </div>
           <div className={styles.inputContainer}>
                 <label htmlFor="deliveryLocation" className={styles.label}>

@@ -6,7 +6,7 @@ export const revalidate = 0;
 export const GET = async () => {
   try {
     await connectToDB();
-    const employees = await Employee.find({}, 'name jobTitle contractEndDate leaveBalance'); // Fetch only needed fields
+    const employees = await Employee.find({}, 'name jobTitle contractEndDate leaveBalance passportNo passportExpirationDate iqamaNo iqamaExpirationDate'); // Fetch only needed fields
     return NextResponse.json(employees);
   } catch (err) {
     console.error('Failed to fetch employees:', err);

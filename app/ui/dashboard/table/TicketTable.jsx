@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ListTodoIcon } from 'lucide-react';
 import styles from './table.module.css';
 import Pagination from '../pagination/pagination';
-import { getAssignedTickets, getTicketById, getTickets, markTicketAsDone } from '@/app/lib/actions';
+import { getAssignedTickets, getTicketById, getTickets, markTicketAsDone, markTicketAsInProgress } from '@/app/lib/actions';
 
 const TICKETS_PER_PAGE = 5; 
 const SUMMARY_TICKETS_PER_PAGE = 5; 
@@ -126,6 +126,15 @@ const paginatedTicket = filteredTickets.slice(
               Pending
             </button>
 
+
+
+            <button
+              className={`${styles.filterBtn} ${mode === 'all' && filter === 'in-progress' ? styles.activeFilter : ''}`}
+              onClick={() => { setMode('all'); setFilter('in-progress'); setCurrentPage(1); }}
+            >
+              In Progress
+            </button>
+
             <button
               className={`${styles.filterBtn} ${mode === 'assigned' ? styles.activeFilter : ''}`}
               onClick={() => { setMode('assigned'); setFilter('all'); setCurrentPage(1); }}
@@ -242,6 +251,34 @@ const paginatedTicket = filteredTickets.slice(
       ✅ Mark as Done
     </button>
   )} 
+
+   {selectedTicket?.status === 'pending' && mode !== 'assigned' && (
+
+    <button
+      className={styles.inProgressBtn}
+      onClick={async () => {
+        try {
+          const updatedTicket = await markTicketAsInProgress(selectedTicket.id);
+
+          setSelectedTicket(prev => prev ? { ...prev, status: updatedTicket.status } : prev);
+
+          setTickets(prevTickets =>
+            prevTickets.map(ticket =>
+              ticket.id === selectedTicket.id
+                ? { ...ticket, status: updatedTicket.status }
+                : ticket
+            )
+          );
+        } catch (error) {
+          console.error("Failed to mark ticket as in progress:", error);
+        }
+      }}
+    >
+      
+      ✅ Mark as in Progress
+    </button>
+  )} 
+  
   <button className={styles.closeDialogBtn} onClick={closeDialog}>Close</button>
 </div>
 

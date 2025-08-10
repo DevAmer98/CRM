@@ -10,11 +10,18 @@ import { ROLES } from '@/app/lib/role';
 const leaveSchema = z.object({
   employeeId: z.string().min(1, "Employee selection is required"),
   contactMobile: z.string().min(1, "Contact Mobile is required"),
-  leaveType: z.enum(["Annual Leave", "Sick Leave"], { message: "Leave type is required" }),
+  leaveType: z.enum(["Annual Leave", "Sick Leave","Unpaid Leave"], { message: "Leave type is required" }),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
   addressWhileOnVacation: z.string().optional(),
   exitReentryVisa: z.string(),
+   reason: z.string().optional(),
+}).refine((data) => {
+  const needsReason = ["Unpaid Leave", "Sick Leave", "Special Leave"].includes(data.leaveType);
+  return !needsReason || (needsReason && data.reason?.trim());
+}, {
+  path: ["reason"],
+  message: "Reason is required for this type of leave"
 });
 
 const AddLeave = ({session}) => {
@@ -31,6 +38,8 @@ const AddLeave = ({session}) => {
     startDate: '',
     endDate: '',
     addressWhileOnVacation: '',
+ reason: leave.reason || '', // ✅ new field
+    
   });
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -76,6 +85,8 @@ const AddLeave = ({session}) => {
       endDate: formData.endDate,
       addressWhileOnVacation: formData.addressWhileOnVacation,
       exitReentryVisa: exitReentryVisa, 
+        reason: formData.reason, 
+
     };
 
     try {
@@ -117,7 +128,6 @@ const AddLeave = ({session}) => {
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Add Leave Request</h1>
-
       <form onSubmit={leaveActions}>
         <div className={styles.formSections}>
           {/* Left Section */}
@@ -206,9 +216,26 @@ const AddLeave = ({session}) => {
                 <option value="">Select Leave Type</option>
                 <option value="Annual Leave">Annual Leave</option>
                 <option value="Sick Leave">Sick Leave</option>
-              </select>
-            </div>
+                <option value="Unpaid Leave">Unpaid Leave</option>
+                <option value="Special Leave">Special Leave</option>
 
+              </select>
+              {["Unpaid Leave", "Sick Leave", "Special Leave"].includes(formData.leaveType) && (
+  <div className={styles.formGroup}>
+    <label className={styles.label}>Reason:</label>
+    <textarea
+  className={styles.input}
+  name="reason"               // ✅ ADD THIS LINE
+  rows="4"
+  value={formData.reason}
+  onChange={(e) => handleInputChange('reason', e.target.value)}
+  required
+/>
+
+  </div>
+)}
+
+            </div>
             <div className={styles.formGroup}>
               <div className={styles.sectionHeader}>Duration</div>
               <div className={styles.inputRow}>

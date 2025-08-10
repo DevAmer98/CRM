@@ -6,13 +6,19 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import { addShift } from '@/app/lib/actions';
 import { ROLES } from '@/app/lib/role';
+import TimePicker from 'react-time-picker';
+import timePickerStyles from '@/app/ui/dashboard/clock/customTimePicker.module.css';
+import CustomTimePicker from '../../dashboard/clock/clock';
+console.log('timePickerStyles:', timePickerStyles);
+
+
 
 const shiftSchema = z.object({
   employeeId: z.string().min(1, "Employee selection is required"),
   date: z.string().min(1, "Date is required"),
   startTime: z.string().min(1, "Start time is required"),
   endTime: z.string().min(1, "End time is required"),
-  location: z.string().min(1, "Location is required"),
+  Description: z.string().min(1, "Location is required"),
 });
 
 const AddShift = ({ session }) => {
@@ -29,7 +35,7 @@ const AddShift = ({ session }) => {
     date: '',
     startTime: '',
     endTime: '',
-    location: '',
+    description: '',
   });
 
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -98,7 +104,6 @@ const AddShift = ({ session }) => {
         <div className={styles.formSections}>
           <div className={styles.formSection}>
             <div className={styles.formGroup}>
-              <div className={styles.sectionHeader}>Employee</div>
               <label className={styles.label}>Employee:</label>
               <select
                 className={styles.input}
@@ -108,7 +113,7 @@ const AddShift = ({ session }) => {
               >
                 <option value="">Select Employee</option>
                 {employees.length > 0 ? (
-                  employees.map((emp) => (
+                  employees.map((emp) => ( 
                     <option key={emp._id} value={emp._id}>
                       {emp.name}
                     </option>
@@ -118,8 +123,8 @@ const AddShift = ({ session }) => {
                 )}
               </select>
             </div>
-
             <div className={styles.formGroup}>
+              
               <label className={styles.label}>Date:</label>
               <input
                 className={styles.input}
@@ -130,35 +135,27 @@ const AddShift = ({ session }) => {
               />
             </div>
 
-            <div className={styles.formGroup}>
-              <label className={styles.label}>Start Time:</label>
-              <input
-                className={styles.input}
-                type="time"
-                value={formData.startTime}
-                onChange={(e) => handleInputChange('startTime', e.target.value)}
-                required
-              />
-            </div>
+              <div className={styles.formGroup}>
+<CustomTimePicker onChange={(date) => {
+  const formatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  handleInputChange('startTime', formatted);
+}} />
 
-            <div className={styles.formGroup}>
-              <label className={styles.label}>End Time:</label>
-              <input
-                className={styles.input}
-                type="time"
-                value={formData.endTime}
-                onChange={(e) => handleInputChange('endTime', e.target.value)}
-                required
-              />
-            </div>
+<CustomTimePicker onChange={(date) => {
+  const formatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  handleInputChange('endTime', formatted);
+}} />
 
+
+</div>
             <div className={styles.formGroup}>
-              <label className={styles.label}>Location:</label>
-              <input
+              <label className={styles.label}>Description:</label>
+              <textarea
                 className={styles.input}
                 type="text"
-                value={formData.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
+                  rows="4"
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
                 required
               />
             </div>

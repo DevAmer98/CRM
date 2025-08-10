@@ -212,6 +212,18 @@
   cursor: pointer;
 }
 
+
+
+.inProgressBtn {
+  background-color: #facc15;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  margin-left: 10px;
+}
 .closeDialogBtn {
   background: var(--primary);
   color: var(--bg);
