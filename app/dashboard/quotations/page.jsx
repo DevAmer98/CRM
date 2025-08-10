@@ -1,5 +1,5 @@
 import React from 'react';
-import ShowQuotations from '@/app/ui/dashboard/quotations/ShowQuotations';
+import ShowQuotations from '@/app/ui/dashboard/quotations/showQuotations';
 import { fetchQuotations } from '@/app/lib/data';
 
 const QuotationPage = async ({ searchParams }) => {
