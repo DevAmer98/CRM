@@ -47,9 +47,9 @@ const ApprovePage = async({searchParams}) => {
                   : <span className={`${styles.statusBox} ${styles.pending}`}>Pending</span>}
                 </td>  
   
-                <td> 
+                <td>  
                   <div className={styles.buttons}>
-                  <Link href={`/dashboard/approves/${quotation.id}`}>
+                  <Link href={`/dashboard/approves/${quotation._id}`}>
                     <button className={`${styles.button} ${styles.view}`}>View</button>
                     </Link>
                     <DeleteQuotation quotationId={quotation.quotationId} />
