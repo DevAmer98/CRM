@@ -93,7 +93,7 @@ const SingleQuotation = ({params}) => {
         VatRate: formatCurrency(vatRate),
         VatPrice: formatCurrency(vatAmount),
         NetPrice: formatCurrency(totalUnitPriceWithVAT),
-        
+        ValidityPeriod: formData.validityPeriod || 'No Validity Preiod',
         PaymentTerm: formData.paymentTerm || 'No Payment Term',
         PaymentDelivery: formData.paymentDelivery || 'No Delivery Term',
         Note: formData.note || 'No Note',
