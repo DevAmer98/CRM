@@ -307,6 +307,8 @@ useEffect(() => {
             note: quotation.note,
             excluding: quotation.excluding,
           });
+                    setSelectedCurrency(quotation.currency || 'USD'); // Default to 'USD' if currency is not set
+
     
           const newRows = quotation.products.map((product, index) => ({
             _id: product._id,
