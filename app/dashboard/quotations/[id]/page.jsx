@@ -88,7 +88,7 @@ const SingleQuotation = ({params}) => {
         ClientContactMobile: quotation.client?.contactMobile || 'No Client Contact Mobile',
         ClientEmail: quotation.client?.email || 'No Client Email',
         ClientAddress: quotation.client?.address || 'No Client Address',
-        CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
+        Currency: selectedCurrency,
         TotalPrice: formatCurrency(totalUnitPrice),
         VatRate: formatCurrency(vatRate),
         VatPrice: formatCurrency(vatAmount),
@@ -183,7 +183,8 @@ const SingleQuotation = ({params}) => {
         ClientContactMobile: quotation.client?.contactMobile || 'No Client Contact Mobile',
         ClientEmail: quotation.client?.email || 'No Client Email',
         ClientAddress: quotation.client?.address || 'No Client Address',
-        CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
+       // CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
+        Currency: selectedCurrency,
         TotalPrice: formatCurrency(totalUnitPrice),
         VatRate: formatCurrency(vatRate),
         VatPrice: formatCurrency(vatAmount),
@@ -278,6 +279,7 @@ const SingleQuotation = ({params}) => {
     return null;
   }
 
+  
   const formatCurrency = (value) => {
     const formatter = new Intl.NumberFormat('en-US', {
       style: 'decimal', // Changed from 'currency' to 'decimal'
@@ -287,6 +289,8 @@ const SingleQuotation = ({params}) => {
     return formatter.format(value);
   };
   
+
+
 
   
  
