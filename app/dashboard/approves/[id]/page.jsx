@@ -148,8 +148,7 @@ useEffect(() => {
           const vatAmount = totalUnitPrice * vatRate;
           const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
 
-          // Prepare the data for the document
-          const documentData = {
+        const documentData = {
             QuotationNumber:quotation.quotationId,
             ClientName: quotation.client?.name, 
             userName: quotation.user?.username, 
@@ -172,7 +171,7 @@ useEffect(() => {
               Qty: product.qty,
               Description: product.description,
             })),
-            CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
+            Currency: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
             TotalPrice: totalUnitPrice.toFixed(2),
             VatRate: vatRate.toFixed(2),
             VatPrice: vatAmount.toFixed(2),
@@ -207,6 +206,7 @@ useEffect(() => {
               console.error('Error downloading the document:', error);
           }
       };
+      
 
 
 
@@ -244,7 +244,7 @@ useEffect(() => {
             ClientContactMobile: quotation.client?.contactMobile || 'No Client Contact Mobile',
             ClientEmail: quotation.client?.email || 'No Client Email',
             ClientAddress: quotation.client?.address || 'No Client Address',
-            CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
+            Currency: selectedCurrency === 'USD' ? '$' : 'SAR',
             TotalPrice: totalUnitPrice.toFixed(2),
             VatRate: vatRate.toFixed(2),
             VatPrice: vatAmount.toFixed(2),
