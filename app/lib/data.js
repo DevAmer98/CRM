@@ -475,12 +475,12 @@ export const fetchAllJobs = async () => {
 */
 
 
-export const fetchQuotations = async (projectName, page = 1) => {
+export const fetchQuotations = async (quotationId, page = 1) => {
   const ITEM_PER_PAGE = 10;
   let query = {};
 
-  if (projectName) {
-    query.projectName = { $regex: new RegExp(projectName, "i") };
+  if (quotationId) {
+    query.quotationId = { $regex: new RegExp(quotationId, "i") };
   }
 
   try {

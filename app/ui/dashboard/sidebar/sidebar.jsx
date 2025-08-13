@@ -151,7 +151,7 @@ const menuItems = [
         title: "Clients", 
         path: "/dashboard/clients", 
         icon: <Handshake />, 
-        roles: [ROLES.ADMIN,ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.ADMIN,ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN, ROLES.SALES_ADMIN] 
       },
       { 
         title: "Suppliers", 
