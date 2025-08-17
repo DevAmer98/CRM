@@ -1,45 +1,115 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { FaPlus, FaTrash } from 'react-icons/fa';
-import styles from '@/app/ui/dashboard/approve/approve.module.css';
-import { editQuotation, updateQuotation } from '@/app/lib/actions';
 
- 
+import React, { useState, useEffect, useMemo } from "react";
+import { FaPlus, FaTrash } from "react-icons/fa";
+import styles from "@/app/ui/dashboard/approve/approve.module.css";
+import { editQuotation, updateQuotation } from "@/app/lib/actions";
 
-
-const SingleQuotation = ({params}) => { 
-  const [selectedCurrency, setSelectedCurrency] = useState('USD'); 
+const SingleQuotation = ({ params }) => {
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [quotation, setQuotation] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
+
   const [formData, setFormData] = useState({
-    clientName: '', 
-    projectName: '',
-    projectLA: '',
+    clientName: "",
+    projectName: "",
+    projectLA: "",
     products: [],
-    paymentTerm: '',
-    paymentDelivery: '',
-    validityPeriod: '',
-    note: '', 
-    excluding: '',
-    totalPrice: ''
+    paymentTerm: "",
+    paymentDelivery: "",
+    validityPeriod: "",
+    note: "",
+    excluding: "",
+    totalPrice: "",
   });
+
   const [rows, setRows] = useState([]);
-  const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
+  // Preview state (popup)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
+  // ---------- helpers ----------
+  const formatCurrency = (value) => {
+    const n = Number(value || 0);
+    return new Intl.NumberFormat("en-US", {
+      style: "decimal",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  };
 
+  const totals = useMemo(() => {
+    const subtotal = rows.reduce((acc, r) => acc + (Number(r.unitPrice) || 0), 0);
+    const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
+    const vatAmount = subtotal * vatRate;
+    const total = subtotal + vatAmount;
+    return {
+      totalUnitPrice: Number(subtotal.toFixed(2)),
+      vatAmount: Number(vatAmount.toFixed(2)),
+      totalUnitPriceWithVAT: Number(total.toFixed(2)),
+    };
+  }, [rows, selectedCurrency]);
+
+  const buildDocumentData = (mode = "word-to-pdf") => {
+    if (!rows || rows.length === 0) throw new Error("No product rows available.");
+    if (!formData || !quotation) throw new Error("Missing required form data or quotation details.");
+
+    const {
+      totalUnitPrice: Subtotal,
+      vatAmount: VatPrice,
+      totalUnitPriceWithVAT: NetPrice,
+    } = totals;
+
+    const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
+
+    return {
+      renderMode: mode, // "word-to-pdf" (exact from DOCX) or "pdf-template" (pdf-lib)
+      templateId: "quotation-v1",
+      QuotationNumber: formData.quotationId || "No Quotation ID",
+      ClientName: formData.clientName || "No Client Name",
+      CreatedAt: new Date(quotation.createdAt || Date.now()).toISOString().split("T")[0],
+      ProjectName: formData.projectName || "No Project Name",
+      ProjectLA: formData.projectLA || "No Project Location Address",
+      SaleName: quotation.sale?.name || "No Sales Representative Name",
+      ClientContactName: quotation.client?.contactName || "No Client Contact Name",
+      userName: quotation.user?.username || "No User Name",
+      ClientPhone: quotation.client?.phone || "No Client Phone",
+      UserPhone: quotation.sale?.phone || "No Sales Representative Phone",
+      UserEmail: quotation.sale?.email || "No Sales Representative Email",
+      UserAddress: quotation.sale?.address || "No Sales Representative Address",
+      ClientContactMobile: quotation.client?.contactMobile || "No Client Contact Mobile",
+      ClientEmail: quotation.client?.email || "No Client Email",
+      ClientAddress: quotation.client?.address || "No Client Address",
+      Currency: selectedCurrency,
+      TotalPrice: Number(Subtotal),
+      VatRate: Number(vatRate.toFixed(2)),
+      VatPrice: Number(VatPrice),
+      NetPrice: Number(NetPrice),
+      ValidityPeriod: formData.validityPeriod || "No Validity Preiod",
+      PaymentTerm: formData.paymentTerm || "No Payment Term",
+      PaymentDelivery: formData.paymentDelivery || "No Delivery Term",
+      Note: formData.note || "No Note",
+      Excluding: formData.excluding || "No Exclusions",
+      Products: rows.map((p, idx) => ({
+        Number: (idx + 1).toString().padStart(3, "0"),
+        ProductCode: p.productCode || "—",
+        UnitPrice: Number(p.unitPrice || 0), // total per row
+        Unit: Number(p.unit || 0),           // unit price
+        Qty: Number(p.qty || 0),
+        Description: p.description || "—",
+      })),
+    };
+  };
+
+  // ---------- data fetch ----------
   useEffect(() => {
     const getQuotationById = async () => {
       try {
-        console.log("process.env.DOMAIN:", process.env.NEXT_PUBLIC_API_URL);
-        const response = await fetch(`${domain}/api/quotation/${params.id}`, {
-          method: "GET",
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+        const res = await fetch(`/api/quotation/${params.id}`, { method: "GET" });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
         setQuotation(data);
       } catch (err) {
         setError(`Fetching failed: ${err.message}`);
@@ -47,301 +117,89 @@ const SingleQuotation = ({params}) => {
         setLoading(false);
       }
     };
-  
     getQuotationById();
   }, [params.id]);
-  
-  
-      
 
-  const downloadQuotationDocument = async () => {
-    try {
-      // Validate input data
-      if (!rows || rows.length === 0) {
-        throw new Error('No product rows available for generating the quotation.');
-      }
-  
-      if (!formData || !quotation) {
-        throw new Error('Missing required form data or quotation details.');
-      }
-  
-      // Calculate totals
-      const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
-      const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-      const vatAmount = totalUnitPrice * vatRate;
-      const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-  
-      // Prepare document data
-      const documentData = {
-        QuotationNumber: formData.quotationId || 'No Quotation ID',
-        ClientName: formData.clientName || 'No Client Name',
-        CreatedAt: new Date(quotation.createdAt || Date.now()).toISOString().split('T')[0], // Format: YYYY-MM-DD
-        ProjectName: formData.projectName || 'No Project Name',
-        ProjectLA: formData.projectLA || 'No Project Location Address',
-        SaleName: quotation.sale?.name || 'No Sales Representative Name',
-        ClientContactName: quotation.client?.contactName || 'No Client Contact Name',
-        userName: quotation.user?.username || 'No User Name',
-        ClientPhone: quotation.client?.phone || 'No Client Phone',
-        UserPhone: quotation.sale?.phone || 'No Sales Representative Phone',
-        UserEmail: quotation.sale?.email || 'No Sales Representative Email',
-        UserAddress: quotation.sale?.address || 'No Sales Representative Address',
-        ClientContactMobile: quotation.client?.contactMobile || 'No Client Contact Mobile',
-        ClientEmail: quotation.client?.email || 'No Client Email',
-        ClientAddress: quotation.client?.address || 'No Client Address',
-        Currency: selectedCurrency,
-        TotalPrice: formatCurrency(totalUnitPrice),
-        VatRate: formatCurrency(vatRate),
-        VatPrice: formatCurrency(vatAmount),
-        NetPrice: formatCurrency(totalUnitPriceWithVAT),
-        ValidityPeriod: formData.validityPeriod || 'No Validity Preiod',
-        PaymentTerm: formData.paymentTerm || 'No Payment Term',
-        PaymentDelivery: formData.paymentDelivery || 'No Delivery Term',
-        Note: formData.note || 'No Note',
-        Excluding: formData.excluding || 'No Exclusions',
-        Products: rows.map((product, index) => ({
-          Number: (index + 1).toString().padStart(3, '0'),
-          ProductCode: product.productCode || 'No Product Code',
-          UnitPrice: product.unitPrice || 0,
-          Unit: product.unit || 'No Unit',
-          Qty: product.qty || 0,
-          Description: product.description || 'No Description',
-        })),
-      };
-      
-  
-      console.log('Document Data:', documentData);
-  
-      // Make POST request to generate PDF
-      const response = await fetch(`${domain}/api/loadQuoPdf`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(documentData),
-      });
-  
-      if (response.ok) {
-        const fileBlob = await response.blob();
-        console.log('Blob size:', fileBlob.size);
-  
-        // Create a download link
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(fileBlob);
-        link.download = `Quotation_${documentData.QuotationNumber}.pdf`;
-  
-        console.log('Blob URL:', link.href);
-  
-        // Trigger file download
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-  
-        console.log('File downloaded successfully');
-      } else {
-        const errorText = await response.text(); 
-        console.error('Server response error:', errorText);
-        throw new Error(`Server responded with status: ${response.status}, message: ${errorText}`);
-      }
-    } catch (error) {
-      console.error('Error downloading the document:', error.message);
-    }
-  };
+  useEffect(() => {
+    if (!quotation) return;
 
-
-
-  const uploadQuotationDocument = async () => {
-    try {
-      // Validate input data
-      if (!rows || rows.length === 0) {
-        throw new Error('No product rows available for generating the quotation.');
-      }
-  
-      if (!formData || !quotation) {
-        throw new Error('Missing required form data or quotation details.');
-      }
-  
-      // Calculate totals
-      const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
-      const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-      const vatAmount = totalUnitPrice * vatRate;
-      const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-  
-      // Prepare document data for upload
-      const documentData = {
-        QuotationNumber: formData.quotationId || 'No Quotation ID',
-        ClientName: formData.clientName || 'No Client Name',
-        CreatedAt: new Date(quotation.createdAt || Date.now()).toISOString().split('T')[0], // Format: YYYY-MM-DD
-        ProjectName: formData.projectName || 'No Project Name',
-        ProjectLA: formData.projectLA || 'No Project Location Address',
-        SaleName: quotation.sale?.name || 'No Sales Representative Name',
-        ClientContactName: quotation.client?.contactName || 'No Client Contact Name',
-        userName: quotation.user?.username || 'No User Name',
-        ClientPhone: quotation.client?.phone || 'No Client Phone',
-        UserPhone: quotation.sale?.phone || 'No Sales Representative Phone',
-        UserEmail: quotation.sale?.email || 'No Sales Representative Email',
-        UserAddress: quotation.sale?.address || 'No Sales Representative Address',
-        ClientContactMobile: quotation.client?.contactMobile || 'No Client Contact Mobile',
-        ClientEmail: quotation.client?.email || 'No Client Email',
-        ClientAddress: quotation.client?.address || 'No Client Address',
-       // CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
-        Currency: selectedCurrency,
-        TotalPrice: formatCurrency(totalUnitPrice),
-        VatRate: formatCurrency(vatRate),
-        VatPrice: formatCurrency(vatAmount),
-        NetPrice: formatCurrency(totalUnitPriceWithVAT),
-        PaymentTerm: formData.paymentTerm || 'No Payment Term',
-        PaymentDelivery: formData.paymentDelivery || 'No Delivery Term',
-        Note: formData.note || 'No Note',
-        ValidityPeriod: formData.validityPeriod || 'No Validity Preiod',
-        Excluding: formData.excluding || 'No Exclusions',
-        Products: rows.map((product, index) => ({
-          Number: (index + 1).toString().padStart(3, '0'),
-          ProductCode: product.productCode || 'No Product Code',
-          UnitPrice: formatCurrency(product.unitPrice || 0),
-          Unit: product.unit || 'No Unit',
-          Qty: product.qty || 0,
-          Description: product.description || 'No Description',
-        })),
-      };
-  
-      // Log document data for debugging
-      console.log('Document Data for upload:', documentData);
-  
-      // Make POST request to upload PDF to Synology
-      const response = await fetch(`${domain}/api/loadQuoToSynology`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(documentData),
-      });
-  
-      if (response.ok) {
-        console.log('PDF uploaded successfully to Synology NAS');
-        alert('PDF uploaded successfully!');
-      } else {
-        const errorText = await response.text();
-        console.error('Server response error:', errorText);
-        throw new Error(`Server responded with status: ${response.status}, message: ${errorText}`);
-      }
-    } catch (error) {
-      console.error('Error uploading the document:', error.message);
-      alert(`Error during upload: ${error.message}`);
-    }
-  };
-  
-
-  
-
-      useEffect(() => {
-        if (quotation) {
-          setFormData({
-            quotationId: quotation.quotationId,
-            userName: quotation.user && quotation.user.username ? quotation.user.username : 'N/A',
-            saleName:quotation.sale && quotation.sale.name ? quotation.sale.name : 'N/A',
-            clientName: quotation.client && quotation.client.name ? quotation.client.name : 'N/A', 
-            projectName: quotation.projectName,
-            projectLA: quotation.projectLA,
-            products: quotation.products,
-            paymentTerm: quotation.paymentTerm,
-            paymentDelivery: quotation.paymentDelivery,
-            validityPeriod: quotation.validityPeriod,
-            note: quotation.note,
-            excluding: quotation.excluding,
-            totalPrice: quotation.totalPrice || '', // Ensure totalPrice is set
-          });
-
-          setSelectedCurrency(quotation.currency || 'USD'); // Default to 'USD' if currency is not set
-    
-          const newRows = quotation.products.map((product, index) => ({
-            _id: product._id,
-            id: index + 1,
-            number: index + 1,
-            productCode: product.productCode,
-            unitPrice: product.unitPrice,
-            unit: product.unit,
-            qty: product.qty,
-            description: product.description,
-          }));
-          setRows(newRows);
-        }
-      }, [quotation]);
-
-  if (isLoading) { 
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>Error loading quotation: {error}</div>;
-  }
-
-  if (!quotation) {
-    return null;
-  }
-
-  
-  const formatCurrency = (value) => {
-    const formatter = new Intl.NumberFormat('en-US', {
-      style: 'decimal', // Changed from 'currency' to 'decimal'
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+    setFormData({
+      quotationId: quotation.quotationId,
+      userName: quotation.user?.username ?? "N/A",
+      saleName: quotation.sale?.name ?? "N/A",
+      clientName: quotation.client?.name ?? "N/A",
+      projectName: quotation.projectName || "",
+      projectLA: quotation.projectLA || "",
+      products: quotation.products || [],
+      paymentTerm: quotation.paymentTerm || "",
+      paymentDelivery: quotation.paymentDelivery || "",
+      validityPeriod: quotation.validityPeriod || "",
+      note: quotation.note || "",
+      excluding: quotation.excluding || "",
+      totalPrice: quotation.totalPrice || "",
     });
-    return formatter.format(value);
-  };
-  
 
+    setSelectedCurrency(quotation.currency || "USD");
 
+    const newRows = (quotation.products || []).map((product, index) => ({
+      _id: product._id,
+      id: index + 1,
+      number: index + 1,
+      productCode: product.productCode || "",
+      unitPrice: Number(product.unitPrice || 0), // total per row
+      unit: product.unit || "",                  // unit price
+      qty: product.qty || "",
+      description: product.description || "",
+    }));
+    setRows(newRows);
+  }, [quotation]);
 
-  
- 
-
+  // ---------- table ops ----------
   const addRow = () => {
-const newRow = {
-  id: rows.length + 1,
-  number: rows.length + 1,
-  productCode: '',
-  description: '',
-  qty: '',
-  unit: '',
-  unitPrice: 0,
-};
-    setRows((prevRows) => [...prevRows, newRow]);
+    const newRow = {
+      id: rows.length + 1,
+      number: rows.length + 1,
+      productCode: "",
+      description: "",
+      qty: "",
+      unit: "",
+      unitPrice: 0,
+    };
+    setRows((prev) => [...prev, newRow]);
   };
 
   const deleteRow = (index) => {
-    const updatedRows = rows.filter((_, i) => i !== index);
-    const updatedRowsWithNumbers = updatedRows.map((row, i) => ({ ...row, number: i + 1 }));
-    setRows(updatedRowsWithNumbers);
+    const updated = rows.filter((_, i) => i !== index);
+    const renumbered = updated.map((r, i) => ({ ...r, id: i + 1, number: i + 1 }));
+    setRows(renumbered);
   };
 
   const handleRowInputChange = (index, fieldName, value) => {
-    setRows((prevRows) =>
-      prevRows.map((row, i) =>
-        i === index
-          ? {
-              ...row,
-              [fieldName]: value,
-              unitPrice:
-                fieldName === 'qty' && !isNaN(value) && !isNaN(row.unit)
-                  ? Number(value) * Number(row.unit)
-                  : fieldName === 'unit' && !isNaN(value) && !isNaN(row.qty)
-                  ? Number(value) * Number(row.qty)
-                  : row.unitPrice,
-            }
-          : row
-      )
+    const clean = fieldName === "qty" || fieldName === "unit" ? value.replace(/[^\d.]/g, "") : value;
+
+    setRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return row;
+
+        const next = { ...row, [fieldName]: clean };
+        // recompute total per line when qty or unit changes
+        if (fieldName === "qty" && !isNaN(clean) && !isNaN(row.unit)) {
+          next.unitPrice = Number(clean || 0) * Number(row.unit || 0);
+        } else if (fieldName === "unit" && !isNaN(clean) && !isNaN(row.qty)) {
+          next.unitPrice = Number(clean || 0) * Number(row.qty || 0);
+        }
+        return next;
+      })
     );
   };
+
+  // ---------- simple form ops ----------
   const handleInputChange = (fieldName, value) => {
-    setFormData((prevFormData) => ({
-      ...prevFormData,
-      [fieldName]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [fieldName]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const rowInputs = rows.map((row) => ({
       productCode: row.productCode,
       unitPrice: row.unitPrice,
@@ -352,161 +210,223 @@ const newRow = {
 
     await updateQuotation({
       id: params.id,
-       ...formData,
+      ...formData,
       products: rowInputs,
     });
   };
 
-const handleEdit = async (e) => {
-  e.preventDefault();
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    const rowInputs = rows.map((row) => ({
+      productCode: row.productCode,
+      unitPrice: row.unitPrice,
+      unit: row.unit,
+      qty: row.qty,
+      description: row.description,
+    }));
 
-  const rowInputs = rows.map((row) => ({
-    productCode: row.productCode,
-    unitPrice: row.unitPrice,
-    unit: row.unit,
-    qty: row.qty,
-    description: row.description,
-  }));
-
-  // ✅ Call the function first
-  const totals = calculateTotalUnitPrice();
-
-  const payload = {
-    id: params.id,
-    ...formData,
-    products: rowInputs,
-    currency: selectedCurrency,
-    totalPrice: Number(totals.totalUnitPrice), // ✅ use the returned value
+    await editQuotation({
+      id: params.id,
+      ...formData,
+      products: rowInputs,
+      currency: selectedCurrency,
+      totalPrice: Number(totals.totalUnitPrice),
+    });
   };
 
-  console.log('Payload being sent:', payload);
+  // ---------- preview / download / upload ----------
+  const previewQuotationDocument = async (asPopup = false) => {
+    try {
+      const payload = buildDocumentData("word-to-pdf");
+      const res = await fetch(`/api/loadQuoPdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`Server responded ${res.status}: ${t}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
 
-  await editQuotation(payload);
-};
+      if (asPopup) {
+        // show inside modal
+        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(url);
+        setIsPreviewOpen(true);
+      } else {
+        // open in new tab/page
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+    } catch (err) {
+      alert(err.message || "Failed to preview PDF.");
+    }
+  };
 
-    const calculateTotalUnitPrice = () => {
-      const totalUnitPrice = rows.reduce((total, row) => total + (Number(row.unitPrice) || 0), 0);
-      const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-      const vatAmount = totalUnitPrice * vatRate;
-      const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-    
-    
-      return {
-        totalUnitPrice: totalUnitPrice.toFixed(2), // Format to 2 decimal places
-        vatAmount: vatAmount.toFixed(2), // Format to 2 decimal places
-        totalUnitPriceWithVAT: totalUnitPriceWithVAT.toFixed(2), // Format to 2 decimal places
-      };
-    };
+  const downloadQuotationDocument = async () => {
+    try {
+      const payload = buildDocumentData("word-to-pdf");
+      const res = await fetch(`/api/loadQuoPdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`Server responded with status: ${res.status}, message: ${t}`);
+      }
+      const blob = await res.blob();
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = `Quotation_${payload.QuotationNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(href), 60_000);
+    } catch (err) {
+      console.error("Download error:", err);
+      alert(err.message || "Download failed.");
+    }
+  };
+
+  const uploadQuotationDocument = async () => {
+    try {
+      const payload = buildDocumentData("word-to-pdf");
+      const res = await fetch(`/api/loadQuoToSynology`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`Server responded with status: ${res.status}, message: ${t}`);
+      }
+      alert("PDF uploaded successfully!");
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert(err.message || "Upload failed.");
+    }
+  };
+
+  // ---------- render ----------
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error loading quotation: {error}</div>;
+  if (!quotation) return null;
 
   return (
-    
-    <div>  
+    <div>
       <form onSubmit={handleSubmit}>
-      
         <div className={styles.container}>
-        <div className={styles.container}>
-      Quotation ID: {formData.quotationId}
-      </div>
-      <button
-  type="button"
-  className={`${styles.DownloadButton}`}
-  onClick={handleEdit}>
-  Edit
-</button>
-      <button
-  type="button"
-  className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
-  onClick={uploadQuotationDocument}
-  disabled={!formData.userName || formData.userName.trim() === 'N/A'}
->
-  Upload To Synology
-</button>
- <button
-  type="button"
-  className={`${styles.DownloadButton}`}
-  onClick={downloadQuotationDocument}
-  disabled={!formData.userName || formData.userName.trim() === 'N/A'}
->
-  Download PDF
-</button>
+          <div>Quotation ID: {formData.quotationId}</div>
 
-          <div className={styles.form1}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+            <button type="button" className={styles.DownloadButton} onClick={handleEdit}>
+              Edit
+            </button>
+
+
+            <button
+              type="button"
+ className={`${styles.DownloadButton} ${
+                rows.length > 0 && formData.userName && formData.userName.trim() !== "N/A"
+                  ? ""
+                  : styles.DisabledButton
+              }`}              onClick={() => previewQuotationDocument(true)}
+              disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
+            >
+              Preview 
+            </button>
+
+           
+            <button
+              type="button"
+              className={`${styles.DownloadButton} ${
+                rows.length > 0 && formData.userName && formData.userName.trim() !== "N/A"
+                  ? ""
+                  : styles.DisabledButton
+              }`}
+              onClick={uploadQuotationDocument}
+              disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
+            >
+              Upload To Synology
+            </button>
+          </div>
+
+          <div className={styles.form1} style={{ marginTop: 12 }}>
             <input type="hidden" name="id" value={params.id} />
             <div className={styles.inputContainer}>
-                <label htmlFor="username" className={styles.label}>
-                  Admin Name:
-                </label>
-            <input
-              type="text"
-              className={styles.input}
-              value={formData.userName}
-              onChange={(e) => handleInputChange('userName', e.target.value)}
-              readOnly 
-            />
+              <label className={styles.label}>Admin Name:</label>
+              <input
+                type="text"
+                className={styles.input}
+                value={formData.userName}
+                onChange={(e) => handleInputChange("userName", e.target.value)}
+                readOnly
+              />
             </div>
             <div className={styles.inputContainer}>
-                <label htmlFor="clientName" className={styles.label}>
-                  Client Name:
-                </label>
-            <input
-              type="text"
-              className={styles.input}
-              value={formData.clientName}
-              onChange={(e) => handleInputChange('clientName', e.target.value)}
-              readOnly 
-            />
+              <label className={styles.label}>Client Name:</label>
+              <input
+                type="text"
+                className={styles.input}
+                value={formData.clientName}
+                onChange={(e) => handleInputChange("clientName", e.target.value)}
+                readOnly
+              />
             </div>
             <div className={styles.inputContainer}>
-                <label htmlFor="saleName" className={styles.label}>
-                Sale Representative Name:
-                </label>
-             <input
-              type="text"
-              className={styles.input}
-              value={formData.saleName}
-              onChange={(e) => handleInputChange('saleName', e.target.value)}
-              readOnly 
-            />
+              <label className={styles.label}>Sale Representative Name:</label>
+              <input
+                type="text"
+                className={styles.input}
+                value={formData.saleName}
+                onChange={(e) => handleInputChange("saleName", e.target.value)}
+                readOnly
+              />
             </div>
             <div className={styles.inputContainer}>
-                <label htmlFor="projectName" className={styles.label}>
-                Project Name:
-                </label>
-            <input
-              className={styles.input}
-              value={formData.projectName}
-              onChange={(e) => handleInputChange('projectName', e.target.value)}
-            />
+              <label className={styles.label}>Project Name:</label>
+              <input
+                className={styles.input}
+                value={formData.projectName}
+                onChange={(e) => handleInputChange("projectName", e.target.value)}
+              />
             </div>
             <div className={styles.inputContainer}>
-                <label htmlFor="projectLA" className={styles.label}>
-                  Project Location Address:
-                </label>
-            <input
-              className={styles.input}
-              value={formData.projectLA}
-              onChange={(e) => handleInputChange('projectLA', e.target.value)}
-            />
+              <label className={styles.label}>Project Location Address:</label>
+              <input
+                className={styles.input}
+                value={formData.projectLA}
+                onChange={(e) => handleInputChange("projectLA", e.target.value)}
+              />
             </div>
           </div>
         </div>
+
         <div className={styles.container}>
           <div className={styles.form2}>
             <p className={styles.title}>Products</p>
+
             <div className={styles.selectContainer}>
-            <div className={styles.selectWrapper}>
-            <label htmlFor="currency" className={styles.selectLabel}>Select Currency:</label>
-          <select
-          id="currency"
-          value={selectedCurrency}
-          onChange={(e) => setSelectedCurrency(e.target.value)}
-          className={styles.select}
-          >
-          <option value="USD">USD</option>
-          <option value="SAR">SAR</option>
-        </select>
-        </div>
-        </div>
+              <div className={styles.selectWrapper}>
+                <label htmlFor="currency" className={styles.selectLabel}>
+                  Select Currency:
+                </label>
+                <select
+                  id="currency"
+                  value={selectedCurrency}
+                  onChange={(e) => setSelectedCurrency(e.target.value)}
+                  className={styles.select}
+                >
+                  <option value="USD">USD</option>
+                  <option value="SAR">SAR</option>
+                </select>
+              </div>
+            </div>
+
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -514,9 +434,9 @@ const handleEdit = async (e) => {
                   <td>Product Code</td>
                   <td>Description</td>
                   <td>Qty</td>
-                  <td>Unit Price</td>
+                  <td>Unit</td>
                   <td>Total Price</td>
-
+                  <td></td>
                 </tr>
               </thead>
               <tbody>
@@ -526,54 +446,46 @@ const handleEdit = async (e) => {
                       <input
                         className={`${styles.input} ${styles.numberInput}`}
                         type="text"
-                        value={row.number.toString().padStart(3, '0')}
+                        value={row.number.toString().padStart(3, "0")}
                         readOnly
                       />
                     </td>
                     <td>
                       <input
                         className={styles.input1}
-                        placeholder={row.productCode}
+                        placeholder="Product Code"
                         value={row.productCode}
-                        onChange={(e) => handleRowInputChange(index, 'productCode', e.target.value)}
+                        onChange={(e) => handleRowInputChange(index, "productCode", e.target.value)}
                       />
                     </td>
                     <td>
-                    <textarea
+                      <textarea
                         className={`${styles.input1} ${styles.textarea}`}
-                        placeholder={row.description}
+                        placeholder="Description"
                         value={row.description}
-                        onChange={(e) => handleRowInputChange(index, 'description', e.target.value)}
-                      ></textarea>
+                        onChange={(e) => handleRowInputChange(index, "description", e.target.value)}
+                      />
                     </td>
                     <td>
                       <input
                         className={styles.input1}
-                        placeholder={row.qty}
+                        placeholder="Qty"
                         value={row.qty}
-                        onChange={(e) => handleRowInputChange(index, 'qty', e.target.value)}
+                        onChange={(e) => handleRowInputChange(index, "qty", e.target.value)}
                       />
                     </td>
                     <td>
                       <input
                         className={styles.input1}
-                        placeholder={row.unit}
+                        placeholder="Unit Price"
                         value={row.unit}
-                        onChange={(e) => handleRowInputChange(index, 'unit', e.target.value)}
+                        onChange={(e) => handleRowInputChange(index, "unit", e.target.value)}
                       />
                     </td>
-                    <td>
-                    
-                    {formatCurrency(Number(row.unitPrice) || 0, selectedCurrency)}
-
-                    </td>
+                    <td>{formatCurrency(Number(row.unitPrice) || 0)}</td>
                     <td>
                       {index === rows.length - 1 ? (
-                        <button
-                          type="button"
-                          className={`${styles.iconButton} ${styles.addButton}`}
-                          onClick={addRow}
-                        >
+                        <button type="button" className={`${styles.iconButton} ${styles.addButton}`} onClick={addRow}>
                           <FaPlus />
                         </button>
                       ) : (
@@ -592,78 +504,150 @@ const handleEdit = async (e) => {
             </table>
           </div>
         </div>
+
         <div className={styles.container}>
-        
           <div className={styles.form5}>
-            <p>Total Unit Price (Excluding VAT): {formatCurrency(calculateTotalUnitPrice().totalUnitPrice)}</p>
-            <p>VAT (15%): {formatCurrency(calculateTotalUnitPrice().vatAmount)}</p>
-            <p>Total Unit Price (Including VAT): {formatCurrency(calculateTotalUnitPrice().totalUnitPriceWithVAT)}</p>
-</div>
+            <p>Total Unit Price (Excluding VAT): {formatCurrency(totals.totalUnitPrice)}</p>
+            <p>VAT ({selectedCurrency === "USD" ? "0%" : "15%"}): {formatCurrency(totals.vatAmount)}</p>
+            <p>Total Unit Price (Including VAT): {formatCurrency(totals.totalUnitPriceWithVAT)}</p>
+          </div>
         </div>
+
         <div className={styles.container}>
           <div className={styles.form1}>
-          <div className={styles.inputContainer}>
-            <label htmlFor="paymentTerm" className={styles.label}>
-               Payment Term:
-            </label>
-            <textarea
-              className={styles.input}
-              placeholder="paymentTerm"
-              value={formData.paymentTerm}
-              onChange={(e) => handleInputChange('paymentTerm', e.target.value)}
-            />
+            <div className={styles.inputContainer}>
+              <label className={styles.label}>Payment Term:</label>
+              <textarea
+                className={styles.input}
+                value={formData.paymentTerm}
+                onChange={(e) => handleInputChange("paymentTerm", e.target.value)}
+              />
             </div>
             <div className={styles.inputContainer}>
-            <label htmlFor="paymentDelivery" className={styles.label}>
-            Payment Delivery:
-            </label>
-            <textarea
-              className={styles.input}
-              placeholder="paymentDelivery"
-              value={formData.paymentDelivery}
-              onChange={(e) => handleInputChange('paymentDelivery', e.target.value)}
-            />
+              <label className={styles.label}>Payment Delivery:</label>
+              <textarea
+                className={styles.input}
+                value={formData.paymentDelivery}
+                onChange={(e) => handleInputChange("paymentDelivery", e.target.value)}
+              />
             </div>
             <div className={styles.inputContainer}>
-            <label htmlFor="validityPeriod" className={styles.label}>
-            Validity Period:
-            </label>
-            <textarea
-              className={styles.input}
-              value={formData.validityPeriod}
-              onChange={(e) => handleInputChange('validityPeriod', e.target.value)}
-            />
+              <label className={styles.label}>Validity Period:</label>
+              <textarea
+                className={styles.input}
+                value={formData.validityPeriod}
+                onChange={(e) => handleInputChange("validityPeriod", e.target.value)}
+              />
             </div>
             <div className={styles.inputContainer}>
-            <label htmlFor="note" className={styles.label}>
-               Note:
-            </label>
-            <textarea
-              className={styles.input}
-              value={formData.note}
-              onChange={(e) => handleInputChange('note', e.target.value)}
-            />
+              <label className={styles.label}>Note:</label>
+              <textarea
+                className={styles.input}
+                value={formData.note}
+                onChange={(e) => handleInputChange("note", e.target.value)}
+              />
             </div>
             <div className={styles.inputContainer}>
-            <label htmlFor="excluding" className={styles.label}>
-            Excluding:
-            </label>
-            <textarea
-              className={styles.input}
-              value={formData.excluding}
-              onChange={(e) => handleInputChange('excluding', e.target.value)}
-            />
+              <label className={styles.label}>Excluding:</label>
+              <textarea
+                className={styles.input}
+                value={formData.excluding}
+                onChange={(e) => handleInputChange("excluding", e.target.value)}
+              />
             </div>
+
             <button type="submit">Update</button>
           </div>
         </div>
       </form>
+
+      {/* ---------- Popup modal ---------- */}
+      {isPreviewOpen && (
+        <div
+          onClick={() => {
+            setIsPreviewOpen(false);
+            if (pdfUrl) {
+              URL.revokeObjectURL(pdfUrl);
+              setPdfUrl(null);
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              width: "80%",
+              height: "80%",
+              borderRadius: 8,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", display: "flex", gap: 8 }}>
+              <button
+                className={styles.DownloadButton}
+                onClick={() => {
+                  if (!pdfUrl) return;
+                  const a = document.createElement("a");
+                  a.href = pdfUrl;
+                  a.download = `Quotation_${formData.quotationId || "Preview"}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+              >
+                Download this PDF
+              </button>
+
+              <button
+                className={styles.DownloadButton}
+                onClick={() => {
+                  setIsPreviewOpen(false);
+                  if (pdfUrl) {
+                    window.open(pdfUrl, "_blank");
+                    // don’t revoke immediately for the new tab
+                  }
+                }}
+              >
+                Open in new tab
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsPreviewOpen(false);
+                  if (pdfUrl) {
+                    URL.revokeObjectURL(pdfUrl);
+                    setPdfUrl(null);
+                  }
+                }}
+                style={{ marginLeft: "auto" }}
+              >
+                ✖
+              </button>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              {pdfUrl ? (
+                <iframe title="Quotation Preview" src={pdfUrl} width="100%" height="100%" style={{ border: "none" }} />
+              ) : (
+                <div style={{ padding: 24 }}>Loading PDF…</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-  
 };
-
-
-
 
 export default SingleQuotation;

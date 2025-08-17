@@ -1,158 +1,93 @@
-import PizZip from 'pizzip';
-import fs from 'fs';
-import path from 'path';
-import Docxtemplater from 'docxtemplater';
-import { exec } from 'child_process';
-import { NextResponse } from 'next/server';
-import os from 'os';
+import fs from "fs";
+import path from "path";
+import os from "os";
+import { promisify } from "util";
+import { execFile } from "child_process";
+import { NextResponse } from "next/server";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
 
-// Function to write buffer to a temporary file
-function writeBufferToTempFile(buffer, fileName) {
-  const tempDir = path.join(process.cwd(), 'tmp'); // Directory for temporary files
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir); // Create the directory if it doesn't exist
+export const runtime = "nodejs"; // so we can use fs and child_process
+
+const execFileAsync = promisify(execFile);
+
+// LibreOffice path per platform
+function getLibreOfficePath() {
+  const p = process.platform;
+  if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
+  if (p === "darwin") return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
+  return "/usr/bin/soffice"; // Linux
+}
+
+// Render DOCX buffer from template + data
+async function renderDocxBuffer(templateBuffer, data) {
+  const zip = new PizZip(templateBuffer);
+  const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+  doc.render(data);
+  return doc.getZip().generate({ type: "nodebuffer" });
+}
+
+// Convert DOCX buffer to PDF bytes via LibreOffice
+async function docxToPdfBytes(payload) {
+  // 1) Load DOCX template from your repo
+  const templatePath = path.join(process.cwd(), "templates", "SVS_Quotation_NEW.docx");
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Template not found at ${templatePath}`);
   }
-  const tempFilePath = path.join(tempDir, fileName);
-  return new Promise((resolve, reject) => {
-    fs.writeFile(tempFilePath, buffer, (err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(tempFilePath);
-      }
-    });
-  });
-}
+  const templateBuffer = fs.readFileSync(templatePath);
 
-// Function to fetch the DOCX template from the local directory
-async function fetchDocxTemplate(fileName) {
-  const filePath = path.join(process.cwd(), 'templates', fileName); // Path to template
-  console.log(`Fetching DOCX template from local path: ${filePath}`);
-  
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`File not found: ${filePath}`);
+  // 2) Render
+  const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
+
+  // 3) Write temp DOCX
+  const tmpDir = process.platform === "win32" ? path.join(process.cwd(), "tmp") : os.tmpdir();
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
+  fs.writeFileSync(tmpDocx, renderedBuffer);
+
+  // 4) Convert to PDF
+  const soffice = getLibreOfficePath();
+  const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
+  try {
+    await execFileAsync(soffice, [
+      "--headless",
+      "--convert-to",
+      "pdf:writer_pdf_Export",
+      "--outdir",
+      tmpDir,
+      tmpDocx,
+    ]);
+  } catch (e) {
+    throw new Error(
+      `LibreOffice conversion failed. Ensure LibreOffice is installed and path is correct.\n${e?.message || e}`
+    );
   }
 
-  return fs.readFileSync(filePath); // Return the file buffer
+  // 5) Read & cleanup
+  const pdfBytes = fs.readFileSync(outPdf);
+  try { fs.unlinkSync(tmpDocx); } catch {}
+  try { fs.unlinkSync(outPdf); } catch {}
+  return pdfBytes;
 }
 
-
-/*
-// Function to convert DOCX to PDF using LibreOffice
-async function convertDocxToPdf(inputPath, outputPath) {
-  return new Promise((resolve, reject) => {
-    const libreOfficePath = `"C:\\Program Files\\LibreOffice\\program\\soffice.exe"`; // Path to LibreOffice
-    const command = `${libreOfficePath} --headless --convert-to pdf --outdir ${path.dirname(outputPath)} ${inputPath}`;
-    
-    console.log('Running command:', command);
-
-    exec(command, (error, stdout, stderr) => {
-      console.log('stdout:', stdout);
-      console.log('stderr:', stderr);
-
-      if (error) {
-        console.error('Error during conversion:', error);
-        reject(stderr);
-      } else {
-        console.log('Conversion successful:', stdout);
-        resolve(outputPath);
-      }
-    });
-  });
-}
-*/
-
-async function convertDocxToPdf(inputPath, outputPath) {
-  return new Promise((resolve, reject) => {
-    let libreOfficePath;
-    if (os.platform() === 'win32') {
-      libreOfficePath = `"C:\\Program Files\\LibreOffice\\program\\soffice.exe"`;
-    } else {
-      libreOfficePath = '/usr/bin/soffice';
-    }
-
-    const command = `${libreOfficePath} --headless --convert-to pdf --outdir ${path.dirname(outputPath)} ${inputPath}`;
-
-    console.log('Running command:', command);
-
-    exec(command, (error, stdout, stderr) => {
-      console.log('stdout:', stdout);
-      console.log('stderr:', stderr);
-
-      if (error) {
-        console.error('Error during conversion:', error);
-        reject(stderr || error);
-      } else {
-        console.log('Conversion successful:', stdout);
-        resolve(outputPath);
-      }
-    });
-  });
-}
-
-
-// Helper function to clean up temporary files
-function cleanupTempFiles(filePaths) {
-  filePaths.forEach((filePath) => {
-    fs.unlink(filePath, (err) => {
-      if (err) {
-        console.error(`Failed to delete file ${filePath}:`, err.message);
-      } else {
-        console.log(`Temporary file deleted: ${filePath}`);
-      }
-    });
-  });
-}
-
-// POST handler for generating and downloading the PDF
 export async function POST(req) {
   try {
-    console.log('Step 1: Request received');
+    const payload = await req.json();
 
-    const chunks = [];
-    for await (const chunk of req.body) {
-      chunks.push(chunk);
-    }
-    const data = JSON.parse(Buffer.concat(chunks).toString());
-    console.log('Step 2: Parsed request data:', data);
+    // Always use DOCX → PDF for exact review (dynamic rows/pagination)
+    const pdfBytes = await docxToPdfBytes(payload);
 
-    const fileName = 'SVS_Quotation_NEW.docx'; // Template file name
-    const docxBuffer = await fetchDocxTemplate(fileName);
-    console.log('Step 3: DOCX template fetched successfully');
-
-    const zip = new PizZip(docxBuffer);
-    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-    doc.render(data);
-    console.log('Step 4: DOCX template rendered successfully');
-
-    const tempDocxFilePath = await writeBufferToTempFile(doc.getZip().generate({ type: 'nodebuffer' }), 'temp.docx');
-    console.log('Step 5: Rendered DOCX saved at:', tempDocxFilePath);
-
-    const pdfPath = tempDocxFilePath.replace('.docx', '.pdf');
-    console.log('Converting DOCX to PDF using LibreOffice...');
-    await convertDocxToPdf(tempDocxFilePath, pdfPath);
-    console.log('PDF generated successfully at:', pdfPath);
-
-    const pdfBuffer = fs.readFileSync(pdfPath);
-
-    // Serve the PDF to the client
-    const response = new NextResponse(pdfBuffer, {
+    const filename = `Quotation_${payload?.QuotationNumber || "Preview"}.pdf`;
+    return new NextResponse(pdfBytes, {
       status: 200,
       headers: {
-        'Content-Disposition': `attachment; filename="Quotation_${data.QuotationNumber || 'Document'}.pdf"`,
-        'Content-Type': 'application/pdf',
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `inline; filename="${filename}"`,
+        "Cache-Control": "no-store",
       },
     });
-
-    // Clean up temporary files
-    cleanupTempFiles([tempDocxFilePath, pdfPath]);
-
-    return response;
-  } catch (error) {
-    console.error('Error in document generation:', error.message);
-    console.error('Stack Trace:', error.stack);
-    return new NextResponse('Internal Server Error', { status: 500 });
+  } catch (err) {
+    console.error("loadQuoPdf error:", err);
+    return NextResponse.json({ error: err?.message || "Failed to generate PDF" }, { status: 500 });
   }
 }
-
-
