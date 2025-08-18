@@ -89,10 +89,10 @@ const SingleQuotation = ({ params }) => {
 
       // ---- ONLY FORMATTING CHANGED BELOW ----
       // Send as strings with 2 decimals so the template shows 0.00 style
-      TotalPrice: to2(Subtotal),
-      VatRate: Number(vatRate.toFixed(2)), // left as-is per your request
-      VatPrice: to2(VatPrice),
-      NetPrice: to2(NetPrice),
+      TotalPrice: formatCurrency(Subtotal),   // e.g. "4,800.00"
+    VatRate: Number(vatRate.toFixed(2)),    // unchanged
+     VatPrice: formatCurrency(VatPrice),     // e.g. "720.00"
+    NetPrice: formatCurrency(NetPrice), 
       // ---------------------------------------
 
       ValidityPeriod: formData.validityPeriod || "No Validity Preiod",
