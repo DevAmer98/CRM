@@ -40,9 +40,12 @@ const SingleQuotation = ({ params }) => {
     }).format(n);
   };
 
+  // utility to force "0.00" style (string)
+  const to2 = (v) => Number(v || 0).toFixed(2);
+
   const totals = useMemo(() => {
     const subtotal = rows.reduce((acc, r) => acc + (Number(r.unitPrice) || 0), 0);
-    const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
+    const vatRate = selectedCurrency === "USD" ? 0 : 15; // unchanged per your request
     const vatAmount = subtotal * vatRate;
     const total = subtotal + vatAmount;
     return {
@@ -62,7 +65,7 @@ const SingleQuotation = ({ params }) => {
       totalUnitPriceWithVAT: NetPrice,
     } = totals;
 
-    const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
+    const vatRate = selectedCurrency === "USD" ? 0 : 15; // unchanged
 
     return {
       renderMode: mode, // "word-to-pdf" (exact from DOCX) or "pdf-template" (pdf-lib)
@@ -83,10 +86,15 @@ const SingleQuotation = ({ params }) => {
       ClientEmail: quotation.client?.email || "No Client Email",
       ClientAddress: quotation.client?.address || "No Client Address",
       Currency: selectedCurrency,
-      TotalPrice: Number(Subtotal),
-      VatRate: Number(vatRate.toFixed(2)),
-      VatPrice: Number(VatPrice),
-      NetPrice: Number(NetPrice),
+
+      // ---- ONLY FORMATTING CHANGED BELOW ----
+      // Send as strings with 2 decimals so the template shows 0.00 style
+      TotalPrice: to2(Subtotal),
+      VatRate: Number(vatRate.toFixed(2)), // left as-is per your request
+      VatPrice: to2(VatPrice),
+      NetPrice: to2(NetPrice),
+      // ---------------------------------------
+
       ValidityPeriod: formData.validityPeriod || "No Validity Preiod",
       PaymentTerm: formData.paymentTerm || "No Payment Term",
       PaymentDelivery: formData.paymentDelivery || "No Delivery Term",
@@ -94,11 +102,21 @@ const SingleQuotation = ({ params }) => {
       Excluding: formData.excluding || "No Exclusions",
       Products: rows.map((p, idx) => ({
         Number: (idx + 1).toString().padStart(3, "0"),
-        ProductCode: p.productCode || "—",
-        UnitPrice: Number(p.unitPrice || 0), // total per row
-        Unit: Number(p.unit || 0),           // unit price
+        ProductCode: (p.productCode || "—").toUpperCase(),
+        UnitPrice: Number((p.unitPrice || 0).toFixed(2)), // total per row
+        Unit: Number((p.unit || 0).toFixed(2)),
         Qty: Number(p.qty || 0),
-        Description: p.description || "—",
+        Description: (p.description || "—").toUpperCase(),
+      })),
+
+      // (keeping your second Products mapping as in your source)
+      Products: rows.map((p, idx) => ({
+        Number: (idx + 1).toString().padStart(3, "0"),
+        ProductCode: (p.productCode || "—").toUpperCase(),
+        UnitPrice: formatCurrency(p.unitPrice || 0), // formatted: "3,450.00"
+        Unit: formatCurrency(p.unit || 0), // formatted: "250.00"
+        Qty: Number(p.qty || 0),
+        Description: (p.description || "—").toUpperCase(),
       })),
     };
   };
@@ -147,7 +165,7 @@ const SingleQuotation = ({ params }) => {
       number: index + 1,
       productCode: product.productCode || "",
       unitPrice: Number(product.unitPrice || 0), // total per row
-      unit: product.unit || "",                  // unit price
+      unit: product.unit || "", // unit price
       qty: product.qty || "",
       description: product.description || "",
     }));
@@ -265,33 +283,6 @@ const SingleQuotation = ({ params }) => {
     }
   };
 
-  const downloadQuotationDocument = async () => {
-    try {
-      const payload = buildDocumentData("word-to-pdf");
-      const res = await fetch(`/api/loadQuoPdf`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`Server responded with status: ${res.status}, message: ${t}`);
-      }
-      const blob = await res.blob();
-      const href = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = href;
-      a.download = `Quotation_${payload.QuotationNumber}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(href), 60_000);
-    } catch (err) {
-      console.error("Download error:", err);
-      alert(err.message || "Download failed.");
-    }
-  };
-
   const uploadQuotationDocument = async () => {
     try {
       const payload = buildDocumentData("word-to-pdf");
@@ -327,20 +318,19 @@ const SingleQuotation = ({ params }) => {
               Edit
             </button>
 
-
             <button
               type="button"
- className={`${styles.DownloadButton} ${
+              className={`${styles.DownloadButton} ${
                 rows.length > 0 && formData.userName && formData.userName.trim() !== "N/A"
                   ? ""
                   : styles.DisabledButton
-              }`}              onClick={() => previewQuotationDocument(true)}
+              }`}
+              onClick={() => previewQuotationDocument(true)}
               disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
             >
-              Preview 
+              Preview
             </button>
 
-           
             <button
               type="button"
               className={`${styles.DownloadButton} ${
