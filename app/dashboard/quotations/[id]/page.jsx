@@ -100,25 +100,17 @@ const SingleQuotation = ({ params }) => {
       PaymentDelivery: formData.paymentDelivery || "No Delivery Term",
       Note: formData.note || "No Note",
       Excluding: formData.excluding || "No Exclusions",
-      Products: rows.map((p, idx) => ({
-        Number: (idx + 1).toString().padStart(3, "0"),
-        ProductCode: (p.productCode || "—").toUpperCase(),
-        UnitPrice: Number((p.unitPrice || 0).toFixed(2)), // total per row
-        Unit: Number((p.unit || 0).toFixed(2)),
-        Qty: Number(p.qty || 0),
-        Description: (p.description || "—").toUpperCase(),
-      })),
-
-      // (keeping your second Products mapping as in your source)
-      Products: rows.map((p, idx) => ({
-        Number: (idx + 1).toString().padStart(3, "0"),
-        ProductCode: (p.productCode || "—").toUpperCase(),
-        UnitPrice: formatCurrency(p.unitPrice || 0), // formatted: "3,450.00"
-        Unit: formatCurrency(p.unit || 0), // formatted: "250.00"
-        Qty: Number(p.qty || 0),
-        Description: (p.description || "—").toUpperCase(),
-      })),
-    };
+   Products: rows.map((p, idx) => ({
+  Number: (idx + 1).toString().padStart(3, "0"),
+  ProductCode: (p.productCode || "—").toUpperCase(),
+  UnitPrice: formatCurrency(p.unitPrice || 0),
+  Unit: formatCurrency(p.unit || 0),
+  Qty: Number(p.qty || 0),
+  Description: (p.description || "—")
+    .toUpperCase()
+    .match(/.{1,40}/g) || ["—"], // <-- array of chunks
+})),
+    }
   };
 
   // ---------- data fetch ----------
