@@ -103,20 +103,20 @@ const salesSchema = new Schema(
     },
     contactName: {
       type: String,
-      required: true,
+      required: false,
     },
     contactMobile: {
       type: String,
-      required: true,
+      required: false,
     },
     email: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
     },
     address: {
       type: String,
-      required: true,
+      required: false,
 
     },
   },
