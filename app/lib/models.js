@@ -201,10 +201,12 @@ const employeeSchema = new Schema(
     },
     passportNo: {
       type: String,
-      required: true,
+      required: false,
     },
     passportExpirationDate: {
       type: String,
+      required: false,
+
     },
     dateOfBirth: {
       type: String,

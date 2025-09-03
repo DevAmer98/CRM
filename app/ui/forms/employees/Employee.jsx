@@ -191,7 +191,6 @@ const AddEmployee = () => {
         type="date"
         value={formData[field] || ''}
         onChange={(e) => (onChangeOverride ? onChangeOverride(e.target.value) : handleChange(field, e.target.value))}
-        required={required}
       />
     </div>
   );
@@ -280,7 +279,6 @@ const AddEmployee = () => {
                     type="text"
                     value={formData.passportNo}
                     onChange={(e) => handleChange('passportNo', e.target.value)}
-                    required
                   />
                 </div>
                 {renderDateInput('passportExpirationDate', 'Passport Expiry Date')}
