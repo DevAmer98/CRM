@@ -1,9 +1,10 @@
 import React from 'react';
-import styles from '@/app/ui/hr_dashboard/employees/employees.module.css';
+import styles from '@/app/ui/dashboard/clients/clients.module.css';
 import Search from '@/app/ui/hr_dashboard/search/search';
 import Link from 'next/link';
 import Pagination from '@/app/ui/dashboard/pagination/pagination';
 import { fetchShifts } from '@/app/lib/data'; 
+import DeleteShift from '@/app/ui/deleteForms/Shift';
 
 const ShiftsPage = async ({ searchParams }) => {
   const q = searchParams?.q || "";
@@ -37,11 +38,12 @@ const ShiftsPage = async ({ searchParams }) => {
               <td>{new Date(shift.date).toLocaleDateString()}</td>
               <td>{shift.startTime}</td>
               <td>{shift.endTime}</td>
-              <td>
+              <td> 
                 <div className={styles.buttons}>
                   <Link href={`/hr_dashboard/shifts/${shift._id}`}>
                     <button className={`${styles.button} ${styles.view}`}>View</button>
                   </Link>
+                  <DeleteShift shiftId={shift._id} />
                 </div>
               </td>
             </tr>

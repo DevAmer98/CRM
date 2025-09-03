@@ -26,6 +26,17 @@ const SingleQuotation = ({ params }) => {
 
   const [rows, setRows] = useState([]);
 
+  const currencyFields = (selectedCurrency) => {
+    const isSAR = selectedCurrency === "SAR";
+    return {
+      isSAR,
+      Currency: isSAR ? "" : "(USD)",
+      CurrencySymbol: isSAR ? "" : "$",
+      CurrencyWrap: isSAR ? "" : "(USD)",
+      CurrencyNote: isSAR ? "" : "All prices in USD",
+    };
+  };
+
   // Preview state (popup)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
@@ -65,11 +76,17 @@ const SingleQuotation = ({ params }) => {
       totalUnitPriceWithVAT: NetPrice,
     } = totals;
 
-    const vatRate = selectedCurrency === "USD" ? 0 : 15; // unchanged
+    // Keep your existing VAT behavior exactly as-is
+    const vatRate = selectedCurrency === "USD" ? 0 : 15;
+
+    // 🔑 Currency fields
+    const cf = currencyFields(selectedCurrency);
 
     return {
-      renderMode: mode, // "word-to-pdf" (exact from DOCX) or "pdf-template" (pdf-lib)
+      renderMode: mode,
       templateId: "quotation-v1",
+
+      // -------- your existing fields ----------
       QuotationNumber: formData.quotationId || "No Quotation ID",
       ClientName: formData.clientName || "No Client Name",
       CreatedAt: new Date(quotation.createdAt || Date.now()).toISOString().split("T")[0],
@@ -85,32 +102,39 @@ const SingleQuotation = ({ params }) => {
       ClientContactMobile: quotation.client?.contactMobile || "No Client Contact Mobile",
       ClientEmail: quotation.client?.email || "No Client Email",
       ClientAddress: quotation.client?.address || "No Client Address",
+
+      // Keep original
       Currency: selectedCurrency,
 
-      // ---- ONLY FORMATTING CHANGED BELOW ----
-      // Send as strings with 2 decimals so the template shows 0.00 style
-      TotalPrice: formatCurrency(Subtotal),   // e.g. "4,800.00"
-    VatRate: Number(vatRate.toFixed(2)),    // unchanged
-     VatPrice: formatCurrency(VatPrice),     // e.g. "720.00"
-    NetPrice: formatCurrency(NetPrice), 
-      // ---------------------------------------
+      // -------- formatted numbers as strings ----------
+      TotalPrice: formatCurrency(Subtotal),
+      VatRate: Number(vatRate.toFixed(2)), // unchanged per your current logic
+      VatPrice: formatCurrency(VatPrice),
+      NetPrice: formatCurrency(NetPrice),
 
+      // -------- new currency-driven placeholders ----------
+      CurrencyWrap: cf.CurrencyWrap, // e.g. "" or "(USD)"
+      CurrencyNote: cf.CurrencyNote, // e.g. "" or "All prices in USD"
+      CurrencySymbol: cf.CurrencySymbol, // if needed anywhere
+      IsSAR: cf.isSAR,
+      IsUSD: !cf.isSAR,
+
+      // -------- rest unchanged ----------
       ValidityPeriod: formData.validityPeriod || "No Validity Preiod",
       PaymentTerm: formData.paymentTerm || "No Payment Term",
       PaymentDelivery: formData.paymentDelivery || "No Delivery Term",
       Note: formData.note || "No Note",
       Excluding: formData.excluding || "No Exclusions",
-   Products: rows.map((p, idx) => ({
-  Number: (idx + 1).toString().padStart(3, "0"),
-  ProductCode: (p.productCode || "—").toUpperCase(),
-  UnitPrice: formatCurrency(p.unitPrice || 0),
-  Unit: formatCurrency(p.unit || 0),
-  Qty: Number(p.qty || 0),
-  Description: (p.description || "—")
-    .toUpperCase()
-    .match(/.{1,40}/g) || ["—"], // <-- array of chunks
-})),
-    }
+
+      Products: rows.map((p, idx) => ({
+        Number: (idx + 1).toString().padStart(3, "0"),
+        ProductCode: (p.productCode || "—").toUpperCase(),
+        UnitPrice: formatCurrency(p.unitPrice || 0),
+        Unit: formatCurrency(p.unit || 0),
+        Qty: Number(p.qty || 0),
+        Description: (p.description || "—").toUpperCase().match(/.{1,40}/g) || ["—"],
+      })),
+    };
   };
 
   // ---------- data fetch ----------
@@ -245,35 +269,17 @@ const SingleQuotation = ({ params }) => {
   };
 
   // ---------- preview / download / upload ----------
-  const previewQuotationDocument = async (asPopup = false) => {
-    try {
-      const payload = buildDocumentData("word-to-pdf");
-      const res = await fetch(`/api/loadQuoPdf`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(`Server responded ${res.status}: ${t}`);
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+  // Uses a real URL that returns the PDF with Content-Disposition set on the server.
+const previewQuotationDocument = (asPopup = false) => {
+  const url = `/api/quotation/${params.id}/preview`;
+  if (asPopup) {
+    setPdfUrl(url);
+    setIsPreviewOpen(true);
+  } else {
+    window.open(url, "_blank");
+  }
+};
 
-      if (asPopup) {
-        // show inside modal
-        if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-        setPdfUrl(url);
-        setIsPreviewOpen(true);
-      } else {
-        // open in new tab/page
-        window.open(url, "_blank");
-        setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      }
-    } catch (err) {
-      alert(err.message || "Failed to preview PDF.");
-    }
-  };
 
   const uploadQuotationDocument = async () => {
     try {
@@ -290,7 +296,7 @@ const SingleQuotation = ({ params }) => {
       alert("PDF uploaded successfully!");
     } catch (err) {
       console.error("Upload error:", err);
-      alert(err.message || "Upload failed.");
+      alert((err && err.message) || "Upload failed.");
     }
   };
 
@@ -548,10 +554,10 @@ const SingleQuotation = ({ params }) => {
         <div
           onClick={() => {
             setIsPreviewOpen(false);
-            if (pdfUrl) {
+            if (pdfUrl && pdfUrl.startsWith && pdfUrl.startsWith("blob:")) {
               URL.revokeObjectURL(pdfUrl);
-              setPdfUrl(null);
             }
+            setPdfUrl(null);
           }}
           style={{
             position: "fixed",
@@ -597,7 +603,6 @@ const SingleQuotation = ({ params }) => {
                   setIsPreviewOpen(false);
                   if (pdfUrl) {
                     window.open(pdfUrl, "_blank");
-                    // don’t revoke immediately for the new tab
                   }
                 }}
               >
@@ -607,10 +612,10 @@ const SingleQuotation = ({ params }) => {
               <button
                 onClick={() => {
                   setIsPreviewOpen(false);
-                  if (pdfUrl) {
+                  if (pdfUrl && pdfUrl.startsWith && pdfUrl.startsWith("blob:")) {
                     URL.revokeObjectURL(pdfUrl);
-                    setPdfUrl(null);
                   }
+                  setPdfUrl(null);
                 }}
                 style={{ marginLeft: "auto" }}
               >

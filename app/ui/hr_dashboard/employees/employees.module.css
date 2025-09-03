@@ -63,6 +63,15 @@
   margin-bottom: 20px; /* Added spacing for better separation */
 }
 
+ .button{
+    padding: 5px 10px;
+    border-radius: 5px;
+    color: var(--text);
+    border: none;
+    cursor: pointer;
+  }
+  
+
 .addButton {
   padding: 10px 20px;
   background-color: #5d57c9;

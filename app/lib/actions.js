@@ -9,7 +9,7 @@ import { ROLES } from "./role";
 
 
 
-const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Task, Ticket, Leave, Shift } = require('@/app/lib/models')
+const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Task, Ticket, Leave, Shift, Department } = require('@/app/lib/models')
 
 
 export const addUser = async (formData) => {
@@ -132,6 +132,55 @@ export const addClient = async ({ name, phone, contactName, contactMobile, email
     }
     return { success: false, message: 'Failed to add client!' }; // Generic error response
   
+  }
+};
+
+
+
+
+export const addDepartment = async ({ name, directManagerId, employeeIds = [] }) => {
+  try {
+    await connectToDB();
+
+    // Ensure the manager is included in employees (optional but handy)
+    const employees = Array.isArray(employeeIds) && employeeIds.length
+      ? Array.from(new Set([...employeeIds.map(String), String(directManagerId)]))
+      : [String(directManagerId)];
+
+    const newDepartment = new Department({
+      name,
+      directManager: directManagerId,
+      employees,
+    });
+
+    await newDepartment.save();
+
+    // Revalidate any pages that list departments (adjust paths to your routes)
+    revalidatePath("/hr_dashboard/departments");
+    revalidatePath("/dashboard/departments");
+
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+
+    // Duplicate key (e.g., unique name) handling
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue || {})[0] || "field";
+      const value = err.keyValue?.[field];
+      return {
+        success: false,
+        message: `A department with the same ${field} "${value}" already exists.`,
+      };
+    }
+
+    // Mongoose validation message passthrough (optional)
+    if (err?.errors) {
+      const firstKey = Object.keys(err.errors)[0];
+      const msg = err.errors[firstKey]?.message || "Validation failed";
+      return { success: false, message: msg };
+    }
+
+    return { success: false, message: "Failed to add department!" };
   }
 };
 
@@ -305,7 +354,6 @@ export const updateLeave = async (formData) => {
 export const addShift = async ({
   employeeId,
   date,
-  shiftType,
   startTime,
   endTime,
   location,
@@ -321,7 +369,6 @@ export const addShift = async ({
     const newShift = new Shift({
       employee: employeeId,
       date,
-      shiftType,
       startTime,
       endTime,
       location,
@@ -332,12 +379,84 @@ export const addShift = async ({
     await newShift.save();
     return { success: true };
   } catch (err) {
-    console.error('addShift error:', err);
-    return { success: false, message: 'Failed to add Shift!' };
+    console.error('request error:', err);
+    return { success: false, message: 'Failed to add leave request ' };
   }
 };
 
 
+
+
+export const updateShift = async ({
+  id,
+  employeeId,
+  date,
+  startTime,
+  endTime,
+  location,
+}) => {
+  if (!id) return { success: false, message: 'Shift ID is required' };
+
+  try {
+    await connectToDB();
+
+    const shift = await Shift.findById(id);
+    if (!shift) return { success: false, message: 'Shift not found' };
+
+    // If employee is changing, verify it exists
+    let employeeDoc = null;
+    if (typeof employeeId === 'string' && employeeId) {
+      employeeDoc = await Employee.findById(employeeId).select('_id');
+      if (!employeeDoc) return { success: false, message: 'Employee not found' };
+    }
+
+    const updateFields = {
+      // only pass values that are not empty/undefined
+      employee: employeeDoc?._id, // only set if provided
+      date,
+      startTime,
+      endTime,
+      location,
+      updatedAt: new Date(),
+    };
+
+    Object.keys(updateFields).forEach((k) => {
+      if (updateFields[k] === '' || updateFields[k] === undefined) delete updateFields[k];
+    });
+
+    await Shift.findByIdAndUpdate(id, { $set: updateFields }, { new: true });
+
+    // Revalidate list + detail pages
+    revalidatePath('/hr_dashboard/shifts');
+    revalidatePath(`/hr_dashboard/shifts/${id}`);
+    revalidatePath('/dashboard/shifts');
+
+    return { success: true };
+  } catch (err) {
+    console.error('updateShift error:', err);
+    const msg = err?.message || 'Failed to update shift!';
+    return { success: false, message: msg };
+  }
+};
+
+
+// FIX deleteShift (use _id, fix path)
+export const deleteShift = async (formData) => {
+  const { id } = Object.fromEntries(formData);
+  if (!id) throw new Error('Shift ID is required');
+
+  try {
+    await connectToDB();
+    await Shift.deleteOne({ _id: id }); // ✅ use _id, not shiftId
+  } catch (err) {
+    console.log(err);
+    throw new Error('Failed to delete Shift!');
+  }
+
+  revalidatePath('/hr_dashboard/shifts'); // ✅ fixed path
+};
+
+/*
 export const deleteShift = async (formData) => {
   const { id } = Object.fromEntries(formData);
 
@@ -351,6 +470,10 @@ export const deleteShift = async (formData) => {
 
   revalidatePath("/hr_dashboard/sifts");
 };
+
+
+*/
+
 
 /*
 export const addEmployee = async ({ 
@@ -434,11 +557,11 @@ export const addEmployee = async ({
   dateOfBirth,
   dateOfBirthHijri,
   jobTitle,
-  directManager,
   contractDuration,
   contractStartDate,
   contractStartDateHijri,
   contractEndDate,
+  departmentId,  
   contractEndDateHijri,
   dateFormat
 }) => {
@@ -446,6 +569,15 @@ export const addEmployee = async ({
     await connectToDB();
 
     let initialLeaveBalance = 0;
+
+     // (Optional) verify department exists before creating the employee
+    let departmentDoc = null;
+    if (departmentId) {
+      departmentDoc = await Department.findById(departmentId).select("_id");
+      if (!departmentDoc) {
+        return { success: false, message: "Selected department not found." };
+      }
+    }
 
     if (contractStartDate) {
       const parsedStart = new Date(contractStartDate);
@@ -470,7 +602,7 @@ export const addEmployee = async ({
       dateOfBirth,
       dateOfBirthHijri,
       jobTitle,
-      directManager,
+      department: departmentDoc?._id || undefined,  
       contractDuration,
       contractStartDate,
       contractStartDateHijri,
@@ -496,7 +628,121 @@ export const addEmployee = async ({
   }
 };
 
+export const updateEmployee = async (formData) => {
+  const {
+    id,
+    employeeNo,
+    name,
+    contactMobile,
+    email,
+    iqamaNo,
+    iqamaExpirationDate,
+    iqamaExpirationDateHijri,
+    passportNo,
+    passportExpirationDate,
+    passportExpirationDateHijri,
+    dateOfBirth,
+    dateOfBirthHijri,
+    jobTitle,
+    contractDuration,
+    contractStartDate,
+    contractStartDateHijri,
+    contractEndDate,
+    contractEndDateHijri,
+    dateFormat,
+    departmentId,
+  } = formData;
 
+  if (!id) return { success: false, message: 'Employee ID is required' };
+
+  try {
+    await connectToDB();
+
+    const employee = await Employee.findById(id);
+    if (!employee) return { success: false, message: 'Employee not found' };
+
+    // Build update set (strip empty strings/undefined)
+    const updateFields = {
+      employeeNo,
+      name,
+      contactMobile,
+      email,
+      iqamaNo,
+      iqamaExpirationDate,
+      iqamaExpirationDateHijri,
+      passportNo,
+      passportExpirationDate,
+      passportExpirationDateHijri,
+      dateOfBirth,
+      dateOfBirthHijri,
+      jobTitle,
+      contractDuration,
+      contractStartDate,
+      contractStartDateHijri,
+      contractEndDate,
+      contractEndDateHijri,
+      dateFormat,
+      updatedAt: new Date(),
+    };
+
+    Object.keys(updateFields).forEach((k) => {
+      if (updateFields[k] === '' || updateFields[k] === undefined) delete updateFields[k];
+    });
+
+    // Department handling
+    const wantsToChangeDept = typeof departmentId === 'string';
+    const newDeptId = wantsToChangeDept ? (departmentId || null) : undefined;
+
+    if (wantsToChangeDept) {
+      const oldDeptId = employee.department ? employee.department.toString() : null;
+
+      let newDeptDoc = null;
+      if (newDeptId) {
+        newDeptDoc = await Department.findById(newDeptId).select('_id');
+        if (!newDeptDoc) {
+          return { success: false, message: 'Selected department not found.' };
+        }
+      }
+
+      const changed =
+        (oldDeptId || null) !== (newDeptDoc?._id?.toString() ?? null);
+
+      if (changed) {
+        if (oldDeptId) {
+          await Department.updateOne(
+            { _id: oldDeptId },
+            { $pull: { employees: employee._id } }
+          );
+        }
+        if (newDeptDoc?._id) {
+          await Department.updateOne(
+            { _id: newDeptDoc._id },
+            { $addToSet: { employees: employee._id } }
+          );
+        }
+      }
+
+      updateFields.department = newDeptDoc?._id || undefined;
+    }
+
+    await Employee.findByIdAndUpdate(id, { $set: updateFields }, { new: true });
+
+    revalidatePath('/dashboard/employees');
+    revalidatePath(`/dashboard/employees/${id}`);
+    revalidatePath('/hr_dashboard/employees');
+    revalidatePath('/hr_dashboard/departments');
+
+    return { success: true };
+  } catch (err) {
+    console.error(err);
+    return { success: false, message: err?.message || 'Failed to update employee!' };
+  }
+};
+
+
+
+
+/*
 export const updateEmployee = async (formData) => {
   const {
     id,
@@ -577,7 +823,7 @@ export const updateEmployee = async (formData) => {
     throw new Error("Failed to update employee!");
   }
 };
-
+*/
 
 // Enhanced function that automatically handles both date formats
 export const addEmployeeWithDualDates = async (employeeData) => {
@@ -700,6 +946,24 @@ export const deleteEmployee = async (formData) => {
   }
 
   revalidatePath("/dashboard/employees");
+};
+
+
+
+
+export const deleteDepartmnet = async (formData) => {
+  const { id } = Object.fromEntries(formData);
+
+  try {
+     connectToDB();        
+    await Department.findByIdAndDelete(id)
+
+  } catch (err) {
+    console.log(err)
+    throw new Error('failed to delete department!')
+  }
+
+  revalidatePath("/dashboard/departments");
 };
 
 

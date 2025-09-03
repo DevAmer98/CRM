@@ -9,8 +9,8 @@ import { useSession } from 'next-auth/react';
 
 const employeeSchema = z.object({
   employeeNo: z.string(),
-  name: z.string(), 
-  contactMobile: z.string(), 
+  name: z.string(),
+  contactMobile: z.string(),
   email: z.string().optional(),
   iqamaNo: z.string(),
   iqamaExpirationDate: z.string().optional(),
@@ -18,26 +18,26 @@ const employeeSchema = z.object({
   passportExpirationDate: z.string().optional(),
   dateOfBirth: z.string(),
   jobTitle: z.string(),
-  directManager: z.string(),
-  contractDuration: z.string().optional(),
+  departments: z.string().optional(),
+  // Contract fields remain optional on the backend
   contractStartDate: z.string().optional(),
   contractEndDate: z.string().optional(),
+  // These are UI-only helpers; you may or may not persist them
+  contractDurationValue: z.string().optional(),
+  contractDurationUnit: z.enum(['days','months','years']).optional(),
 });
 
 const AddEmployee = () => {
-  const [isEmployee, setIsEmployee] = useState(false);
   const router = useRouter();
-  const [managers, setManagers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserRole, setCurrentUserRole] = useState('');
-const { data: session } = useSession();
-const userRole = session?.user?.role || 'user'; 
-
-
+  const { data: session } = useSession();
+  const userRole = session?.user?.role || 'user';
 
   const [formData, setFormData] = useState({
     employeeNo: '',
     name: '',
+    departments: '',
     contactMobile: '',
     email: '',
     iqamaNo: '',
@@ -46,93 +46,151 @@ const userRole = session?.user?.role || 'user';
     passportExpirationDate: '',
     dateOfBirth: '',
     jobTitle: '',
-    directManager: '',
-    contractDuration: '',
     contractStartDate: '',
     contractEndDate: '',
+    contractDurationValue: '',      // e.g. "1", "6", "12"
+    contractDurationUnit: 'months', // 'days' | 'months' | 'years'
   });
 
-  const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const domain = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
   useEffect(() => {
-    setIsEmployee(typeof window !== 'undefined');
-    fetchManagers();
+    fetchDepartments();
   }, []);
 
-  const fetchManagers = async () => {
+ 
+
+    const fetchDepartments = async () => {
     try {
-      const response = await fetch(`${domain}/api/allManagers`, {
-        cache: 'no-store',
-        method: 'GET',
-      });
-      const data = await response.json();
-      setManagers(data);
-      setLoading(false);
-    } catch (error) {
-      console.error('fetchManagers: Error fetching managers:', error);
+      const res = await fetch(`${domain}/api/allDepartments`, { cache: 'no-store' });
+      const data = await res.json();
+      setDepartments(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('fetchDepartments error:', err);
+      toast.error('Failed to load departments');
+    } finally {
       setLoading(false);
     }
   };
 
+  // ---------- Helpers ----------
+  const todayStr = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
+  const fmt = (d) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
 
-  
+  const addByUnit = (startDateStr, value, unit) => {
+    if (!startDateStr || !value || Number.isNaN(Number(value))) return '';
+    const n = Number(value);
+    const d = new Date(`${startDateStr}T00:00:00`);
 
-  const handleInputChange = (field, value) => {
+    if (unit === 'days') {
+      d.setDate(d.getDate() + n);
+    } else if (unit === 'months') {
+      const day = d.getDate();
+      d.setMonth(d.getMonth() + n);
+      // If month overflow changed the day (e.g., Jan 31 + 1 month -> Mar 02),
+      // you can clamp or leave as-is. We’ll leave as-is (JS default).
+    } else if (unit === 'years') {
+      d.setFullYear(d.getFullYear() + n);
+    }
+    return fmt(d);
+  };
+
+  const recomputeEndDate = (start, value, unit) => {
+    if (!value) return '';
+    return addByUnit(start || todayStr(), value, unit);
+  };
+
+  // ---------- Handlers that keep end date in sync ----------
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleStartDateChange = (value) => {
     setFormData((prev) => ({
       ...prev,
-      [field]: value,
+      contractStartDate: value,
+      contractEndDate: recomputeEndDate(value, prev.contractDurationValue, prev.contractDurationUnit),
     }));
   };
 
-  
+  const handleDurationValueChange = (value) => {
+    setFormData((prev) => {
+      const start = prev.contractStartDate || todayStr();
+      return {
+        ...prev,
+        contractDurationValue: value,
+        contractStartDate: prev.contractStartDate || start, // auto-fill start if empty
+        contractEndDate: value ? recomputeEndDate(start, value, prev.contractDurationUnit) : prev.contractEndDate,
+      };
+    });
+  };
 
-  const employeeActions = async (event) => {
-    event.preventDefault();
+  const handleDurationUnitChange = (unit) => {
+    setFormData((prev) => {
+      const start = prev.contractStartDate || todayStr();
+      return {
+        ...prev,
+        contractDurationUnit: unit,
+        contractStartDate: prev.contractStartDate || start,
+        contractEndDate: prev.contractDurationValue
+          ? recomputeEndDate(start, prev.contractDurationValue, unit)
+          : prev.contractEndDate,
+      };
+    });
+  };
 
+  // ---------- Submit ----------
+  const employeeActions = async (e) => {
+    e.preventDefault();
     try {
-      // Validate with zod schema
-      const parsedData = employeeSchema.parse(formData);
+      // If you do not want to persist the helper fields, strip them here
+      const payload = { ...formData };
+      const parsedData = employeeSchema.parse(payload);
 
       const result = await addEmployee(parsedData);
-
-      if (result.success) {
-  toast.success('Employee added successfully!');
-  if (userRole === 'admin') {
-    router.push('/dashboard/employees');
-  } else if (userRole === 'hr_admin') {
-    router.push('/hr_dashboard/employees');
-  } else {
-    router.push('/');
-  }
-}
-
- else {
-        toast.error(result.message || 'Failed to add employee');
+      if (result?.success) {
+        toast.success('Employee added successfully!');
+        if (userRole === 'admin') {
+          router.push('/dashboard/employees');
+        } else if (userRole === 'hr_admin') {
+          router.push('/hr_dashboard/employees');
+        } else {
+          router.push('/');
+        }
+      } else {
+        toast.error(result?.message || 'Failed to add employee');
       }
     } catch (error) {
       console.error('Error adding employee:', error);
-
       if (error instanceof z.ZodError) {
-        error.errors.forEach((err) => {
-          toast.error(`${err.path.join('.')}: ${err.message}`);
-        });
-      } else if (error.message.includes("already exists")) {
-        toast.error(error.message);
+        error.errors.forEach((err) => toast.error(`${err.path.join('.')}: ${err.message}`));
       } else {
-        toast.error(error.message || 'An unexpected error occurred');
+        toast.error(error?.message || 'An unexpected error occurred');
       }
     }
   };
 
-  const renderDateInput = (field, label, required = false) => (
+  // ---------- Small helper to render date input ----------
+  const renderDateInput = (field, label, required = false, onChangeOverride) => (
     <div className={styles.inputContainer}>
       <label className={styles.label}>{label}:</label>
       <input
         className={styles.input}
         type="date"
-        value={formData[field]}
-        onChange={(e) => handleInputChange(field, e.target.value)}
+        value={formData[field] || ''}
+        onChange={(e) => (onChangeOverride ? onChangeOverride(e.target.value) : handleChange(field, e.target.value))}
         required={required}
       />
     </div>
@@ -154,7 +212,7 @@ const userRole = session?.user?.role || 'user';
                     className={styles.input}
                     type="text"
                     value={formData.employeeNo}
-                    onChange={(e) => handleInputChange('employeeNo', e.target.value)}
+                    onChange={(e) => handleChange('employeeNo', e.target.value)}
                     required
                   />
                 </div>
@@ -164,7 +222,7 @@ const userRole = session?.user?.role || 'user';
                     className={styles.input}
                     type="text"
                     value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    onChange={(e) => handleChange('name', e.target.value)}
                     required
                   />
                 </div>
@@ -176,7 +234,7 @@ const userRole = session?.user?.role || 'user';
                     className={styles.input}
                     type="tel"
                     value={formData.contactMobile}
-                    onChange={(e) => handleInputChange('contactMobile', e.target.value)}
+                    onChange={(e) => handleChange('contactMobile', e.target.value)}
                     required
                   />
                 </div>
@@ -186,7 +244,7 @@ const userRole = session?.user?.role || 'user';
                     className={styles.input}
                     type="email"
                     value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    onChange={(e) => handleChange('email', e.target.value)}
                   />
                 </div>
               </div>
@@ -204,7 +262,7 @@ const userRole = session?.user?.role || 'user';
                     className={styles.input}
                     type="text"
                     value={formData.iqamaNo}
-                    onChange={(e) => handleInputChange('iqamaNo', e.target.value)}
+                    onChange={(e) => handleChange('iqamaNo', e.target.value)}
                     required
                   />
                 </div>
@@ -221,7 +279,7 @@ const userRole = session?.user?.role || 'user';
                     className={styles.input}
                     type="text"
                     value={formData.passportNo}
-                    onChange={(e) => handleInputChange('passportNo', e.target.value)}
+                    onChange={(e) => handleChange('passportNo', e.target.value)}
                     required
                   />
                 </div>
@@ -241,28 +299,28 @@ const userRole = session?.user?.role || 'user';
                     className={styles.input}
                     type="text"
                     value={formData.jobTitle}
-                    onChange={(e) => handleInputChange('jobTitle', e.target.value)}
+                    onChange={(e) => handleChange('jobTitle', e.target.value)}
                     required
                   />
                 </div>
                 <div className={styles.inputContainer}>
-                  <label className={styles.label}>Direct Manager:</label>
+                  <label className={styles.label}>Deparment:</label>
                   <select
                     className={styles.input}
-                    value={formData.directManager}
-                    onChange={(e) => handleInputChange('directManager', e.target.value)}
+                    value={formData.departments}
+                    onChange={(e) => handleChange('departments', e.target.value)}
                     disabled={loading}
-                    required
+                    
                   >
-                    <option value="">Select Direct Manager</option>
-                    {managers.length > 0 ? (
-                      managers.map((manager) => (
-                        <option key={manager._id} value={manager._id}>
-                          {manager.username}
+                    <option value="">Select Department</option>
+                    {departments.length > 0 ? (
+                      departments.map((department) => (
+                        <option key={department._id} value={department._id}>
+                          {department.name}
                         </option>
                       ))
                     ) : (
-                      <option value="" disabled>Loading managers...</option>
+                      <option value="" disabled>Loading Departments...</option>
                     )}
                   </select>
                 </div>
@@ -271,19 +329,37 @@ const userRole = session?.user?.role || 'user';
 
             <div className={styles.formGroup}>
               <div className={styles.sectionHeader}>Contract Information</div>
+
+              {/* Duration controls */}
               <div className={styles.inputRow}>
                 <div className={styles.inputContainer}>
-                  <label className={styles.label}>Contract Duration:</label>
+                  <label className={styles.label}>Duration Amount:</label>
                   <input
                     className={styles.input}
-                    type="text"
-                    value={formData.contractDuration}
-                    onChange={(e) => handleInputChange('contractDuration', e.target.value)}
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 1, 6, 12"
+                    value={formData.contractDurationValue}
+                    onChange={(e) => handleDurationValueChange(e.target.value)}
                   />
                 </div>
+
+                <div className={styles.inputContainer}>
+                  <label className={styles.label}>Duration Unit:</label>
+                  <select
+                    className={styles.input}
+                    value={formData.contractDurationUnit}
+                    onChange={(e) => handleDurationUnitChange(e.target.value)}
+                  >
+                    <option value="days">Day(s)</option>
+                    <option value="months">Month(s)</option>
+                    <option value="years">Year(s)</option>
+                  </select>
+                </div>
               </div>
+
               <div className={styles.inputRow}>
-                {renderDateInput('contractStartDate', 'Contract Start Date')}
+                {renderDateInput('contractStartDate', 'Contract Start Date', false, handleStartDateChange)}
                 {renderDateInput('contractEndDate', 'Contract End Date')}
               </div>
             </div>

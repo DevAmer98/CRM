@@ -63,14 +63,14 @@ const Sidebar = ({ session }) => {
           roles: [ROLES.HR_ADMIN],
           children: [
             {
-            title: "Long Term Leave Requests",
+            title: "Full",
             path: "/hr_dashboard/leaves",
             badge: leaveRequestCount,
             roles: [ROLES.HR_ADMIN]
 
             },
             {
-              title: "Short Term Leave Requests",
+              title: "Partial",
               path: "/hr_dashboard/shifts",
               roles: [ROLES.HR_ADMIN]
             },
@@ -84,15 +84,9 @@ const Sidebar = ({ session }) => {
         },
         {
           title: "Department",
-          path: "/",
+          path: "/hr_dashboard/departments",
           icon: <Building2 />,
-          roles: [ROLES.HR_ADMIN]
-        },
-        {
-          title: "Appreciation",
-          path: "/",
-          icon: <Sparkles />,
-          roles: [ROLES.HR_ADMIN]
+          roles: [ROLES.HR_ADMIN, ROLES.ADMIN]
         },
       ],
     },

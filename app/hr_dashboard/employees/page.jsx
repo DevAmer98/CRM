@@ -1,5 +1,5 @@
 import React from 'react'
-import styles from '@/app/ui/hr_dashboard/employees/employees.module.css';
+import styles from '@/app/ui/dashboard/clients/clients.module.css';
 import Search from '@/app/ui/hr_dashboard/search/search';
 import Link from 'next/link';
 import Pagination from '@/app/ui/dashboard/pagination/pagination';

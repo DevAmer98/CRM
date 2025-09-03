@@ -18,12 +18,18 @@
   max-width: 600px;
 }
 
+
+
+
+
 .content {
   flex: 4;
   padding: 32px;
   background-color: var(--bg);
   min-height: 100vh;
+  box-sizing: border-box;
 }
+
 
 .wrapper {
   display: flex;
@@ -76,3 +82,19 @@
 .button:hover {
   background-color: var(--primary-hover);
 }
+
+
+
+/* Reserve space for the fixed rightbar ONLY where applied */
+.withRightbar {
+  padding-right: 260px;      /* same as Rightbar width */
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .withRightbar { padding-right: 0; }
+}
+
+/* If you previously had a .side column, don't render it on this page,
+   or set it to display:none to avoid empty space */
+.side { display: none; }

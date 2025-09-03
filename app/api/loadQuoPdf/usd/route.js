@@ -7,19 +7,19 @@ import { NextResponse } from "next/server";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 
-export const runtime = "nodejs";
+export const runtime = "nodejs"; // so we can use fs and child_process
 
 const execFileAsync = promisify(execFile);
 
-// Detect LibreOffice binary per OS
+// LibreOffice path per platform
 function getLibreOfficePath() {
   const p = process.platform;
   if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
   if (p === "darwin") return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
-  return "/usr/bin/soffice";
+  return "/usr/bin/soffice"; // Linux
 }
 
-// Render DOCX from template
+// Render DOCX buffer from template + data
 async function renderDocxBuffer(templateBuffer, data) {
   const zip = new PizZip(templateBuffer);
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
@@ -27,52 +27,54 @@ async function renderDocxBuffer(templateBuffer, data) {
   return doc.getZip().generate({ type: "nodebuffer" });
 }
 
-// Convert DOCX to PDF bytes
+// Convert DOCX buffer to PDF bytes via LibreOffice
 async function docxToPdfBytes(payload) {
-  // Pick template based on currency
-  const isUSD = payload?.Currency === "USD";
-  const templateFile = isUSD ? "SVS_Quotation_NEW_USD.docx" : "SVS_Quotation_NEW.docx";
-  const templatePath = path.join(process.cwd(), "templates", templateFile);
-
+  // 1) Load DOCX template from your repo
+  const templatePath = path.join(process.cwd(), "templates", "SVS_Quotation_NEW_USD.docx");
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Template not found at ${templatePath}`);
   }
-
   const templateBuffer = fs.readFileSync(templatePath);
 
-  // Render with data
+  // 2) Render
   const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
 
-  // Write temp DOCX
+  // 3) Write temp DOCX
   const tmpDir = process.platform === "win32" ? path.join(process.cwd(), "tmp") : os.tmpdir();
   fs.mkdirSync(tmpDir, { recursive: true });
   const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
   fs.writeFileSync(tmpDocx, renderedBuffer);
 
-  // Convert to PDF
+  // 4) Convert to PDF
   const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
-  await execFileAsync(soffice, [
-    "--headless",
-    "--convert-to",
-    "pdf:writer_pdf_Export",
-    "--outdir",
-    tmpDir,
-    tmpDocx,
-  ]);
+  try {
+    await execFileAsync(soffice, [
+      "--headless",
+      "--convert-to",
+      "pdf:writer_pdf_Export",
+      "--outdir",
+      tmpDir,
+      tmpDocx,
+    ]);
+  } catch (e) {
+    throw new Error(
+      `LibreOffice conversion failed. Ensure LibreOffice is installed and path is correct.\n${e?.message || e}`
+    );
+  }
 
-  // Read & cleanup
+  // 5) Read & cleanup
   const pdfBytes = fs.readFileSync(outPdf);
   try { fs.unlinkSync(tmpDocx); } catch {}
   try { fs.unlinkSync(outPdf); } catch {}
-
   return pdfBytes;
 }
 
-// API handler
 export async function POST(req) {
   try {
     const payload = await req.json();
+
+    // Always use DOCX → PDF for exact review (dynamic rows/pagination)
     const pdfBytes = await docxToPdfBytes(payload);
 
     const filename = `Quotation_${payload?.QuotationNumber || "Preview"}.pdf`;
@@ -86,9 +88,6 @@ export async function POST(req) {
     });
   } catch (err) {
     console.error("loadQuoPdf error:", err);
-    return NextResponse.json(
-      { error: err?.message || "Failed to generate PDF" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err?.message || "Failed to generate PDF" }, { status: 500 });
   }
 }

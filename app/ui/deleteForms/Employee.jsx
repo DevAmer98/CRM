@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react';
 import { deleteEmployee } from '@/app/lib/actions';
-import styles from '@/app/ui/hr_dashboard/employees/employees.module.css';
+import styles from '@/app/ui/dashboard/clients/clients.module.css';
 
 const DeleteEmployee = ({ employeeId , employeeNmae}) => {
     const [isDeleting, setIsDeleting] = useState(false);

@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb'; // Import ObjectId for validation
-import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Leave, Shift } from "@/app/lib/models";
+import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Leave, Shift, Department } from "@/app/lib/models";
 import { connectToDB } from './utils';
 import { ROLES } from './role';
 
@@ -87,6 +87,65 @@ export const fetchUsers = async (q, page) => {
         throw new Error('Failed to fetch Employees!')
     }
   };
+
+
+  
+  /*
+  export const fetchDepartments = async (q, page) => {
+    const regex = new RegExp(q, "i");
+    const ITEM_PER_PAGE = 10;
+    try {
+      await connectToDB()
+      const count = await Department.countDocuments({ name: { $regex: regex } });
+        const departments = await Department.find({ name: { $regex: regex } }).limit(ITEM_PER_PAGE).skip(ITEM_PER_PAGE * (page - 1));
+        return { count, departments };
+    } catch (err) {
+        console.log(err);
+        throw new Error('Failed to fetch Employees!')
+    }
+  };
+*/
+
+
+export const fetchDepartments = async (q, page) => {
+  const regex = new RegExp(q, 'i');
+  const ITEM_PER_PAGE = 10;
+
+  try {
+    await connectToDB();
+
+    const filter = { name: { $regex: regex } };
+    const count = await Department.countDocuments(filter);
+
+    const rows = await Department.find(filter)
+      .select('name createdAt directManager employees')
+      .populate({ path: 'directManager', select: 'name employeeNo' })
+      .sort({ createdAt: -1 })
+      .limit(ITEM_PER_PAGE)
+      .skip(ITEM_PER_PAGE * (page - 1))
+      .lean();
+
+    const departments = rows.map((d) => {
+      const managerId = d.directManager?._id?.toString?.();
+      const employeeCount = Array.isArray(d.employees)
+        ? d.employees.filter((eid) => eid?.toString?.() !== managerId).length
+        : 0;
+
+      return {
+        _id: d._id,
+        name: d.name,
+        createdAt: d.createdAt,
+        directManager: d.directManager, // populated doc (name, employeeNo)
+        employeeCount, // ✅ excludes the manager
+      };
+    });
+
+    return { count, departments };
+  } catch (err) {
+    console.error(err);
+    throw new Error('Failed to fetch departments!');
+  }
+};
 
 
 
@@ -201,6 +260,47 @@ export const getPendingLeavesCount = async () => {
 
 
 
+/*
+  export const fetchAllDepartments = async () => {
+    try {
+      await connectToDB();
+      const departments = await Department.find({});
+      return departments;
+    } catch (err) {
+      console.log("Error in fetchAllDepartments", err);
+      throw new Error('Failed to fetch Departments!');
+    }
+};
+
+*/
+
+export const fetchAllDepartments = async () => {
+  try {
+    await connectToDB();
+
+    const departments = await Department.find({})
+      .select('name directManager employees createdAt') // keep payload tight
+      .populate({ path: 'directManager', select: 'name employeeNo' }) // <-- needed for UI
+      .lean();
+
+    // (Optional) if you prefer to include a computed count and drop the raw employees array:
+    // return departments.map(d => ({
+    //   _id: d._id,
+    //   name: d.name,
+    //   createdAt: d.createdAt,
+    //   directManager: d.directManager, // { _id, name, employeeNo } due to populate
+    //   employeeCount: Array.isArray(d.employees) ? d.employees.length : 0,
+    // }));
+
+    return departments;
+  } catch (err) {
+    console.log('Error in fetchAllDepartments', err);
+    throw new Error('Failed to fetch Departments!');
+  }
+};
+
+
+
 export const fetchAllManagers = async () => {
   try {
     await connectToDB();
@@ -261,6 +361,54 @@ export const fetchAllSupliers = async () => {
   
   };
 
+   /*
+ export const fetchDepartment = async (id) => {
+  try {
+    await connectToDB();
+
+    const department = await Department.findById(id)
+      .populate({ path: 'directManager', select: 'name employeeNo jobTitle contactMobile email' })
+      .populate({ path: 'employees', select: 'name employeeNo jobTitle' })
+      .lean();
+
+    return department;
+  } catch (err) {
+    console.log(err);
+    throw new Error('Failed to fetch department!');
+  }
+};
+*/
+
+
+export const fetchDepartment = async (id) => {
+  try {
+    await connectToDB();
+
+    const d = await Department.findById(id)
+      .populate({ path: 'directManager', select: 'name employeeNo jobTitle contactMobile email' })
+      .populate({ path: 'employees', select: 'name employeeNo jobTitle' })
+      .lean();
+
+    if (!d) return null;
+
+    const managerId = d.directManager?._id?.toString?.();
+    const employees = Array.isArray(d.employees)
+      ? d.employees.filter((e) => e?._id?.toString?.() !== managerId)
+      : [];
+
+    // return the same shape the page expects, but with employees cleaned
+    return {
+      ...d,
+      employees,
+      employeeCount: employees.length, // optional convenience
+    };
+  } catch (err) {
+    console.log(err);
+    throw new Error('Failed to fetch department!');
+  }
+};
+
+  
   
 
   export const fetchEmployee = async (id) => {
@@ -289,15 +437,46 @@ export const fetchAllSupliers = async () => {
 
 
 
+  
+
 export const fetchShift = async (id) => {
   try {
-    if (!ObjectId.isValid(id)) throw new Error(`Invalid Shift ID: ${id}`);
+
+     if (!ObjectId.isValid(id)) {
+        throw new Error(`Invalid Employee ID: ${id}`);
+      }
+
     await connectToDB();
 
-    const shift = await Shift.findById(id).populate('employee', 'name employeeNo contactMobile');
+    // lean => plain JS object (no Mongoose doc methods/prototypes)
+    const doc = await Shift.findById(id)
+      .populate({ path: 'employee', select: 'name employeeNo contactMobile' })
+      .lean();
 
-    if (!shift) throw new Error(`Shift with ID ${id} not found`);
-    return shift;
+    if (!doc) return null;
+
+    const toStr = (v) => (v == null ? null : String(v));
+    const toISO = (d) =>
+      typeof d === 'string' ? d : (d?.toISOString?.() ?? null);
+
+    // normalize everything to serializable primitives
+    return {
+      _id: toStr(doc._id),
+      employee: doc.employee
+        ? {
+            _id: toStr(doc.employee._id),
+            name: doc.employee.name ?? '',
+            employeeNo: doc.employee.employeeNo ?? '',
+            contactMobile: doc.employee.contactMobile ?? '',
+          }
+        : null,
+      date: toISO(doc.date)?.slice(0, 10) || '', // YYYY-MM-DD for <input type="date">
+      startTime: doc.startTime ?? '',
+      endTime: doc.endTime ?? '',
+      location: doc.location ?? '',
+      createdAt: toISO(doc.createdAt),
+      updatedAt: toISO(doc.updatedAt),
+    };
   } catch (err) {
     console.error('Error in fetchShift:', err);
     throw new Error('Failed to fetch Shift!');

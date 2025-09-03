@@ -1,15 +1,19 @@
 .container {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 30px;
-    color: var(--textSoft);
-  }
-  
-  .logo {
-    font-weight: bold;
-  }
-  
-  .text {
-    font-size: 12px;
-  }
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 30px;
+  color: var(--textSoft);
+}
+
+.logo { font-weight: bold; }
+.text { font-size: 12px; }
+
+/* apply only when we pass the prop */
+.offsetRight {
+  margin-right: 260px;                /* = rightbar width */
+}
+
+@media (max-width: 1024px) {
+  .offsetRight { margin-right: 0; }   /* collapse on small screens */
+}

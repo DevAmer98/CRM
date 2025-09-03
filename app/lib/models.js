@@ -214,10 +214,6 @@ const employeeSchema = new Schema(
       type: String,
       required: true,
     },
-    directManager: {
-      type: String,
-      required: true,
-    },
     passportExpirationDate: {
       type: String,
     },
@@ -230,6 +226,7 @@ const employeeSchema = new Schema(
     contractEndDate: {
       type: String,
     },
+    department: { type: Schema.Types.ObjectId, ref: 'Department', index: true },
     leaveBalance: {
   type: Number,
   default: 0, // or set an initial balance if you want (e.g., 30)
@@ -745,10 +742,6 @@ const shiftSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  shiftType: {
-    type: String,
-    required: true
-  },
   startTime: {
     type: String,
     required: true
@@ -762,6 +755,27 @@ const shiftSchema = new mongoose.Schema({
     required: false
   }
 }, { timestamps: true });
+
+
+
+const departmentSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  directManager: {
+    type: Schema.Types.ObjectId,
+    ref: 'Employee',
+    required: true
+  },
+  employees: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'Employee',
+      required: true
+    }
+  ],
+}, { timestamps: true });
+
+
+
 
 
 
@@ -782,6 +796,8 @@ export const Task = mongoose.models.Task || mongoose.model("Task", taskSchema);
 export const Ticket = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema)
 export const Leave = mongoose.models.Leave || mongoose.model("Leave", leaveSchema)
 export const Shift = mongoose.models.Shift || mongoose.model("Shift", shiftSchema)
+export const Department = mongoose.models.Department || mongoose.model("Department", departmentSchema)
+
 
  
 

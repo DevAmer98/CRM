@@ -1,0 +1,206 @@
+/* ====== Container & Top Bar ====== */
+.container {
+  background-color: var(--bgSoft, #0f172a);
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+  box-shadow: var(--shadow-sm, 0 6px 14px rgba(0,0,0,0.15));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Optional wrapper if your Search component needs spacing help */
+.searchWrap {
+  flex: 1 1 auto;
+  min-width: 240px;
+}
+
+/* ====== Add New Button ====== */
+.addButton {
+  padding: 10px 16px;
+  background-color: #5d57c9;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: .2px;
+  transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  white-space: nowrap;
+}
+
+.addButton:hover {
+  background-color: var(--primary, #22d3ee);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.25);
+}
+
+/* ====== Cards Grid ====== */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* ====== Single Card ====== */
+.card {
+  background: var(--bgSoft, #0f172a);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(103, 232, 249, 0.25); /* cyan glow */
+  box-shadow: 0 10px 22px rgba(0,0,0,0.25);
+  background: rgba(15,23,42,0.9);
+}
+
+/* Header: icon + title */
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(99,102,241,0.12); /* indigo tint */
+  color: #a5b4fc;
+}
+
+.cardTitle {
+  margin: 0;
+  color: #e2e8f0;
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+/* ====== Meta rows ====== */
+.meta {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px dashed #334155; /* slate-700-ish */
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.metaIcon {
+  color: #94a3b8; /* slate-400 */
+}
+
+.metaLabel {
+  color: #94a3b8;
+  font-size: .8rem;
+}
+
+.metaValue {
+  margin-left: auto;
+  color: #e2e8f0;
+  font-weight: 500;
+  font-size: .9rem;
+}
+
+/* ====== Card Actions ====== */
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.button {
+  padding: 8px 14px;
+  border-radius: 12px;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: .2px;
+  transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease, opacity .2s ease;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.22);
+}
+
+.view {
+  background-color: teal;
+}
+.view:hover {
+  background-color: #26a69a;
+}
+
+.delete {
+  background-color: crimson;
+}
+.delete:hover {
+  background-color: #e53935;
+}
+
+/* If your DeleteDepartment renders a plain button, you can target it like this: */
+.buttons :global(button) {
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+/* ====== Empty State ====== */
+.emptyState {
+  grid-column: 1 / -1;
+  border: 1px dashed #334155;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+/* ====== Responsive ====== */
+@media (max-width: 720px) {
+  .top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .addButton {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}

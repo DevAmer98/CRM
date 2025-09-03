@@ -38,7 +38,7 @@ const AddLeave = ({session}) => {
     startDate: '',
     endDate: '',
     addressWhileOnVacation: '',
- reason: leave.reason || '', // ✅ new field
+reason: '', // ✅
     
   });
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";

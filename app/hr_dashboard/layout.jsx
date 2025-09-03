@@ -6,6 +6,7 @@ import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { SessionProvider } from "next-auth/react"
 import { redirect } from "next/navigation"
 import Navbar from "../ui/dashboard/navbar/navbar";
+import FooterWithOffset from "../ui/hr_dashboard/footer/FooterWithOffset";
 
 
 
@@ -29,7 +30,7 @@ const layout = async({children}) => {
         <div className={styles.content}>
           <Navbar />
             {children}
-            <Footer />
+         <FooterWithOffset />
         </div>
     </div> 
     </SessionProvider>

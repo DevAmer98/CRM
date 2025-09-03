@@ -1,11 +1,14 @@
+// app/ui/hr_dashboard/rightbar/rightbar.jsx
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import styles from "./rightbar.module.css";
 import { MdWarning, MdAccessTime } from "react-icons/md";
 
-const Rightbar = () => { 
-    const [employees, setEmployees] = useState([]);
+const Rightbar = () => {
+  const [employees, setEmployees] = useState([]);
 
- useEffect(() => {
+  useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const res = await fetch('/api/allEmployees');
@@ -15,11 +18,9 @@ const Rightbar = () => {
         console.error('Error fetching employees:', err);
       }
     };
-
     fetchEmployees();
   }, []);
 
-  
   const getDaysUntilContractEnds = (endDate) => {
     if (!endDate) return '-';
     const today = new Date();
@@ -30,7 +31,7 @@ const Rightbar = () => {
   };
 
   return (
-    <div className={styles.container}>
+    <aside className={styles.container} aria-label="Contract timeline">
       <div className={styles.header}>
         <h2>Contract Timeline</h2>
       </div>
@@ -68,7 +69,7 @@ const Rightbar = () => {
           );
         })}
       </div>
-    </div>
+    </aside>
   );
 };
 
