@@ -10,47 +10,52 @@ import { Suspense, useEffect, useState } from 'react';
 
 export default function HrDashboard() {
   const [counts, setCounts] = useState({
-    userCount: null,
-    clientCount: null,
-    supplierCount: null,
+    employeeCount: null,
+    managerCount: null,
+    departmentCount: null,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const domain =
-      process.env.NEXT_PUBLIC_API_URL || window.location.origin;
 
-    (async () => {
-      try {
-        const [userRes, clientRes, supplierRes] = await Promise.all([
-          fetch(`${domain}/api/allUsersCount`, { cache: 'no-store' }),
-          fetch(`${domain}/api/allClientsCount`, { cache: 'no-store' }),
-          fetch(`${domain}/api/allSuppliersCount`, { cache: 'no-store' }),
-        ]);
 
-        if (!userRes.ok || !clientRes.ok || !supplierRes.ok) {
-          throw new Error('Failed to fetch counts');
-        }
+useEffect(() => {
+  (async () => {
+    try {
+      const [employeeRes, managerRes, departmentRes] = await Promise.all([
+        fetch('/api/allEmployeeCount', { cache: 'no-store' }),
+        fetch('/api/allManagersCount', { cache: 'no-store' }),
+        fetch('/api/alldepartmentsCount', { cache: 'no-store' }), // fixed D
+      ]);
 
-        const [userData, clientData, supplierData] = await Promise.all([
-          userRes.json(),
-          clientRes.json(),
-          supplierRes.json(),
-        ]);
-
-        setCounts({
-          userCount: userData?.count ?? 0,
-          clientCount: clientData?.count ?? 0,
-          supplierCount: supplierData?.count ?? 0,
+      if (!employeeRes.ok || !managerRes.ok || !departmentRes.ok) {
+        console.error({
+          employee: employeeRes.status,
+          manager: managerRes.status,
+          department: departmentRes.status,
         });
-      } catch (e) {
-        setError(e?.message || 'Unknown error');
-      } finally {
-        setLoading(false);
+        throw new Error('Failed to fetch counts');
       }
-    })();
-  }, []);
+
+      const [employeeData, managerData, departmentData] = await Promise.all([
+        employeeRes.json(),
+        managerRes.json(),
+        departmentRes.json(),
+      ]);
+
+      setCounts({
+        employeeCount: employeeData?.count ?? 0,
+        managerCount: managerData?.count ?? 0,
+        departmentCount: departmentData?.count ?? 0,
+      });
+    } catch (e) {
+      setError(e?.message || 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, []);
+
 
   if (loading) return <p>Loading data...</p>;
   if (error) return <p>Error fetching data: {error}</p>;
@@ -69,20 +74,20 @@ export default function HrDashboard() {
                 <Card
                   key="total-users-card"
                   title="Total Employees"
-                  number={counts.userCount}
-                  detailText={`${counts.userCount} registered Employees`}
+                  number={counts.employeeCount}
+                  detailText={`${counts.employeeCount} registered Employees`}
                 />
                 <Card
                   key="total-client-card"
                   title="Total Managers"
-                  number={counts.clientCount}
-                  detailText={`${counts.clientCount} registered managers`}
+                  number={counts.managerCount}
+                  detailText={`${counts.managerCount} registered managers`}
                 />
                 <Card
                   key="total-suppliers-card"
                   title="Total Departments"
-                  number={counts.supplierCount}
-                  detailText={`${counts.supplierCount} registered departments`}
+                  number={counts.departmentCount}
+                  detailText={`${counts.departmentCount} registered departments`}
                 />
               </div>
 

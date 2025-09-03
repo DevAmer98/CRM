@@ -1335,6 +1335,51 @@ const fetchJobOrdersForClient = async (clientId) => {
       throw new Error('Failed to fetch client count!');
     }
   };
+
+
+  
+
+  
+  export const fetchDepartmentCount = async () => {
+    try {
+      await connectToDB();
+
+      const count = await Department.countDocuments(); 
+      return count;
+    } catch (err) {
+      console.log("Error in fetchDepartmentCount:", err);
+      throw new Error('Failed to fetch department count!');
+    }
+  };
+
+  
+  
+  export const fetchEmployeeCount = async () => {
+    try {
+      await connectToDB();
+      const count = await Employee.countDocuments(); 
+      return count;
+    } catch (err) {
+      console.log("Error in fetchEmployeeCount:", err);
+      throw new Error('Failed to fetch employee count!');
+    }
+  };
+
+export const fetchManagersCount = async () => {
+  try {
+    await connectToDB();
+    const uniqueManagers = await Department.distinct('directManager', {
+      directManager: { $ne: null },
+    });
+    return uniqueManagers.length; // simple number
+  } catch (err) {
+    console.error('Error in fetchManagersCount:', err);
+    throw new Error('Failed to fetch manager count!');
+  }
+};
+
+
+
   export const fetchSupplierCount = async () => {
     try {
       await connectToDB();
