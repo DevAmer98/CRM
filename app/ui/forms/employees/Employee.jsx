@@ -14,7 +14,7 @@ const employeeSchema = z.object({
   email: z.string().optional(),
   iqamaNo: z.string(),
   iqamaExpirationDate: z.string().optional(),
-  passportNo: z.string(),
+  passportNo: z.string().optional(),
   passportExpirationDate: z.string().optional(),
   dateOfBirth: z.string(),
   jobTitle: z.string(),
@@ -279,6 +279,8 @@ const AddEmployee = () => {
                     type="text"
                     value={formData.passportNo}
                     onChange={(e) => handleChange('passportNo', e.target.value)}
+                      required={false}   
+
                   />
                 </div>
                 {renderDateInput('passportExpirationDate', 'Passport Expiry Date')}
