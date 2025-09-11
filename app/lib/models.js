@@ -292,6 +292,7 @@ const quotationSchema = new Schema(
         description: {
           type: String,
         },
+        titleAbove: { type: String },
       },
     ],
     paymentTerm: {

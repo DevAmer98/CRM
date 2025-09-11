@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { FaPlus, FaTrash } from "react-icons/fa";
+import { FaPlus, FaTrash, FaTag } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { editQuotation, updateQuotation } from "@/app/lib/actions";
 
@@ -24,7 +24,9 @@ const SingleQuotation = ({ params }) => {
     totalPrice: "",
   });
 
+  // table rows + title toggles
   const [rows, setRows] = useState([]);
+  const [showTitles, setShowTitles] = useState([]);
 
   const currencyFields = (selectedCurrency) => {
     const isSAR = selectedCurrency === "SAR";
@@ -51,12 +53,9 @@ const SingleQuotation = ({ params }) => {
     }).format(n);
   };
 
-  // utility to force "0.00" style (string)
-  const to2 = (v) => Number(v || 0).toFixed(2);
-
   const totals = useMemo(() => {
     const subtotal = rows.reduce((acc, r) => acc + (Number(r.unitPrice) || 0), 0);
-    const vatRate = selectedCurrency === "USD" ? 0 : 15; // unchanged per your request
+    const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
     const vatAmount = subtotal * vatRate;
     const total = subtotal + vatAmount;
     return {
@@ -66,27 +65,58 @@ const SingleQuotation = ({ params }) => {
     };
   }, [rows, selectedCurrency]);
 
+  // ---------- Build data for document preview/upload (SECTIONS) ----------
   const buildDocumentData = (mode = "word-to-pdf") => {
     if (!rows || rows.length === 0) throw new Error("No product rows available.");
     if (!formData || !quotation) throw new Error("Missing required form data or quotation details.");
 
-    const {
-      totalUnitPrice: Subtotal,
-      vatAmount: VatPrice,
-      totalUnitPriceWithVAT: NetPrice,
-    } = totals;
-
-    // Keep your existing VAT behavior exactly as-is
+    const { totalUnitPrice: Subtotal, vatAmount: VatPrice, totalUnitPriceWithVAT: NetPrice } = totals;
     const vatRate = selectedCurrency === "USD" ? 0 : 15;
-
-    // 🔑 Currency fields
     const cf = currencyFields(selectedCurrency);
 
-    return {
+    // helper to wrap description into 40-char "lines"
+    const wrap = (s) => ((s || "—").toUpperCase().match(/.{1,40}/g)) || ["—"];
+
+    // Build Sections -> Items (title row printed only when Title exists)
+    const Sections = [];
+    let currentSection = null;
+    let lastTitle = "";
+
+    rows.forEach((r, globalIdx) => {
+      // start a new section on boundary/title change
+      let startNew = false;
+      let title = "";
+      if (showTitles[globalIdx]) {
+        const norm = (r.titleAbove || "").trim();
+        if (norm && norm !== lastTitle) {
+          startNew = true;
+          title = norm;
+          lastTitle = norm;
+        }
+      }
+      if (startNew || !currentSection) {
+        currentSection = { Title: title, Items: [], __counter: 0 };
+        Sections.push(currentSection);
+      }
+
+      // per-section numbering 001, 002, ...
+      currentSection.__counter += 1;
+      const perSectionNumber = currentSection.__counter.toString().padStart(3, "0");
+
+      currentSection.Items.push({
+        Number: perSectionNumber,                         // resets per section
+        ProductCode: (r.productCode || "—").toUpperCase(),
+        DescriptionRich: wrap(r.description),             // printed in cell as multiple paragraphs
+        Qty: Number(r.qty || 0),
+        Unit: formatCurrency(r.unit || 0),                // unit price
+        UnitPrice: formatCurrency(r.unitPrice || 0),      // row subtotal
+      });
+    });
+
+    const payload = {
       renderMode: mode,
       templateId: "quotation-v1",
 
-      // -------- your existing fields ----------
       QuotationNumber: formData.quotationId || "No Quotation ID",
       ClientName: formData.clientName || "No Client Name",
       CreatedAt: new Date(quotation.createdAt || Date.now()).toISOString().split("T")[0],
@@ -103,38 +133,47 @@ const SingleQuotation = ({ params }) => {
       ClientEmail: quotation.client?.email || "No Client Email",
       ClientAddress: quotation.client?.address || "No Client Address",
 
-      // Keep original
       Currency: selectedCurrency,
 
-      // -------- formatted numbers as strings ----------
       TotalPrice: formatCurrency(Subtotal),
-      VatRate: Number(vatRate.toFixed(2)), // unchanged per your current logic
+      VatRate: vatRate,
       VatPrice: formatCurrency(VatPrice),
       NetPrice: formatCurrency(NetPrice),
 
-      // -------- new currency-driven placeholders ----------
-      CurrencyWrap: cf.CurrencyWrap, // e.g. "" or "(USD)"
-      CurrencyNote: cf.CurrencyNote, // e.g. "" or "All prices in USD"
-      CurrencySymbol: cf.CurrencySymbol, // if needed anywhere
+      CurrencyWrap: cf.CurrencyWrap,
+      CurrencyNote: cf.CurrencyNote,
+      CurrencySymbol: cf.CurrencySymbol,
       IsSAR: cf.isSAR,
       IsUSD: !cf.isSAR,
 
-      // -------- rest unchanged ----------
       ValidityPeriod: formData.validityPeriod || "No Validity Preiod",
       PaymentTerm: formData.paymentTerm || "No Payment Term",
       PaymentDelivery: formData.paymentDelivery || "No Delivery Term",
       Note: formData.note || "No Note",
       Excluding: formData.excluding || "No Exclusions",
 
-      Products: rows.map((p, idx) => ({
-        Number: (idx + 1).toString().padStart(3, "0"),
-        ProductCode: (p.productCode || "—").toUpperCase(),
-        UnitPrice: formatCurrency(p.unitPrice || 0),
-        Unit: formatCurrency(p.unit || 0),
-        Qty: Number(p.qty || 0),
-        Description: (p.description || "—").toUpperCase().match(/.{1,40}/g) || ["—"],
-      })),
+      Sections, // <<— use this in the DOCX template
     };
+
+    // DEBUG
+    console.groupCollapsed("[DOC DATA] buildDocumentData() – Sections");
+    payload.Sections.forEach((s, i) => {
+      console.log(`Section ${i + 1} Title:`, s.Title || "(no title)");
+      console.table(
+        s.Items.map((p) => ({
+          Number: p.Number,
+          Code: p.ProductCode,
+          Qty: p.Qty,
+          Unit: p.Unit,
+          Subtotal: p.UnitPrice,
+          Desc0: Array.isArray(p.DescriptionRich) ? p.DescriptionRich[0] : undefined,
+          Lines: Array.isArray(p.DescriptionRich) ? p.DescriptionRich.length : 0,
+        }))
+      );
+    });
+    console.groupEnd();
+
+    return payload;
   };
 
   // ---------- data fetch ----------
@@ -144,6 +183,9 @@ const SingleQuotation = ({ params }) => {
         const res = await fetch(`/api/quotation/${params.id}`, { method: "GET" });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
+        console.groupCollapsed("[QUOTE] raw quotation from API");
+        console.log(data);
+        console.groupEnd();
         setQuotation(data);
       } catch (err) {
         setError(`Fetching failed: ${err.message}`);
@@ -154,6 +196,7 @@ const SingleQuotation = ({ params }) => {
     getQuotationById();
   }, [params.id]);
 
+  // Load rows and dedupe titles so only the first of a same-title run shows the title input
   useEffect(() => {
     if (!quotation) return;
 
@@ -175,17 +218,46 @@ const SingleQuotation = ({ params }) => {
 
     setSelectedCurrency(quotation.currency || "USD");
 
-    const newRows = (quotation.products || []).map((product, index) => ({
-      _id: product._id,
-      id: index + 1,
-      number: index + 1,
-      productCode: product.productCode || "",
-      unitPrice: Number(product.unitPrice || 0), // total per row
-      unit: product.unit || "", // unit price
-      qty: product.qty || "",
-      description: product.description || "",
-    }));
+    const newRows = [];
+    const initialShow = [];
+    let prev = undefined;
+
+    (quotation.products || []).forEach((product, index) => {
+      const norm = (product.titleAbove || "").trim();
+      const isBoundary = !!norm && norm !== prev;
+
+      newRows.push({
+        _id: product._id,
+        id: index + 1,
+        number: index + 1,
+        productCode: product.productCode || "",
+        unitPrice: Number(product.unitPrice || 0), // row subtotal
+        unit: product.unit || "", // unit price
+        qty: product.qty || "",
+        description: product.description || "",
+        titleAbove: isBoundary ? norm : "", // only keep value where a section starts
+      });
+
+      initialShow.push(isBoundary);
+      if (isBoundary) prev = norm;
+    });
+
+    console.groupCollapsed("[ROWS] after transform");
+    console.table(
+      newRows.map((r) => ({
+        number: r.number,
+        code: r.productCode,
+        qty: r.qty,
+        unit: r.unit,
+        unitPrice: r.unitPrice,
+        titleAbove: r.titleAbove,
+      }))
+    );
+    console.log("showTitles:", initialShow);
+    console.groupEnd();
+
     setRows(newRows);
+    setShowTitles(initialShow);
   }, [quotation]);
 
   // ---------- table ops ----------
@@ -198,14 +270,21 @@ const SingleQuotation = ({ params }) => {
       qty: "",
       unit: "",
       unitPrice: 0,
+      titleAbove: "",
     };
     setRows((prev) => [...prev, newRow]);
+    setShowTitles((prev) => [...prev, false]);
   };
 
   const deleteRow = (index) => {
     const updated = rows.filter((_, i) => i !== index);
     const renumbered = updated.map((r, i) => ({ ...r, id: i + 1, number: i + 1 }));
     setRows(renumbered);
+    setShowTitles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleTitleForRow = (index) => {
+    setShowTitles((prev) => prev.map((v, i) => (i === index ? !v : v)));
   };
 
   const handleRowInputChange = (index, fieldName, value) => {
@@ -214,9 +293,7 @@ const SingleQuotation = ({ params }) => {
     setRows((prev) =>
       prev.map((row, i) => {
         if (i !== index) return row;
-
         const next = { ...row, [fieldName]: clean };
-        // recompute total per line when qty or unit changes
         if (fieldName === "qty" && !isNaN(clean) && !isNaN(row.unit)) {
           next.unitPrice = Number(clean || 0) * Number(row.unit || 0);
         } else if (fieldName === "unit" && !isNaN(clean) && !isNaN(row.qty)) {
@@ -227,21 +304,49 @@ const SingleQuotation = ({ params }) => {
     );
   };
 
+  const handleTitleChange = (index, value) => {
+    setRows((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, titleAbove: value } : row))
+    );
+  };
+
   // ---------- simple form ops ----------
   const handleInputChange = (fieldName, value) => {
     setFormData((prev) => ({ ...prev, [fieldName]: value }));
   };
 
+  // ---------- submit/update ----------
+  const buildRowsForSubmit = () => {
+    const out = [];
+    let last = undefined;
+
+    rows.forEach((row, index) => {
+      let emitTitle;
+      if (showTitles[index]) {
+        const norm = (row.titleAbove || "").trim();
+        if (norm && norm !== last) {
+          emitTitle = norm; // start new section
+          last = norm;
+        } else {
+          emitTitle = undefined; // same as last -> don't repeat
+        }
+      }
+      out.push({
+        productCode: row.productCode,
+        unitPrice: row.unitPrice,
+        unit: row.unit,
+        qty: row.qty,
+        description: row.description,
+        titleAbove: emitTitle, // ONLY first row of section carries the title
+      });
+    });
+
+    return out;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const rowInputs = rows.map((row) => ({
-      productCode: row.productCode,
-      unitPrice: row.unitPrice,
-      unit: row.unit,
-      qty: row.qty,
-      description: row.description,
-    }));
-
+    const rowInputs = buildRowsForSubmit();
     await updateQuotation({
       id: params.id,
       ...formData,
@@ -251,14 +356,7 @@ const SingleQuotation = ({ params }) => {
 
   const handleEdit = async (e) => {
     e.preventDefault();
-    const rowInputs = rows.map((row) => ({
-      productCode: row.productCode,
-      unitPrice: row.unitPrice,
-      unit: row.unit,
-      qty: row.qty,
-      description: row.description,
-    }));
-
+    const rowInputs = buildRowsForSubmit();
     await editQuotation({
       id: params.id,
       ...formData,
@@ -268,22 +366,21 @@ const SingleQuotation = ({ params }) => {
     });
   };
 
-  // ---------- preview / download / upload ----------
-  // Uses a real URL that returns the PDF with Content-Disposition set on the server.
-const previewQuotationDocument = (asPopup = false) => {
-  const url = `/api/quotation/${params.id}/preview`;
-  if (asPopup) {
-    setPdfUrl(url);
-    setIsPreviewOpen(true);
-  } else {
-    window.open(url, "_blank");
-  }
-};
+  // ---------- preview / download ----------
+  const previewQuotationDocument = (asPopup = false) => {
+    const url = `/api/quotation/${params.id}/preview`;
+    if (asPopup) {
+      setPdfUrl(url);
+      setIsPreviewOpen(true);
+    } else {
+      window.open(url, "_blank");
+    }
+  };
 
-
+  // ---------- upload ----------
   const uploadQuotationDocument = async () => {
     try {
-      const payload = buildDocumentData("word-to-pdf");
+      const payload = buildDocumentData("word-to-pdf"); // logs happen inside
       const res = await fetch(`/api/loadQuoToSynology`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -340,6 +437,24 @@ const previewQuotationDocument = (asPopup = false) => {
               disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
             >
               Upload To Synology
+            </button>
+
+            {/* Debug button to see payload without calling APIs */}
+            <button
+              type="button"
+              className={styles.DownloadButton}
+              onClick={() => {
+                try {
+                  const payload = buildDocumentData("debug-only");
+                  window.__lastQuotationPayload = payload;
+                  alert("Built payload — open DevTools console to inspect.");
+                } catch (e) {
+                  console.error(e);
+                  alert(e.message);
+                }
+              }}
+            >
+              Debug: Log Doc Data
             </button>
           </div>
 
@@ -424,69 +539,103 @@ const previewQuotationDocument = (asPopup = false) => {
                   <td>Qty</td>
                   <td>Unit</td>
                   <td>Total Price</td>
-                  <td></td>
+                  <td>Actions</td>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, index) => (
-                  <tr key={row.id} className={styles.row}>
-                    <td>
-                      <input
-                        className={`${styles.input} ${styles.numberInput}`}
-                        type="text"
-                        value={row.number.toString().padStart(3, "0")}
-                        readOnly
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className={styles.input1}
-                        placeholder="Product Code"
-                        value={row.productCode}
-                        onChange={(e) => handleRowInputChange(index, "productCode", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <textarea
-                        className={`${styles.input1} ${styles.textarea}`}
-                        placeholder="Description"
-                        value={row.description}
-                        onChange={(e) => handleRowInputChange(index, "description", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className={styles.input1}
-                        placeholder="Qty"
-                        value={row.qty}
-                        onChange={(e) => handleRowInputChange(index, "qty", e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        className={styles.input1}
-                        placeholder="Unit Price"
-                        value={row.unit}
-                        onChange={(e) => handleRowInputChange(index, "unit", e.target.value)}
-                      />
-                    </td>
-                    <td>{formatCurrency(Number(row.unitPrice) || 0)}</td>
-                    <td>
-                      {index === rows.length - 1 ? (
-                        <button type="button" className={`${styles.iconButton} ${styles.addButton}`} onClick={addRow}>
-                          <FaPlus />
-                        </button>
-                      ) : (
+                  <React.Fragment key={row.id}>
+                    {/* Title input row (togglable) */}
+                    {showTitles[index] && (
+                      <tr className={`${styles.row} ${styles.titleRow}`}>
+                        <td colSpan={7} className={styles.titleRowCell}>
+                          <input
+                            type="text"
+                            placeholder='Section title above this product (e.g., "Electrical Works")'
+                            className={styles.titleInput}
+                            value={row.titleAbove}
+                            onChange={(e) => handleTitleChange(index, e.target.value)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Product row */}
+                    <tr className={styles.row}>
+                      <td>
+                        <input
+                          className={`${styles.input} ${styles.numberInput}`}
+                          type="text"
+                          value={row.number.toString().padStart(3, "0")}
+                          readOnly
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className={styles.input1}
+                          placeholder="Product Code"
+                          value={row.productCode}
+                          onChange={(e) => handleRowInputChange(index, "productCode", e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <textarea
+                          className={`${styles.input1} ${styles.textarea}`}
+                          placeholder="Description"
+                          value={row.description}
+                          onChange={(e) => handleRowInputChange(index, "description", e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className={styles.input1}
+                          placeholder="Qty"
+                          value={row.qty}
+                          onChange={(e) => handleRowInputChange(index, "qty", e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className={styles.input1}
+                          placeholder="Unit Price"
+                          value={row.unit}
+                          onChange={(e) => handleRowInputChange(index, "unit", e.target.value)}
+                        />
+                      </td>
+                      <td>{formatCurrency(Number(row.unitPrice) || 0)}</td>
+                      <td className={styles.actionsCell}>
+                        {/* Title toggle */}
                         <button
                           type="button"
-                          className={`${styles.iconButton} ${styles.deleteButton}`}
-                          onClick={() => deleteRow(index)}
+                          className={`${styles.titleButton} ${showTitles[index] ? styles.titleButtonActive : ""}`}
+                          onClick={() => toggleTitleForRow(index)}
+                          title={showTitles[index] ? "Hide title" : "Add title above row"}
                         >
-                          <FaTrash />
+                          <FaTag size={12} />
+                          {showTitles[index] ? "Title" : "Title"}
                         </button>
-                      )}
-                    </td>
-                  </tr>
+
+                        {/* Add/Delete */}
+                        {index === rows.length - 1 ? (
+                          <button
+                            type="button"
+                            className={`${styles.iconButton} ${styles.addButton}`}
+                            onClick={addRow}
+                          >
+                            <FaPlus />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className={`${styles.iconButton} ${styles.deleteButton}`}
+                            onClick={() => deleteRow(index)}
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

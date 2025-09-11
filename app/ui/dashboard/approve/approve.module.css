@@ -7,6 +7,92 @@
     color: var(--textSoft);
     margin-bottom: 8px;
   }
+/* --- Actions cell layout ---------------------------- */
+.actionsCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 180px; /* keeps layout stable */
+}
+
+/* --- Title toggle (pill) ---------------------------- */
+.titleButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  cursor: pointer;
+
+  /* Dark theme-friendly neutral/secondary */
+  background: rgba(59, 130, 246, 0.08);  /* subtle blue tint */
+  color: #93c5fd;                        /* light blue text */
+  border: 1px solid #3b82f6;             /* blue outline */
+  outline: none;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.titleButton:hover {
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe; /* slightly brighter */
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); /* focus ring feel */
+}
+
+.titleButton:active {
+  transform: translateY(1px);
+}
+
+.titleButtonActive {
+  background: #2563eb;   /* filled blue */
+  border-color: #1d4ed8; /* darker border */
+  color: #ffffff;
+}
+
+/* Make the + icon button feel consistent in the same row */
+.iconButton.addButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+/* Optional: keep row height comfy */
+.table td {
+  vertical-align: middle;
+}
+
+/* --- Title row (shown above product) ---------------- */
+.titleRow {
+  background: rgba(148, 163, 184, 0.08); /* slate tint */
+}
+
+.titleRowCell {
+  padding: 10px 12px;
+}
+
+.titleInput {
+  width: 100%;
+  background: rgba(2, 6, 23, 0.6); /* very dark */
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #e5e7eb;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.titleInput::placeholder {
+  color: #94a3b8;
+  opacity: .85;
+}
+
 
 
   

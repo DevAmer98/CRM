@@ -1,63 +1,98 @@
+export function buildQuotationPayload(q) {
+  if (!q) throw new Error("No quotation found");
 
-export function buildQuotationPayload(quotation) {
-  if (!quotation) throw new Error("No quotation found");
+  const fmt = (n) =>
+    new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      .format(Number(n || 0));
 
-  const rows = (quotation.products || []).map((product, idx) => {
-    const unit = Number(product.unit || 0);
-    const qty = Number(product.qty || 0);
-    const unitPrice = unit * qty;
-    return {
-      Number: String(idx + 1).padStart(3, "0"),
-      ProductCode: (product.productCode || "—").toUpperCase(),
-      UnitPrice: unitPrice.toFixed(2),
-      Unit: unit.toString(),
+  const wrap = (s) => ((s || "—").toUpperCase().match(/.{1,40}/g)) || ["—"];
+
+  const Sections = [];
+  let current = null;
+  let lastTitle = "";
+
+  (q.products || []).forEach((p) => {
+    const title = (p.titleAbove || "").trim();
+
+    // Start a new section when a NEW title appears
+    if (title && title !== lastTitle) {
+      current = { Title: title, TitleRow: [{ Title: title }], Items: [], __counter: 0 };
+      Sections.push(current);
+      lastTitle = title;
+    }
+
+    // First rows before any title -> default no-title section (title row must vanish)
+    if (!current) {
+      current = { Title: "", TitleRow: [], Items: [], __counter: 0 };
+      Sections.push(current);
+    }
+
+    current.__counter += 1;
+
+    const qty = Number(p.qty || 0);
+    const unit = Number(p.unit || 0);
+    const rowSubtotal = p.unitPrice != null ? Number(p.unitPrice) : unit * qty;
+
+    current.Items.push({
+      Number: String(current.__counter).padStart(3, "0"),
+      ProductCode: (p.productCode || "—").toUpperCase(),
+      DescriptionRich: wrap(p.description),
+      Description: (p.description || "—").toUpperCase(),
       Qty: qty,
-      Description:
-        (product.description || "—").toUpperCase().match(/.{1,40}/g) || ["—"],
-    };
+      Unit: fmt(unit),
+      UnitPrice: fmt(rowSubtotal),
+    });
   });
 
-  const subtotal = rows.reduce(
-    (acc, r) => acc + parseFloat(r.UnitPrice || 0),
-    0
-  );
-  const vatRate = quotation.currency === "USD" ? 0 : 15;
-  const vatAmount = subtotal * vatRate / 100;
+  const subtotal = (q.products || []).reduce((sum, p) => {
+    const qty = Number(p.qty || 0);
+    const unit = Number(p.unit || 0);
+    const row = p.unitPrice != null ? Number(p.unitPrice) : unit * qty;
+    return sum + (Number.isFinite(row) ? row : 0);
+  }, 0);
+
+  const isUSD = (q.currency || "USD") === "USD";
+  const vatRate = isUSD ? 0 : 15;
+  const vatAmount = subtotal * (isUSD ? 0 : 0.15);
   const total = subtotal + vatAmount;
-     
- 
+
+  const cf = isUSD
+    ? { CurrencyWrap: "(USD)", CurrencyNote: "All prices in USD", CurrencySymbol: "$", IsSAR: false, IsUSD: true }
+    : { CurrencyWrap: "",       CurrencyNote: "",                 CurrencySymbol: "",  IsSAR: true,  IsUSD: false };
+
   return {
-      Currency: quotation.currency || "USD",
-      ClientAddress: quotation.client?.address || "No Client Address",
-      QuotationNumber: quotation.quotationId || "No Quotation ID",
-      ClientName:quotation.client?.name|| "No Client Name",
+    templateId: "quotation-v1",
 
-      CreatedAt: new Date(quotation.createdAt || Date.now()).toISOString().split("T")[0],
-      ProjectName: quotation.projectName || "No Project Name",
-      ProjectLA: quotation.projectLA || "No Project Location Address",
-      SaleName: quotation.sale?.name || "No Sales Representative Name",
-      ClientContactName: quotation.client?.contactName || "No Client Contact Name",
-      userName: quotation.user?.username || "No User Name",
-      ClientPhone: quotation.client?.phone || "No Client Phone",
-      UserPhone: quotation.sale?.phone || "No Sales Representative Phone",
-      UserEmail: quotation.sale?.email || "No Sales Representative Email",
-      UserAddress: quotation.sale?.address || "No Sales Representative Address",
-      ClientContactMobile: quotation.client?.contactMobile || "No Client Contact Mobile",
-      ClientEmail: quotation.client?.email || "No Client Email",
+    QuotationNumber: q.quotationId || "—",
+    ClientName: q.client?.name || "—",
+    CreatedAt: (q.createdAt ? new Date(q.createdAt) : new Date()).toISOString().slice(0, 10),
+    ProjectName: q.projectName || "—",
+    ProjectLA: q.projectLA || "—",
+    SaleName: q.sale?.name || "—",
+    ClientContactName: q.client?.contactName || "—",
+    userName: q.user?.username || "—",
+    ClientPhone: q.client?.phone || "—",
+    UserPhone: q.sale?.phone || "—",
+    UserEmail: q.sale?.email || "—",
+    UserAddress: q.sale?.address || "—",
+    ClientContactMobile: q.client?.contactMobile || "—",
+    ClientEmail: q.client?.email || "—",
+    ClientAddress: q.client?.address || "—",
 
-
-    // numbers
-    TotalPrice: subtotal.toFixed(2),
+    Currency: q.currency || "USD",
+    TotalPrice: fmt(subtotal),
     VatRate: vatRate,
-    VatPrice: vatAmount.toFixed(2),
-    NetPrice: total.toFixed(2),
+    VatPrice: fmt(vatAmount),
+    NetPrice: fmt(total),
 
-    Products: rows,
+    ValidityPeriod: q.validityPeriod || "—",
+    PaymentTerm: q.paymentTerm || "—",
+    PaymentDelivery: q.paymentDelivery || "—",
+    Note: q.note || "—",
+    Excluding: q.excluding || "—",
 
-    ValidityPeriod: quotation.validityPeriod || "",
-    PaymentTerm: quotation.paymentTerm || "",
-    PaymentDelivery: quotation.paymentDelivery || "",
-    Note: quotation.note || "",
-    Excluding: quotation.excluding || "",
+    ...cf,
+
+    Sections,  // <- the DOCX loops this
   };
 }
