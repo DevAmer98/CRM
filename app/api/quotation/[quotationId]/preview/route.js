@@ -1,3 +1,4 @@
+// app/api/quotation/[quotationId]/preview/route.js
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -15,7 +16,7 @@ function getLibreOfficePath() {
   const p = process.platform;
   if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
   if (p === "darwin") return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
-  return "/usr/bin/soffice";
+  return "/usr/bin/soffice"; // adjust if your server has it elsewhere
 }
 
 async function renderDocxBuffer(templateBuffer, data) {
@@ -27,37 +28,37 @@ async function renderDocxBuffer(templateBuffer, data) {
 
 async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
-  const templateFile = isUSD
-    ? "SVS_Quotation_NEW_USD.docx"
-    : "SVS_Quotation_NEW.docx";
+  const templateFile = isUSD ? "SVS_Quotation_NEW_USD.docx" : "SVS_Quotation_NEW.docx";
   const templatePath = path.join(process.cwd(), "templates", templateFile);
 
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Template not found at ${templatePath}`);
   }
 
-  const templateBuffer = fs.readFileSync(templatePath);
-  const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
+  const renderedBuffer = await renderDocxBuffer(fs.readFileSync(templatePath), payload);
 
-  const tmpDir =
-    process.platform === "win32"
-      ? path.join(process.cwd(), "tmp")
-      : os.tmpdir();
+  const tmpDir = process.platform === "win32" ? path.join(process.cwd(), "tmp") : os.tmpdir();
   fs.mkdirSync(tmpDir, { recursive: true });
+
   const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
   fs.writeFileSync(tmpDocx, renderedBuffer);
 
   const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
-  await execFileAsync(soffice, [
-    "--headless",
-    "--convert-to",
-    "pdf:writer_pdf_Export",
-    "--outdir",
-    tmpDir,
-    tmpDocx,
-  ]);
+  try {
+    await execFileAsync(soffice, [
+      "--headless",
+      "--convert-to", "pdf:writer_pdf_Export",
+      "--outdir", tmpDir,
+      tmpDocx,
+    ]);
+  } catch (e) {
+    console.error("LibreOffice conversion failed:", e);
+    throw new Error(
+      "PDF conversion failed. Ensure LibreOffice (soffice) is installed and accessible on the server."
+    );
+  }
 
   const pdfBytes = fs.readFileSync(outPdf);
   try { fs.unlinkSync(tmpDocx); } catch {}
@@ -67,17 +68,14 @@ async function docxToPdfBytes(payload) {
 
 export async function GET(req, { params }) {
   try {
-    // must match folder name [quotationId]
     const { quotationId } = params;
 
-    // Direct DB query is better than refetching your own API
-    // Example if you have a Quotation model:
-    // const quotation = await Quotation.findById(quotationId).populate("client sale user");
-
-    // If you still want to fetch your own API:
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/quotation/${quotationId}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`Failed to load quotation ${quotationId}`);
+    // ✅ Build a same-origin absolute URL from the incoming request
+    const apiUrl = new URL(`/api/quotation/${quotationId}`, req.url);
+    const res = await fetch(apiUrl, { cache: "no-store" });
+    if (!res.ok) {
+      throw new Error(`Failed to load quotation ${quotationId} (status ${res.status})`);
+    }
     const quotation = await res.json();
 
     const payload = buildQuotationPayload(quotation);

@@ -438,24 +438,6 @@ const SingleQuotation = ({ params }) => {
             >
               Upload To Synology
             </button>
-
-            {/* Debug button to see payload without calling APIs */}
-            <button
-              type="button"
-              className={styles.DownloadButton}
-              onClick={() => {
-                try {
-                  const payload = buildDocumentData("debug-only");
-                  window.__lastQuotationPayload = payload;
-                  alert("Built payload — open DevTools console to inspect.");
-                } catch (e) {
-                  console.error(e);
-                  alert(e.message);
-                }
-              }}
-            >
-              Debug: Log Doc Data
-            </button>
           </div>
 
           <div className={styles.form1} style={{ marginTop: 12 }}>
