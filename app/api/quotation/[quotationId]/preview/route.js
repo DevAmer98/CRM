@@ -17,7 +17,7 @@ function getLibreOfficePath() {
   const p = process.platform;
   if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
   if (p === "darwin") return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
-  // Adjust if your distro places it elsewhere (e.g. /usr/lib/libreoffice/program/soffice)
+  // adjust if your distro places it elsewhere (e.g. /usr/lib/libreoffice/program/soffice)
   return "/usr/bin/soffice";
 }
 
@@ -51,17 +51,13 @@ async function docxToPdfBytes(payload) {
   try {
     await execFileAsync(soffice, [
       "--headless",
-      "--convert-to",
-      "pdf:writer_pdf_Export",
-      "--outdir",
-      tmpDir,
+      "--convert-to", "pdf:writer_pdf_Export",
+      "--outdir", tmpDir,
       tmpDocx,
     ]);
   } catch (e) {
     console.error("LibreOffice conversion failed:", e);
-    throw new Error(
-      "PDF conversion failed. Ensure LibreOffice (soffice) is installed and in PATH on the server."
-    );
+    throw new Error("PDF conversion failed. Ensure LibreOffice (soffice) is installed and in PATH on the server.");
   }
 
   const pdfBytes = fs.readFileSync(outPdf);
@@ -89,16 +85,14 @@ export async function GET(req, { params }) {
   try {
     const { quotationId } = params;
 
-    // Use safe internal base to avoid ERR_SSL_WRONG_VERSION_NUMBER
+    // Safe internal base to avoid ERR_SSL_WRONG_VERSION_NUMBER
     const base = getInternalBase(req);
     const apiUrl = new URL(`/api/quotation/${quotationId}`, base);
 
     // Forward cookies if your API requires auth/session
     const res = await fetch(apiUrl, {
       cache: "no-store",
-      headers: {
-        cookie: req.headers.get("cookie") || "",
-      },
+      headers: { cookie: req.headers.get("cookie") || "" },
     });
 
     if (!res.ok) {
@@ -118,6 +112,12 @@ export async function GET(req, { params }) {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
         "Cache-Control": "no-store",
+
+        // ✅ allow iframe embedding on same origin
+        "X-Frame-Options": "SAMEORIGIN",
+        "Content-Security-Policy": "frame-ancestors 'self'",
+        // optional: reduce CORB/CORP issues
+        "Cross-Origin-Resource-Policy": "same-origin",
       },
     });
   } catch (err) {

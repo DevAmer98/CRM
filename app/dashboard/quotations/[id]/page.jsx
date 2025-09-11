@@ -367,15 +367,29 @@ const SingleQuotation = ({ params }) => {
   };
 
   // ---------- preview / download ----------
-  const previewQuotationDocument = (asPopup = false) => {
-    const url = `/api/quotation/${params.id}/preview`;
-    if (asPopup) {
-      setPdfUrl(url);
+const previewQuotationDocument = async (asPopup = false) => {
+  const url = `/api/quotation/${params.id}/preview`;
+
+  if (asPopup) {
+    try {
+      const res = await fetch(url, { method: "GET" });
+      if (!res.ok) throw new Error(`Preview failed (${res.status})`);
+      const buf = await res.arrayBuffer();
+      const blob = new Blob([buf], { type: "application/pdf" });
+      const blobUrl = URL.createObjectURL(blob);
+
+      if (pdfUrl && pdfUrl.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(blobUrl);
       setIsPreviewOpen(true);
-    } else {
-      window.open(url, "_blank");
+    } catch (e) {
+      console.error("Preview fetch error:", e);
+      alert(e.message || "Failed to load preview.");
     }
-  };
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+};
+
 
   // ---------- upload ----------
   const uploadQuotationDocument = async () => {
