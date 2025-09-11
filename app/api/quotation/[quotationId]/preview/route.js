@@ -10,13 +10,15 @@ import Docxtemplater from "docxtemplater";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
 
 export const runtime = "nodejs";
+
 const execFileAsync = promisify(execFile);
 
 function getLibreOfficePath() {
   const p = process.platform;
   if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
   if (p === "darwin") return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
-  return "/usr/bin/soffice"; // adjust if your server has it elsewhere
+  // Adjust if your distro places it elsewhere (e.g. /usr/lib/libreoffice/program/soffice)
+  return "/usr/bin/soffice";
 }
 
 async function renderDocxBuffer(templateBuffer, data) {
@@ -49,14 +51,16 @@ async function docxToPdfBytes(payload) {
   try {
     await execFileAsync(soffice, [
       "--headless",
-      "--convert-to", "pdf:writer_pdf_Export",
-      "--outdir", tmpDir,
+      "--convert-to",
+      "pdf:writer_pdf_Export",
+      "--outdir",
+      tmpDir,
       tmpDocx,
     ]);
   } catch (e) {
     console.error("LibreOffice conversion failed:", e);
     throw new Error(
-      "PDF conversion failed. Ensure LibreOffice (soffice) is installed and accessible on the server."
+      "PDF conversion failed. Ensure LibreOffice (soffice) is installed and in PATH on the server."
     );
   }
 
@@ -66,16 +70,42 @@ async function docxToPdfBytes(payload) {
   return pdfBytes;
 }
 
+// Build a reliable base URL for server-side calls to your own API.
+// Prefer INTERNAL_API_BASE (e.g. http://127.0.0.1:3000) to avoid TLS/proxy issues.
+function getInternalBase(req) {
+  if (process.env.INTERNAL_API_BASE) return process.env.INTERNAL_API_BASE;
+
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "127.0.0.1:3000";
+  const hintedProto = req.headers.get("x-forwarded-proto") || "http";
+
+  // If the host includes a dev port (like :3000), force http (no TLS on that port)
+  const forceHttp = /:(\d+)$/.test(host) && host.endsWith(":3000");
+  const scheme = forceHttp ? "http" : hintedProto;
+
+  return `${scheme}://${host}`;
+}
+
 export async function GET(req, { params }) {
   try {
     const { quotationId } = params;
 
-    // ✅ Build a same-origin absolute URL from the incoming request
-    const apiUrl = new URL(`/api/quotation/${quotationId}`, req.url);
-    const res = await fetch(apiUrl, { cache: "no-store" });
+    // Use safe internal base to avoid ERR_SSL_WRONG_VERSION_NUMBER
+    const base = getInternalBase(req);
+    const apiUrl = new URL(`/api/quotation/${quotationId}`, base);
+
+    // Forward cookies if your API requires auth/session
+    const res = await fetch(apiUrl, {
+      cache: "no-store",
+      headers: {
+        cookie: req.headers.get("cookie") || "",
+      },
+    });
+
     if (!res.ok) {
-      throw new Error(`Failed to load quotation ${quotationId} (status ${res.status})`);
+      const txt = await res.text().catch(() => "");
+      throw new Error(`Failed to load quotation ${quotationId} (status ${res.status}) ${txt}`);
     }
+
     const quotation = await res.json();
 
     const payload = buildQuotationPayload(quotation);
