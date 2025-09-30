@@ -123,16 +123,16 @@
   gap: 12px;
 }
 
-.button {
-  padding: 8px 16px;
-  border-radius: 15px; /* Rounded corners for buttons */
-  color: white;
-  border: none;
-  cursor: pointer;
-  font-weight: 500; /* Bolder text */
-  transition: all 0.3s ease; /* Smooth transition for hover */
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Shadow for depth */
-}
+ .button{
+    padding: 5px 10px;
+    border-radius: 5px;
+    color: var(--text);
+    border: none;
+    cursor: pointer;
+  }
+
+
+
 
 .button:hover {
   transform: translateY(-2px); /* Subtle lift effect */

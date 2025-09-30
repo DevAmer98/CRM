@@ -75,7 +75,44 @@ const SingleQuotation = ({ params }) => {
     const cf = currencyFields(selectedCurrency);
 
     // helper to wrap description into 40-char "lines"
-    const wrap = (s) => ((s || "—").toUpperCase().match(/.{1,40}/g)) || ["—"];
+// helper to split description on ". - _" used as separators AND wrap to ~40 chars
+function wrapDesc(text, maxLen = 40) {
+  if (!text) return ["—"];
+  const normalized = String(text).replace(/\r\n?/g, "\n");
+  const firstPass = normalized
+    .split(/\n|[._-]{1,}/g)                 // split on newline or runs of . _ -
+    .map(s => s.replace(/^[.\-_*•]+\s*/, "")) // drop bullet chars at start
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const out = [];
+  for (const chunk of firstPass) {
+    let s = chunk;
+    while (s.length > maxLen) {
+      let cut = s.lastIndexOf(" ", maxLen);
+      if (cut < Math.floor(maxLen * 0.6)) cut = maxLen;
+      out.push(s.slice(0, cut).toUpperCase());
+      s = s.slice(cut).trim();
+    }
+    if (s) out.push(s.toUpperCase());
+  }
+  return out.length ? out : ["—"];
+}
+
+// inside the products loop:
+const lines = wrapDesc(p.description);
+current.Items.push({
+  Number: String(current.__counter).padStart(3, "0"),
+  ProductCode: (p.productCode || "—").toUpperCase(),
+  // keep array if you like, but we’ll *render* the string:
+  DescriptionRich: lines,
+  DescriptionLines: lines.join("\n"),   // <— add this
+  Description: (p.description || "—").toUpperCase(),
+  Qty: qty,
+  Unit: fmt(unit),
+  UnitPrice: fmt(rowSubtotal),
+});
+
 
     // Build Sections -> Items (title row printed only when Title exists)
     const Sections = [];
@@ -106,7 +143,7 @@ const SingleQuotation = ({ params }) => {
       currentSection.Items.push({
         Number: perSectionNumber,                         // resets per section
         ProductCode: (r.productCode || "—").toUpperCase(),
-        DescriptionRich: wrap(r.description),             // printed in cell as multiple paragraphs
+        DescriptionRich: wrapDesc(r.description),
         Qty: Number(r.qty || 0),
         Unit: formatCurrency(r.unit || 0),                // unit price
         UnitPrice: formatCurrency(r.unitPrice || 0),      // row subtotal
@@ -175,6 +212,9 @@ const SingleQuotation = ({ params }) => {
 
     return payload;
   };
+
+
+  
 
   // ---------- data fetch ----------
   useEffect(() => {

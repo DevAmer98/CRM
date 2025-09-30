@@ -1,12 +1,50 @@
 export function buildQuotationPayload(q) {
   if (!q) throw new Error("No quotation found");
 
+  // format numbers with 2 decimals
   const fmt = (n) =>
-    new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      .format(Number(n || 0));
+    new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number(n || 0));
 
-  const wrap = (s) => ((s || "—").toUpperCase().match(/.{1,40}/g)) || ["—"];
+  // Split description on newlines and also on separators (., -, _),
+  // but KEEP the separator at the beginning of the new line.
+  // Then soft-wrap to ~40 chars. Do NOT strip leading punctuation.
+  function wrapDesc(text, maxLen = 40) {
+    if (!text) return ["—"];
 
+    // normalize CRLF
+    const normalized = String(text).replace(/\r\n?/g, "\n");
+
+    // Insert line breaks *before* any lone separator we want to break on,
+    // keeping the separator (e.g. "foo - bar" -> "foo\n- bar").
+    // Also works if the line already starts with "-" or "." — we keep it.
+    const prepared = normalized.replace(/\s*([.\-_])\s*/g, "\n$1 ");
+
+    // split to lines, trim, drop empties
+    const raw = prepared
+      .split(/\n+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // soft wrap to ~40 chars per line
+    const out = [];
+    for (const line of raw) {
+      let s = line; // keep any leading "-" or "."
+      while (s.length > maxLen) {
+        let cut = s.lastIndexOf(" ", maxLen);
+        if (cut < Math.floor(maxLen * 0.6)) cut = maxLen; // hard break if no space nearby
+        out.push(s.slice(0, cut).toUpperCase());
+        s = s.slice(cut).trim();
+      }
+      if (s) out.push(s.toUpperCase());
+    }
+
+    return out.length ? out : ["—"];
+  }
+
+  // Build Sections/Items
   const Sections = [];
   let current = null;
   let lastTitle = "";
@@ -21,7 +59,7 @@ export function buildQuotationPayload(q) {
       lastTitle = title;
     }
 
-    // First rows before any title -> default no-title section (title row must vanish)
+    // First rows before any title -> default no-title section
     if (!current) {
       current = { Title: "", TitleRow: [], Items: [], __counter: 0 };
       Sections.push(current);
@@ -33,17 +71,26 @@ export function buildQuotationPayload(q) {
     const unit = Number(p.unit || 0);
     const rowSubtotal = p.unitPrice != null ? Number(p.unitPrice) : unit * qty;
 
+    const lines = wrapDesc(p.description);
+
     current.Items.push({
       Number: String(current.__counter).padStart(3, "0"),
       ProductCode: (p.productCode || "—").toUpperCase(),
-      DescriptionRich: wrap(p.description),
+
+      // Use this token in the DOCX description cell
+      DescriptionLines: lines.join("\n"),
+
+      // Optional extras (kept if you ever switch to looping)
+      DescriptionRich: lines,
       Description: (p.description || "—").toUpperCase(),
+
       Qty: qty,
       Unit: fmt(unit),
       UnitPrice: fmt(rowSubtotal),
     });
   });
 
+  // Totals
   const subtotal = (q.products || []).reduce((sum, p) => {
     const qty = Number(p.qty || 0);
     const unit = Number(p.unit || 0);
@@ -57,8 +104,20 @@ export function buildQuotationPayload(q) {
   const total = subtotal + vatAmount;
 
   const cf = isUSD
-    ? { CurrencyWrap: "(USD)", CurrencyNote: "All prices in USD", CurrencySymbol: "$", IsSAR: false, IsUSD: true }
-    : { CurrencyWrap: "",       CurrencyNote: "",                 CurrencySymbol: "",  IsSAR: true,  IsUSD: false };
+    ? {
+        CurrencyWrap: "(USD)",
+        CurrencyNote: "All prices in USD",
+        CurrencySymbol: "$",
+        IsSAR: false,
+        IsUSD: true,
+      }
+    : {
+        CurrencyWrap: "",
+        CurrencyNote: "",
+        CurrencySymbol: "",
+        IsSAR: true,
+        IsUSD: false,
+      };
 
   return {
     templateId: "quotation-v1",
@@ -93,6 +152,6 @@ export function buildQuotationPayload(q) {
 
     ...cf,
 
-    Sections,  // <- the DOCX loops this
+    Sections, // description uses {DescriptionLines} in the DOCX
   };
 }

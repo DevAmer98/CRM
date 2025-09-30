@@ -135,7 +135,65 @@ const menuItems = [
     
   ],  
       },
+       { 
+        title: "Sales", 
+        path: "/dashboard", 
+        icon: <CircleUserRound />, 
+        roles: [ROLES.ADMIN],
+        children: [
+    { 
+        title: "Clients", 
+        path: "/dashboard/clients", 
+        icon: <Handshake />, 
+        roles: [ROLES.ADMIN,ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN, ROLES.SALES_ADMIN] 
+      },
       { 
+        title: "Sales Representative", 
+        path: "/dashboard/sales", 
+        icon: <CircleUserRound />, 
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN] 
+      },
+       { 
+        title: "Quotations", 
+        path: "/dashboard/quotations", 
+        icon: <FileClock />, 
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN] 
+      },
+     { 
+        title: "Job Order", 
+        path: "/dashboard/jobOrder", 
+        icon: <Shuffle />, 
+        roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
+      },
+      { 
+        title: "PL&CoC", 
+        path: "/dashboard/pl_coc", 
+        icon: <ShieldCheck />, 
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
+      },
+  ],  
+      },
+       { 
+        title: "Procurement", 
+        path: "/dashboard", 
+        icon: <CircleUserRound />, 
+        roles: [ROLES.ADMIN],
+        children: [
+   { 
+        title: "Suppliers", 
+        path: "/dashboard/suppliers", 
+        icon: <PackageCheck />, 
+        roles: [ROLES.ADMIN] 
+      },
+      { 
+        title: "Purchase Orders", 
+        path: "/dashboard/purchaseOrder", 
+        icon: <FileBox />, 
+        roles: [ROLES.ADMIN] 
+      },
+  ],  
+      },
+        { 
         title: "Users", 
         path: "/dashboard/users", 
         icon: <UsersRound />, 
@@ -145,25 +203,25 @@ const menuItems = [
         title: "Sales Representative", 
         path: "/dashboard/sales", 
         icon: <CircleUserRound />, 
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN] 
       },
       { 
         title: "Clients", 
         path: "/dashboard/clients", 
         icon: <Handshake />, 
-        roles: [ROLES.ADMIN,ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN, ROLES.SALES_ADMIN] 
+        roles: [ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN, ROLES.SALES_ADMIN] 
       },
       { 
         title: "Suppliers", 
         path: "/dashboard/suppliers", 
         icon: <PackageCheck />, 
-        roles: [ROLES.ADMIN,ROLES.PROCUREMENT_ADMIN,ROLES.USER_PROCUREMENT,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.PROCUREMENT_ADMIN,ROLES.USER_PROCUREMENT,ROLES.DASHBOARD_ADMIN] 
       },
       { 
         title: "Quotations", 
         path: "/dashboard/quotations", 
         icon: <FileClock />, 
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.SALES_ADMIN, ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN] 
       },
       { 
         title: "Approve", 
@@ -193,19 +251,19 @@ const menuItems = [
         title: "Purchase Orders", 
         path: "/dashboard/purchaseOrder", 
         icon: <FileBox />, 
-        roles: [ROLES.ADMIN, ROLES.PROCUREMENT_ADMIN,ROLES.USER_PROCUREMENT,ROLES.DASHBOARD_ADMIN] 
+        roles: [ROLES.PROCUREMENT_ADMIN,ROLES.USER_PROCUREMENT,ROLES.DASHBOARD_ADMIN] 
       },
       { 
         title: "Job Order", 
         path: "/dashboard/jobOrder", 
         icon: <Shuffle />, 
-        roles: [ROLES.ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
+        roles: [ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
       },
       { 
         title: "PL&CoC", 
         path: "/dashboard/pl_coc", 
         icon: <ShieldCheck />, 
-        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
+        roles: [ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
       },
        { 
         title: "Picklist", 
