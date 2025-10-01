@@ -8,12 +8,9 @@ import { useRouter } from 'next/navigation';
 
 const clientSchema = z.object({
     name: z.string(),
-    phone: z.string()
-      .min(1, 'Phone is required.'),
-    contactName: z.string()
-      .min(1, 'Contact Name is required.'),
-    contactMobile: z.string()
-      .min(1, 'Contact Mobile is required.'),
+    phone: z.string().optional(),
+    contactName: z.string().optional(),
+    contactMobile: z.string().optional(),
     email: z.string()
   .optional(),
     address: z.string()
@@ -71,7 +68,7 @@ const AddClient = () => {
             <label  className={styles.label}>
             Client Phone:
             </label>
-    <input className={styles.input}  type="phone"  name="phone" required />
+    <input className={styles.input}  type="phone"  name="phone" />
     </div>
     <div className={styles.inputContainer}>
             <label  className={styles.label}>

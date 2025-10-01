@@ -1787,6 +1787,10 @@ export const updateQuotation = async (formData) => {
       projectLA,
       products: normalizedProducts,
       paymentTerm,
+      paymentDelivery,     
+      note,
+      validityPeriod,
+      paymentTerm,
       paymentDelivery,
       note,
       totalPrice,
@@ -1820,6 +1824,7 @@ export const editQuotation = async (formData) => {
     products,
     paymentTerm,
     paymentDelivery,
+    validityPeriod,
     note,
     excluding,
     totalPrice,
@@ -1843,6 +1848,8 @@ export const editQuotation = async (formData) => {
     quotation.currency = currency || quotation.currency;
     quotation.totalPrice = totalPrice || quotation.totalPrice;
     quotation.user = null; // Require re-approval
+    quotation.validityPeriod = validityPeriod || quotation.validityPeriod;
+    
 
     // ✅ Validate and update products
     if (Array.isArray(products) && products.length > 0) {
