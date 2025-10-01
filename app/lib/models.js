@@ -239,7 +239,7 @@ const employeeSchema = new Schema(
 );
 
 
-
+/*
 const quotationSchema = new Schema(
   {
 
@@ -334,6 +334,98 @@ remainingAmount: {
   default: 'USD',
   required: true
 },
+  },
+  { timestamps: true }
+);
+*/
+
+const quotationSchema = new Schema(
+  {
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
+
+    quotationId: {
+      type: String,
+      required: true,
+    },
+
+    revisionNumber: {
+      type: Number,
+      default: 0,
+    },
+
+    sale: {
+      type: Schema.Types.ObjectId,
+      ref: 'Sale',
+      required: true,
+    },
+
+    client: {
+      type: Schema.Types.ObjectId,
+      ref: 'Client',
+      required: true,
+    },
+
+    projectName: {
+      type: String,
+      unique: false,
+    },
+
+    projectLA: {
+      type: String,
+    },
+
+    products: [
+      {
+        productCode: { type: String },
+        unitPrice: { type: Number },          // store the discounted line total
+        unit: { type: Number },
+        qty: { type: Number },
+        description: { type: String },
+        titleAbove: { type: String },
+        discount: { type: Number, min: 0, max: 100 }, // NEW: per-line discount %
+      },
+    ],
+
+    paymentTerm: { type: String },
+    paymentDelivery: { type: String },
+    note: { type: String },
+    validityPeriod: { type: String },
+    excluding: { type: String },
+
+    // --- Totals & discounts breakdown ---
+    subtotal: { type: Number, default: 0 },                    // NEW: after per-line discounts
+    totalDiscount: { type: Number, min: 0, max: 100, default: 0 }, // NEW: % on subtotal
+    subtotalAfterTotalDiscount: { type: Number, default: 0 },  // NEW
+    vatAmount: { type: Number, default: 0 },                   // NEW
+
+    totalPrice: {              // grand total (subtotalAfterTotalDiscount + vatAmount)
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    remainingAmount: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+
+    paymentStatus: {
+      type: String,
+      enum: ['unpaid', 'partial', 'paid'],
+      default: 'unpaid',
+    },
+
+    currency: {
+      type: String,
+      enum: ['USD', 'SAR'],
+      default: 'USD',
+      required: true,
+    },
   },
   { timestamps: true }
 );

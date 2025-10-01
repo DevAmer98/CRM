@@ -23,6 +23,65 @@ function formatDateToISO(dateStr) {
   return dateStr;
 }
 
+function todayStr() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function fmt(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function addByUnit(startDateStr, value, unit) {
+  if (!startDateStr || !value || Number.isNaN(Number(value))) return '';
+  const n = Number(value);
+  const d = new Date(`${startDateStr}T00:00:00`);
+
+  if (unit === 'days') {
+    d.setDate(d.getDate() + n);
+  } else if (unit === 'months') {
+    d.setMonth(d.getMonth() + n);
+  } else if (unit === 'years') {
+    d.setFullYear(d.getFullYear() + n);
+  }
+  return fmt(d);
+}
+
+// Infer a friendly (value, unit) from an existing start/end
+function inferDuration(startISO, endISO) {
+  if (!startISO || !endISO) return { value: '', unit: 'months' };
+  const s = new Date(`${startISO}T00:00:00`);
+  const e = new Date(`${endISO}T00:00:00`);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return { value: '', unit: 'months' };
+
+  // Try months/years first (more HR-friendly), fallback to days
+  let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
+  const tmp = new Date(s);
+  tmp.setMonth(s.getMonth() + months);
+  if (tmp > e) {
+    // adjust down if overflowed
+    months -= 1;
+  }
+
+  if (months > 0) {
+    if (months % 12 === 0) {
+      return { value: String(months / 12), unit: 'years' };
+    }
+    return { value: String(months), unit: 'months' };
+  }
+
+  // days difference
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const days = Math.round((e - s) / msPerDay);
+  return days > 0 ? { value: String(days), unit: 'days' } : { value: '', unit: 'months' };
+}
+
 // ---- Validation (id + optional updatable fields) ----
 const employeeSchema = z.object({
   id: z.string(),
@@ -36,11 +95,13 @@ const employeeSchema = z.object({
   passportExpirationDate: z.string().optional(),
   dateOfBirth: z.string().optional(),
   jobTitle: z.string().optional(),
-  // directManager: z.string().optional(), // ❌ removed; manager is derived from department
-  contractDuration: z.string().optional(),
+  contractDuration: z.string().optional(), // keep your original free-text if you use it elsewhere
   contractStartDate: z.string().optional(),
   contractEndDate: z.string().optional(),
-  departmentId: z.string().optional(), // ✅ keep this
+  // NEW: UI helpers (optional; server may ignore)
+  contractDurationValue: z.string().optional(),
+  contractDurationUnit: z.enum(['days','months','years']).optional(),
+  departmentId: z.string().optional(),
   createdAt: z.any().optional(),
   updatedAt: z.any().optional(),
 });
@@ -58,12 +119,16 @@ const EditEmployee = ({ employee }) => {
   const domain = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
   const initialDepartmentId = useMemo(() => {
-    // works if employee.department is an id or a populated object
     if (!employee?.department) return '';
     return typeof employee.department === 'string'
       ? employee.department
       : employee.department?._id || '';
   }, [employee]);
+
+  // Prefill contract duration controls from existing start/end (if present)
+  const initialStart = employee.contractStartDate ? formatDateToISO(employee.contractStartDate) : '';
+  const initialEnd = employee.contractEndDate ? formatDateToISO(employee.contractEndDate) : '';
+  const inferred = inferDuration(initialStart, initialEnd);
 
   const [formData, setFormData] = useState({
     employeeNo: employee.employeeNo || '',
@@ -77,13 +142,19 @@ const EditEmployee = ({ employee }) => {
     dateOfBirth: employee.dateOfBirth ? formatDateToISO(employee.dateOfBirth) : '',
     jobTitle: employee.jobTitle || '',
     contractDuration: employee.contractDuration || '',
-    contractStartDate: employee.contractStartDate ? formatDateToISO(employee.contractStartDate) : '',
-    contractEndDate: employee.contractEndDate ? formatDateToISO(employee.contractEndDate) : '',
-    departmentId: initialDepartmentId, // ✅ bind department
+    contractStartDate: initialStart,
+    contractEndDate: initialEnd,
+    // NEW
+    contractDurationValue: inferred.value,
+    contractDurationUnit: inferred.unit,
+    departmentId: initialDepartmentId,
   });
 
   // Keep state in sync if parent prop changes (optional)
   useEffect(() => {
+    const s = employee.contractStartDate ? formatDateToISO(employee.contractStartDate) : '';
+    const e = employee.contractEndDate ? formatDateToISO(employee.contractEndDate) : '';
+    const inf = inferDuration(s, e);
     setFormData({
       employeeNo: employee.employeeNo || '',
       name: employee.name || '',
@@ -96,8 +167,11 @@ const EditEmployee = ({ employee }) => {
       dateOfBirth: employee.dateOfBirth ? formatDateToISO(employee.dateOfBirth) : '',
       jobTitle: employee.jobTitle || '',
       contractDuration: employee.contractDuration || '',
-      contractStartDate: employee.contractStartDate ? formatDateToISO(employee.contractStartDate) : '',
-      contractEndDate: employee.contractEndDate ? formatDateToISO(employee.contractEndDate) : '',
+      contractStartDate: s,
+      contractEndDate: e,
+      // NEW
+      contractDurationValue: inf.value,
+      contractDurationUnit: inf.unit,
       departmentId: initialDepartmentId,
     });
   }, [employee, initialDepartmentId]);
@@ -110,8 +184,6 @@ const EditEmployee = ({ employee }) => {
 
   const fetchDepartments = async () => {
     try {
-      // 👉 Make sure this endpoint returns each department with directManager populated (name/employeeNo)
-      // e.g., Department.find().select('name directManager').populate('directManager','name employeeNo')
       const res = await fetch(`${domain}/api/allDepartments`, { cache: 'no-store' });
       const data = await res.json();
       setDepartments(Array.isArray(data) ? data : []);
@@ -132,14 +204,52 @@ const EditEmployee = ({ employee }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // NEW: recompute end date when start/value/unit changes
+  const handleStartDateChange = (value) => {
+    setFormData(prev => ({
+      ...prev,
+      contractStartDate: value,
+      contractEndDate: prev.contractDurationValue
+        ? addByUnit(value || todayStr(), prev.contractDurationValue, prev.contractDurationUnit)
+        : prev.contractEndDate,
+    }));
+  };
+
+  const handleDurationValueChange = (value) => {
+    setFormData(prev => {
+      const start = prev.contractStartDate || todayStr();
+      return {
+        ...prev,
+        contractDurationValue: value,
+        contractStartDate: prev.contractStartDate || start,
+        contractEndDate: value
+          ? addByUnit(start, value, prev.contractDurationUnit)
+          : prev.contractEndDate,
+      };
+    });
+  };
+
+  const handleDurationUnitChange = (unit) => {
+    setFormData(prev => {
+      const start = prev.contractStartDate || todayStr();
+      return {
+        ...prev,
+        contractDurationUnit: unit,
+        contractStartDate: prev.contractStartDate || start,
+        contractEndDate: prev.contractDurationValue
+          ? addByUnit(start, prev.contractDurationValue, unit)
+          : prev.contractEndDate,
+      };
+    });
+  };
+
   const employeeActions = async (e) => {
     e.preventDefault();
     if (!isClient) return;
 
     const payload = {
-      id: employee._id, // ensure id is included
+      id: employee._id,
       ...formData,
-      // ⛔ do NOT include directManager; the server infers it from department
     };
 
     try {
@@ -360,19 +470,37 @@ const EditEmployee = ({ employee }) => {
             <div className={styles.formGroup}>
               <div className={styles.sectionHeader}>Contract Information</div>
 
+            
+
+              {/* NEW: Duration controls (value + unit) */}
               <div className={styles.inputRow}>
                 <div className={styles.inputContainer}>
-                  <label className={styles.label}>Contract Duration:</label>
+                  <label className={styles.label}>Duration Amount:</label>
                   <input
                     className={styles.input}
-                    type="text"
-                    name="contractDuration"
-                    value={formData.contractDuration}
-                    onChange={(e) => handleInputChange('contractDuration', e.target.value)}
+                    type="number"
+                    min="0"
+                    placeholder="e.g., 1, 6, 12"
+                    value={formData.contractDurationValue}
+                    onChange={(e) => handleDurationValueChange(e.target.value)}
                   />
+                </div>
+
+                <div className={styles.inputContainer}>
+                  <label className={styles.label}>Duration Unit:</label>
+                  <select
+                    className={styles.input}
+                    value={formData.contractDurationUnit}
+                    onChange={(e) => handleDurationUnitChange(e.target.value)}
+                  >
+                    <option value="days">Day(s)</option>
+                    <option value="months">Month(s)</option>
+                    <option value="years">Year(s)</option>
+                  </select>
                 </div>
               </div>
 
+              {/* Start/End with live recompute */}
               <div className={styles.inputRow}>
                 <div className={styles.inputContainer}>
                   <label className={styles.label}>Contract Start Date:</label>
@@ -381,7 +509,7 @@ const EditEmployee = ({ employee }) => {
                     type="date"
                     name="contractStartDate"
                     value={formData.contractStartDate}
-                    onChange={(e) => handleInputChange('contractStartDate', e.target.value)}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
                   />
                 </div>
 

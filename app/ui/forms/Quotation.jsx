@@ -8,6 +8,7 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
+// NEW: allow per-line discount
 const productSchema = z.object({
   productCode: z.string().optional(),
   unitPrice: z.number().optional(),
@@ -15,8 +16,10 @@ const productSchema = z.object({
   qty: z.number().optional(),
   description: z.string().optional(),
   titleAbove: z.string().optional(), // section title applied to this product
+  discount: z.number().min(0).max(100).optional(), // NEW: per-line %
 });
 
+// NEW: allow totalDiscount on subtotal
 const quotationSchema = z.object({
   saleId: z.string().min(1, "Sale Representative is required"),
   clientId: z.string().min(1, "Client is required"),
@@ -29,6 +32,7 @@ const quotationSchema = z.object({
   note: z.string().optional(),
   excluding: z.string().optional(),
   currency: z.enum(["USD", "SAR"], { message: "Currency is required" }),
+  totalDiscount: z.number().min(0).max(100).optional(), // NEW: subtotal %
   totalPrice: z.number().min(0, "Total price must be 0 or higher"),
 });
 
@@ -82,12 +86,14 @@ const AddQuotation = () => {
     setShowTitles(prev => prev.map((v, i) => (i === index ? !v : v)));
   };
 
+  const clampPct = (n) => Math.min(Math.max((Number(n) || 0), 0), 100); // NEW
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     const form = event.target;
 
-    const totals = calculateTotalUnitPrice();
-    const totalWithVat = Number(totals.totalUnitPriceWithVAT);
+    const totals = calculateTotalUnitPrice(); // CHANGED: now includes discounts
+    const totalWithVat = Number(totals.totalUnitPriceWithVAT.toFixed(2)); // CHANGED
 
     // Build products with forward-inheritance of title
     const products = [];
@@ -102,17 +108,25 @@ const AddQuotation = () => {
 
       const qtyVal = Number(form[`qty${index}`].value);
       const unitVal = Number(form[`unit${index}`].value);
+      const discountPct = clampPct(form[`discount${index}`]?.value); // NEW
+
+      const base = (!isNaN(qtyVal) && !isNaN(unitVal)) ? qtyVal * unitVal : 0;
+      const lineTotal = base * (1 - discountPct / 100); // NEW
 
       products.push({
         number: index + 1,
         productCode: form[`productCode${index}`].value,
         unit: unitVal,
         qty: qtyVal,
-        unitPrice: !isNaN(qtyVal) && !isNaN(unitVal) ? qtyVal * unitVal : 0,
+        unitPrice: Number(lineTotal.toFixed(2)), // CHANGED: store discounted line total
         description: form[`description${index}`].value,
         titleAbove: currentSectionTitle, // inherited
+        discount: discountPct || undefined, // NEW
       });
     });
+
+    // NEW: total discount on subtotal (optional)
+    const totalDiscount = clampPct(form.totalDiscount?.value);
 
     const payload = {
       saleId: form.saleId.value,
@@ -126,7 +140,8 @@ const AddQuotation = () => {
       note: form.note.value,
       excluding: form.excluding.value,
       currency: selectedCurrency,
-      totalPrice: totalWithVat,
+      totalDiscount,                // NEW
+      totalPrice: totalWithVat,     // after total discount + VAT
     };
 
     try {
@@ -149,20 +164,32 @@ const AddQuotation = () => {
 
   useEffect(() => { setIsClient(typeof window !== 'undefined'); }, []);
 
+  // CHANGED: include per-line and total discounts in calculation
   const calculateTotalUnitPrice = () => {
-    let totalUnitPrice = 0;
+    let subtotalAfterLineDiscounts = 0;
+
     rows.forEach((_, index) => {
       const qty = Number(document.querySelector(`[name="qty${index}"]`)?.value || 0);
       const unit = Number(document.querySelector(`[name="unit${index}"]`)?.value || 0);
-      totalUnitPrice += qty * unit;
+      const discountPct = clampPct(document.querySelector(`[name="discount${index}"]`)?.value || 0);
+
+      const base = qty * unit;
+      const discounted = base * (1 - discountPct / 100);
+      subtotalAfterLineDiscounts += discounted;
     });
+
+    const totalDiscPct = clampPct((document.querySelector(`[name="totalDiscount"]`))?.value || 0);
+    const subtotalAfterTotalDiscount = subtotalAfterLineDiscounts * (1 - totalDiscPct / 100);
+
     const vatRate = selectedCurrency === 'USD' ? 0 : 0.15;
-    const vatAmount = totalUnitPrice * vatRate;
-    const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+    const vatAmount = subtotalAfterTotalDiscount * vatRate;
+    const totalUnitPriceWithVAT = subtotalAfterTotalDiscount + vatAmount;
+
     return {
-      totalUnitPrice: totalUnitPrice.toFixed(2),
-      vatAmount: vatAmount.toFixed(2),
-      totalUnitPriceWithVAT: totalUnitPriceWithVAT.toFixed(2),
+      subtotal: Number(subtotalAfterLineDiscounts.toFixed(2)),
+      vatAmount: Number(vatAmount.toFixed(2)),
+      totalUnitPriceWithVAT: Number(totalUnitPriceWithVAT.toFixed(2)),
+      totalDiscountPct: totalDiscPct, // for optional UI preview if you need it
     };
   };
 
@@ -227,6 +254,7 @@ const AddQuotation = () => {
                   <td>Description</td>
                   <td>Qty</td>
                   <td>Unit Price</td>
+                  <td>Discount %</td> {/* NEW */}
                   <td>Total Price</td>
                   <td>Actions</td>
                 </tr>
@@ -236,7 +264,7 @@ const AddQuotation = () => {
                   <React.Fragment key={index}>
                     {showTitles[index] && (
                       <tr className={`${styles.row} ${styles.titleRow}`}>
-                        <td colSpan={7} className={styles.titleRowCell}>
+                        <td colSpan={8} className={styles.titleRowCell}> {/* CHANGED colSpan to 8 */}
                           <input
                             type="text"
                             name={`titleAbove${index}`}
@@ -268,6 +296,18 @@ const AddQuotation = () => {
                       <td>
                         <input type='number' name={`unit${index}`} className={styles.input1} step="any" />
                       </td>
+                      <td> {/* NEW: Discount per line */}
+                        <input
+                          type='number'
+                          name={`discount${index}`}
+                          className={styles.input1}
+                          step="any"
+                          min={0}
+                          max={100}
+                          placeholder='0'
+                          title='Discount percentage (0–100)'
+                        />
+                      </td>
                       <td></td>
                       <td className={styles.actionsCell}>
                         <button
@@ -293,6 +333,21 @@ const AddQuotation = () => {
                 ))}
               </tbody>
             </table>
+
+            {/* NEW: Total discount on subtotal */}
+            <div className={styles.inputContainer} style={{ marginTop: 12 }}>
+              <label className={styles.label}>Total Discount % (optional):</label>
+              <input
+                type="number"
+                name="totalDiscount"
+                className={styles.input}
+                step="any"
+                min={0}
+                max={100}
+                placeholder="0"
+                title="Discount percentage on the subtotal (0–100)"
+              />
+            </div>
           </div>
         </div>
 

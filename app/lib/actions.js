@@ -1704,6 +1704,7 @@ function normalizeSectionTitles(products = []) {
   return out;
 }
 
+/*
 export const addQuotation = async (formData) => {
   const {
     saleId, clientId, projectName, projectLA,
@@ -1869,6 +1870,206 @@ export const editQuotation = async (formData) => {
   }
 };
 
+*/
+
+
+export const addQuotation = async (formData) => {
+  const {
+    saleId, clientId, projectName, projectLA,
+    products, paymentTerm, paymentDelivery, note,
+    validityPeriod, excluding, totalPrice, currency,
+    // NEW: accept optional discount breakdowns
+    totalDiscount,                 // NEW (% on subtotal)
+    subtotal,                      // NEW
+    subtotalAfterTotalDiscount,    // NEW
+    vatAmount                      // NEW
+  } = formData;
+
+  try {
+    await connectToDB();
+
+    const sale = await Sale.findById(saleId);
+    if (!sale) throw new Error("Sale not found");
+
+    const client = await Client.findById(clientId);
+    if (!client) throw new Error("Client not found");
+
+    const year = new Date().getFullYear();
+    const latestQuotation = await Quotation.findOne({
+      quotationId: { $regex: `SVSSQ-${year}-` }
+    }).sort({ quotationId: -1 });
+
+    let sequenceNumber = "001";
+    if (latestQuotation) {
+      const currentNumber = parseInt(latestQuotation.quotationId.split("-")[2]);
+      sequenceNumber = String(currentNumber + 1).padStart(3, "0");
+    }
+
+    const customQuotationId = `SVSSQ-${year}-${sequenceNumber}`;
+
+    const normalizedProducts = normalizeSectionTitles(products);
+
+    const newQuotation = new Quotation({
+      client: client._id,
+      sale: sale._id,
+      projectName,
+      projectLA,
+      products: normalizedProducts,
+      paymentTerm,
+      paymentDelivery,
+      note,
+      validityPeriod,
+      excluding,
+      totalPrice,
+      currency,
+      quotationId: customQuotationId,
+      revisionNumber: 0,
+
+      // NEW: store optional discount breakdown if provided
+      totalDiscount: typeof totalDiscount === "number" ? totalDiscount : undefined,              // NEW
+      subtotal: typeof subtotal === "number" ? subtotal : undefined,                            // NEW
+      subtotalAfterTotalDiscount: typeof subtotalAfterTotalDiscount === "number" ? subtotalAfterTotalDiscount : undefined, // NEW
+      vatAmount: typeof vatAmount === "number" ? vatAmount : undefined,                         // NEW
+    });
+
+    await newQuotation.save();
+    return { success: true, quotationId: customQuotationId };
+  } catch (err) {
+    console.error("Error adding quotation:", err.message);
+    return { success: false, error: err.message };
+  }
+};
+
+export const updateQuotation = async (formData) => {
+  const {
+    id, projectName, projectLA, products,
+    paymentTerm, paymentDelivery, note, excluding,
+    totalPrice, currency,
+
+    // NEW: allow optional updates
+    totalDiscount,                 // NEW
+    subtotal,                      // NEW
+    subtotalAfterTotalDiscount,    // NEW
+    vatAmount                      // NEW
+  } = formData;
+
+  try {
+    await connectToDB();
+    const quotation = await Quotation.findById(id);
+    if (!quotation) throw new Error("Quotation not found");
+
+    quotation.revisionNumber += 1;
+    if (quotation.quotationId) {
+      const baseId = quotation.quotationId.split(" Rev.")[0];
+      quotation.quotationId = `${baseId} Rev.${quotation.revisionNumber}`;
+    }
+
+    const normalizedProducts = Array.isArray(products)
+      ? normalizeSectionTitles(products)
+      : undefined;
+
+    const updateFields = {
+      projectName,
+      projectLA,
+      products: normalizedProducts,
+      paymentTerm,
+      paymentDelivery,     
+      note,
+      validityPeriod,
+      paymentTerm,
+      paymentDelivery,
+      note,
+      totalPrice,
+      excluding,
+      currency,   // keep if you allow editing currency
+      user: null, // force re-approval
+
+      // NEW: persist if provided
+      totalDiscount,                 // NEW
+      subtotal,                      // NEW
+      subtotalAfterTotalDiscount,    // NEW
+      vatAmount                      // NEW
+    };
+
+    Object.keys(updateFields).forEach((k) => {
+      const v = updateFields[k];
+      if (v === "" || v === undefined) return;
+      quotation[k] = v;
+    });
+
+    await quotation.save();
+  } catch (err) {
+    console.error(err);
+    throw new Error("Failed to update quotation!");
+  } finally {
+    revalidatePath("/dashboard/quotations");
+    redirect("/dashboard/quotations");
+  }
+};
+
+export const editQuotation = async (formData) => {
+  const {
+    id,
+    projectName,
+    projectLA,
+    products,
+    paymentTerm,
+    paymentDelivery,
+    validityPeriod,
+    note,
+    excluding,
+    totalPrice,
+    currency,
+
+    // NEW
+    totalDiscount,                 // NEW
+    subtotal,                      // NEW
+    subtotalAfterTotalDiscount,    // NEW
+    vatAmount                      // NEW
+  } = formData;
+
+  try {
+    await connectToDB();
+    const quotation = await Quotation.findById(id);
+    if (!quotation) {
+      throw new Error('Quotation not found');
+    }
+
+    // Update basic fields (keep pattern)
+    quotation.projectName = projectName || quotation.projectName;
+    quotation.projectLA = projectLA || quotation.projectLA;
+    quotation.paymentTerm = paymentTerm || quotation.paymentTerm;
+    quotation.paymentDelivery = paymentDelivery || quotation.paymentDelivery;
+    quotation.note = note || quotation.note;
+    quotation.excluding = excluding || quotation.excluding;
+    quotation.currency = currency || quotation.currency;
+    quotation.totalPrice = totalPrice || quotation.totalPrice;
+    quotation.user = null; // Require re-approval
+    quotation.validityPeriod = validityPeriod || quotation.validityPeriod;
+
+    // NEW: persist breakdown if sent
+    if (typeof totalDiscount === "number") quotation.totalDiscount = totalDiscount;                  // NEW
+    if (typeof subtotal === "number") quotation.subtotal = subtotal;                                // NEW
+    if (typeof subtotalAfterTotalDiscount === "number") quotation.subtotalAfterTotalDiscount = subtotalAfterTotalDiscount; // NEW
+    if (typeof vatAmount === "number") quotation.vatAmount = vatAmount;                             // NEW
+
+    // ✅ Validate and update products (keep pattern)
+    if (Array.isArray(products) && products.length > 0) {
+      quotation.products = products.filter(
+        p => p.productCode && p.qty && p.unit
+      );
+    }
+
+    await quotation.save();
+
+  } catch (err) {
+    console.error(err);
+    throw new Error("Failed to update quotation!");
+  } finally {
+    revalidatePath("/dashboard/quotations");
+    redirect("/dashboard/quotations");
+  }
+};
 
 
 /*

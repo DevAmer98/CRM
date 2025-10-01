@@ -22,6 +22,7 @@ const SingleQuotation = ({ params }) => {
     note: "",
     excluding: "",
     totalPrice: "",
+    totalDiscount: 0, // NEW: subtotal discount %
   });
 
   // table rows + title toggles
@@ -44,6 +45,8 @@ const SingleQuotation = ({ params }) => {
   const [pdfUrl, setPdfUrl] = useState(null);
 
   // ---------- helpers ----------
+  const clampPct = (n) => Math.min(Math.max(Number(n || 0), 0), 100); // NEW
+
   const formatCurrency = (value) => {
     const n = Number(value || 0);
     return new Intl.NumberFormat("en-US", {
@@ -53,66 +56,72 @@ const SingleQuotation = ({ params }) => {
     }).format(n);
   };
 
+  // CHANGED: totals now include line discount and total discount
   const totals = useMemo(() => {
-    const subtotal = rows.reduce((acc, r) => acc + (Number(r.unitPrice) || 0), 0);
+    // subtotal after per-line discounts
+    const subtotal = rows.reduce((acc, r) => {
+      const qty = Number(r.qty || 0);
+      const unit = Number(r.unit || 0);
+      const disc = clampPct(r.discount); // NEW
+      const base = qty * unit;
+      const lineTotal = base * (1 - disc / 100);
+      return acc + lineTotal;
+    }, 0);
+
+    const totalDiscPct = clampPct(formData.totalDiscount); // NEW
+    const subtotalAfterTotalDiscount = subtotal * (1 - totalDiscPct / 100); // NEW
+
     const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
-    const vatAmount = subtotal * vatRate;
-    const total = subtotal + vatAmount;
+    const vatAmount = subtotalAfterTotalDiscount * vatRate; // NEW
+    const total = subtotalAfterTotalDiscount + vatAmount;   // NEW
+
     return {
-      totalUnitPrice: Number(subtotal.toFixed(2)),
+      subtotal: Number(subtotal.toFixed(2)),                                // NEW
+      subtotalAfterTotalDiscount: Number(subtotalAfterTotalDiscount.toFixed(2)), // NEW
       vatAmount: Number(vatAmount.toFixed(2)),
       totalUnitPriceWithVAT: Number(total.toFixed(2)),
+      totalDiscountPct: totalDiscPct, // for display/debug if needed
     };
-  }, [rows, selectedCurrency]);
+  }, [rows, selectedCurrency, formData.totalDiscount]);
 
   // ---------- Build data for document preview/upload (SECTIONS) ----------
   const buildDocumentData = (mode = "word-to-pdf") => {
     if (!rows || rows.length === 0) throw new Error("No product rows available.");
     if (!formData || !quotation) throw new Error("Missing required form data or quotation details.");
 
-    const { totalUnitPrice: Subtotal, vatAmount: VatPrice, totalUnitPriceWithVAT: NetPrice } = totals;
+    const {
+      subtotal: Subtotal,                            // NEW
+      vatAmount: VatPrice,
+      totalUnitPriceWithVAT: NetPrice,
+      totalDiscountPct,
+      subtotalAfterTotalDiscount,
+    } = totals;
     const vatRate = selectedCurrency === "USD" ? 0 : 15;
     const cf = currencyFields(selectedCurrency);
 
-    // helper to wrap description into 40-char "lines"
-// helper to split description on ". - _" used as separators AND wrap to ~40 chars
-function wrapDesc(text, maxLen = 40) {
-  if (!text) return ["—"];
-  const normalized = String(text).replace(/\r\n?/g, "\n");
-  const firstPass = normalized
-    .split(/\n|[._-]{1,}/g)                 // split on newline or runs of . _ -
-    .map(s => s.replace(/^[.\-_*•]+\s*/, "")) // drop bullet chars at start
-    .map(s => s.trim())
-    .filter(Boolean);
+    // helper to split description on ". - _" used as separators AND wrap to ~40 chars
+    function wrapDesc(text, maxLen = 40) {
+      if (!text) return ["—"];
+      const normalized = String(text).replace(/\r\n?/g, "\n");
+      const firstPass = normalized
+        .split(/\n|[._-]{1,}/g)
+        .map((s) => s.replace(/^[.\-_*•]+\s*/, ""))
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-  const out = [];
-  for (const chunk of firstPass) {
-    let s = chunk;
-    while (s.length > maxLen) {
-      let cut = s.lastIndexOf(" ", maxLen);
-      if (cut < Math.floor(maxLen * 0.6)) cut = maxLen;
-      out.push(s.slice(0, cut).toUpperCase());
-      s = s.slice(cut).trim();
+      const out = [];
+      for (const chunk of firstPass) {
+        let s = chunk;
+        while (s.length > maxLen) {
+          let cut = s.lastIndexOf(" ", maxLen);
+          if (cut < Math.floor(maxLen * 0.6)) cut = maxLen;
+          out.push(s.slice(0, cut).toUpperCase());
+          s = s.slice(cut).trim();
+        }
+        if (s) out.push(s.toUpperCase());
+      }
+      return out.length ? out : ["—"];
     }
-    if (s) out.push(s.toUpperCase());
-  }
-  return out.length ? out : ["—"];
-}
-
-// inside the products loop:
-const lines = wrapDesc(p.description);
-current.Items.push({
-  Number: String(current.__counter).padStart(3, "0"),
-  ProductCode: (p.productCode || "—").toUpperCase(),
-  // keep array if you like, but we’ll *render* the string:
-  DescriptionRich: lines,
-  DescriptionLines: lines.join("\n"),   // <— add this
-  Description: (p.description || "—").toUpperCase(),
-  Qty: qty,
-  Unit: fmt(unit),
-  UnitPrice: fmt(rowSubtotal),
-});
-
 
     // Build Sections -> Items (title row printed only when Title exists)
     const Sections = [];
@@ -120,7 +129,7 @@ current.Items.push({
     let lastTitle = "";
 
     rows.forEach((r, globalIdx) => {
-      // start a new section on boundary/title change
+      // section boundary
       let startNew = false;
       let title = "";
       if (showTitles[globalIdx]) {
@@ -138,15 +147,21 @@ current.Items.push({
 
       // per-section numbering 001, 002, ...
       currentSection.__counter += 1;
-      const perSectionNumber = currentSection.__counter.toString().padStart(3, "0");
+
+      // line totals with discount
+      const qty = Number(r.qty || 0);
+      const unit = Number(r.unit || 0);
+      const disc = clampPct(r.discount);
+      const base = qty * unit;
+      const rowSubtotal = base * (1 - disc / 100);
 
       currentSection.Items.push({
-        Number: perSectionNumber,                         // resets per section
+        Number: String(currentSection.__counter).padStart(3, "0"),
         ProductCode: (r.productCode || "—").toUpperCase(),
         DescriptionRich: wrapDesc(r.description),
-        Qty: Number(r.qty || 0),
-        Unit: formatCurrency(r.unit || 0),                // unit price
-        UnitPrice: formatCurrency(r.unitPrice || 0),      // row subtotal
+        Qty: qty,
+        Unit: formatCurrency(unit),
+        UnitPrice: formatCurrency(rowSubtotal),
       });
     });
 
@@ -172,10 +187,13 @@ current.Items.push({
 
       Currency: selectedCurrency,
 
-      TotalPrice: formatCurrency(Subtotal),
+      // CHANGED labels to match new flow
+      TotalPrice: formatCurrency(Subtotal), // Subtotal after line discounts (pre total discount & VAT)
+      TotalDiscountPct: totalDiscountPct,   // NEW (optional)
+      SubtotalAfterTotalDiscount: formatCurrency(subtotalAfterTotalDiscount), // NEW
       VatRate: vatRate,
       VatPrice: formatCurrency(VatPrice),
-      NetPrice: formatCurrency(NetPrice),
+      NetPrice: formatCurrency(NetPrice),   // Grand total
 
       CurrencyWrap: cf.CurrencyWrap,
       CurrencyNote: cf.CurrencyNote,
@@ -189,7 +207,7 @@ current.Items.push({
       Note: formData.note || "No Note",
       Excluding: formData.excluding || "No Exclusions",
 
-      Sections, // <<— use this in the DOCX template
+      Sections,
     };
 
     // DEBUG
@@ -203,7 +221,6 @@ current.Items.push({
           Qty: p.Qty,
           Unit: p.Unit,
           Subtotal: p.UnitPrice,
-          Desc0: Array.isArray(p.DescriptionRich) ? p.DescriptionRich[0] : undefined,
           Lines: Array.isArray(p.DescriptionRich) ? p.DescriptionRich.length : 0,
         }))
       );
@@ -212,9 +229,6 @@ current.Items.push({
 
     return payload;
   };
-
-
-  
 
   // ---------- data fetch ----------
   useEffect(() => {
@@ -254,6 +268,7 @@ current.Items.push({
       note: quotation.note || "",
       excluding: quotation.excluding || "",
       totalPrice: quotation.totalPrice || "",
+      totalDiscount: Number(quotation.totalDiscount || 0), // NEW
     });
 
     setSelectedCurrency(quotation.currency || "USD");
@@ -271,11 +286,12 @@ current.Items.push({
         id: index + 1,
         number: index + 1,
         productCode: product.productCode || "",
-        unitPrice: Number(product.unitPrice || 0), // row subtotal
+        unitPrice: Number(product.unitPrice || 0), // row subtotal (we still recompute below)
         unit: product.unit || "", // unit price
         qty: product.qty || "",
         description: product.description || "",
         titleAbove: isBoundary ? norm : "", // only keep value where a section starts
+        discount: Number(product.discount || 0), // NEW
       });
 
       initialShow.push(isBoundary);
@@ -289,6 +305,7 @@ current.Items.push({
         code: r.productCode,
         qty: r.qty,
         unit: r.unit,
+        discount: r.discount, // NEW
         unitPrice: r.unitPrice,
         titleAbove: r.titleAbove,
       }))
@@ -309,6 +326,7 @@ current.Items.push({
       description: "",
       qty: "",
       unit: "",
+      discount: 0, // NEW
       unitPrice: 0,
       titleAbove: "",
     };
@@ -328,17 +346,27 @@ current.Items.push({
   };
 
   const handleRowInputChange = (index, fieldName, value) => {
-    const clean = fieldName === "qty" || fieldName === "unit" ? value.replace(/[^\d.]/g, "") : value;
+    const numericFields = ["qty", "unit", "discount"];
+    const clean =
+      numericFields.includes(fieldName) ? String(value).replace(/[^\d.]/g, "") : value;
 
     setRows((prev) =>
       prev.map((row, i) => {
         if (i !== index) return row;
         const next = { ...row, [fieldName]: clean };
-        if (fieldName === "qty" && !isNaN(clean) && !isNaN(row.unit)) {
-          next.unitPrice = Number(clean || 0) * Number(row.unit || 0);
-        } else if (fieldName === "unit" && !isNaN(clean) && !isNaN(row.qty)) {
-          next.unitPrice = Number(clean || 0) * Number(row.qty || 0);
-        }
+
+        // recompute unitPrice = qty * unit * (1 - discount/100)
+        const qty = Number(fieldName === "qty" ? clean : row.qty || 0);
+        const unit = Number(fieldName === "unit" ? clean : row.unit || 0);
+        const disc =
+          fieldName === "discount"
+            ? clampPct(clean)
+            : clampPct(row.discount);
+
+        const base = (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unit) ? unit : 0);
+        next.unitPrice = base * (1 - disc / 100);
+        next.discount = disc; // ensure clamped if they edited discount
+
         return next;
       })
     );
@@ -371,13 +399,17 @@ current.Items.push({
           emitTitle = undefined; // same as last -> don't repeat
         }
       }
+
+      // NOTE: server may recompute totals;
+      // we still send discount and raw inputs.
       out.push({
         productCode: row.productCode,
-        unitPrice: row.unitPrice,
-        unit: row.unit,
-        qty: row.qty,
+        unitPrice: Number(row.unitPrice || 0), // discounted line total
+        unit: Number(row.unit || 0),
+        qty: Number(row.qty || 0),
         description: row.description,
-        titleAbove: emitTitle, // ONLY first row of section carries the title
+        titleAbove: emitTitle,        // ONLY first row of section carries the title
+        discount: Number(row.discount || 0), // NEW
       });
     });
 
@@ -391,6 +423,13 @@ current.Items.push({
       id: params.id,
       ...formData,
       products: rowInputs,
+      currency: selectedCurrency, // NEW: keep currency on update as well
+      totalDiscount: clampPct(formData.totalDiscount), // NEW
+      // you can send breakdowns too if your action supports them:
+      subtotal: totals.subtotal,
+      subtotalAfterTotalDiscount: totals.subtotalAfterTotalDiscount,
+      vatAmount: totals.vatAmount,
+      totalPrice: totals.totalUnitPriceWithVAT, // grand total
     });
   };
 
@@ -402,34 +441,37 @@ current.Items.push({
       ...formData,
       products: rowInputs,
       currency: selectedCurrency,
-      totalPrice: Number(totals.totalUnitPrice),
+      totalDiscount: clampPct(formData.totalDiscount), // NEW
+      subtotal: totals.subtotal,                       // NEW
+      subtotalAfterTotalDiscount: totals.subtotalAfterTotalDiscount, // NEW
+      vatAmount: totals.vatAmount,                     // NEW
+      totalPrice: Number(totals.totalUnitPriceWithVAT),// CHANGED: send grand total
     });
   };
 
   // ---------- preview / download ----------
-const previewQuotationDocument = async (asPopup = false) => {
-  const url = `/api/quotation/${params.id}/preview`;
+  const previewQuotationDocument = async (asPopup = false) => {
+    const url = `/api/quotation/${params.id}/preview`;
 
-  if (asPopup) {
-    try {
-      const res = await fetch(url, { method: "GET" });
-      if (!res.ok) throw new Error(`Preview failed (${res.status})`);
-      const buf = await res.arrayBuffer();
-      const blob = new Blob([buf], { type: "application/pdf" });
-      const blobUrl = URL.createObjectURL(blob);
+    if (asPopup) {
+      try {
+        const res = await fetch(url, { method: "GET" });
+        if (!res.ok) throw new Error(`Preview failed (${res.status})`);
+        const buf = await res.arrayBuffer();
+        const blob = new Blob([buf], { type: "application/pdf" });
+        const blobUrl = URL.createObjectURL(blob);
 
-      if (pdfUrl && pdfUrl.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
-      setPdfUrl(blobUrl);
-      setIsPreviewOpen(true);
-    } catch (e) {
-      console.error("Preview fetch error:", e);
-      alert(e.message || "Failed to load preview.");
+        if (pdfUrl && pdfUrl.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
+        setPdfUrl(blobUrl);
+        setIsPreviewOpen(true);
+      } catch (e) {
+        console.error("Preview fetch error:", e);
+        alert(e.message || "Failed to load preview.");
+      }
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
     }
-  } else {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-};
-
+  };
 
   // ---------- upload ----------
   const uploadQuotationDocument = async () => {
@@ -574,6 +616,7 @@ const previewQuotationDocument = async (asPopup = false) => {
                   <td>Description</td>
                   <td>Qty</td>
                   <td>Unit</td>
+                  <td>Discount %</td> {/* NEW */}
                   <td>Total Price</td>
                   <td>Actions</td>
                 </tr>
@@ -584,7 +627,7 @@ const previewQuotationDocument = async (asPopup = false) => {
                     {/* Title input row (togglable) */}
                     {showTitles[index] && (
                       <tr className={`${styles.row} ${styles.titleRow}`}>
-                        <td colSpan={7} className={styles.titleRowCell}>
+                        <td colSpan={8} className={styles.titleRowCell}> {/* CHANGED colSpan */}
                           <input
                             type="text"
                             placeholder='Section title above this product (e.g., "Electrical Works")'
@@ -638,6 +681,14 @@ const previewQuotationDocument = async (asPopup = false) => {
                           onChange={(e) => handleRowInputChange(index, "unit", e.target.value)}
                         />
                       </td>
+                      <td> {/* NEW: per-line discount */}
+                        <input
+                          className={styles.input1}
+                          placeholder="Discount %"
+                          value={row.discount}
+                          onChange={(e) => handleRowInputChange(index, "discount", e.target.value)}
+                        />
+                      </td>
                       <td>{formatCurrency(Number(row.unitPrice) || 0)}</td>
                       <td className={styles.actionsCell}>
                         {/* Title toggle */}
@@ -675,14 +726,30 @@ const previewQuotationDocument = async (asPopup = false) => {
                 ))}
               </tbody>
             </table>
+
+            {/* NEW: Total Discount % on subtotal */}
+            <div className={styles.inputContainer} style={{ marginTop: 12 }}>
+              <label className={styles.label}>Total Discount % (optional):</label>
+              <input
+                className={styles.input}
+                placeholder="0"
+                value={formData.totalDiscount}
+                onChange={(e) => handleInputChange("totalDiscount", e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
         <div className={styles.container}>
           <div className={styles.form5}>
-            <p>Total Unit Price (Excluding VAT): {formatCurrency(totals.totalUnitPrice)}</p>
+            {/* CHANGED: use new totals */}
+            <p>Subtotal (after line discounts): {formatCurrency(totals.subtotal)}</p>
+            <p>
+              Subtotal after Total Discount ({formatCurrency(formData.totalDiscount)}%):{" "}
+              {formatCurrency(totals.subtotalAfterTotalDiscount)}
+            </p>
             <p>VAT ({selectedCurrency === "USD" ? "0%" : "15%"}): {formatCurrency(totals.vatAmount)}</p>
-            <p>Total Unit Price (Including VAT): {formatCurrency(totals.totalUnitPriceWithVAT)}</p>
+            <p>Total (Incl. VAT): {formatCurrency(totals.totalUnitPriceWithVAT)}</p>
           </div>
         </div>
 
