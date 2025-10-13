@@ -2035,17 +2035,22 @@ export const editQuotation = async (formData) => {
       throw new Error('Quotation not found');
     }
 
-    // Update basic fields (keep pattern)
-    quotation.projectName = projectName || quotation.projectName;
-    quotation.projectLA = projectLA || quotation.projectLA;
-    quotation.paymentTerm = paymentTerm || quotation.paymentTerm;
-    quotation.paymentDelivery = paymentDelivery || quotation.paymentDelivery;
-    quotation.note = note || quotation.note;
-    quotation.excluding = excluding || quotation.excluding;
-    quotation.currency = currency || quotation.currency;
-    quotation.totalPrice = totalPrice || quotation.totalPrice;
+   
+
+
+    // Update basic fields safely (allow empty strings)
+if (projectName !== undefined) quotation.projectName = projectName;
+if (projectLA !== undefined) quotation.projectLA = projectLA;
+if (paymentTerm !== undefined) quotation.paymentTerm = paymentTerm;
+if (paymentDelivery !== undefined) quotation.paymentDelivery = paymentDelivery;
+if (note !== undefined) quotation.note = note;
+if (excluding !== undefined) quotation.excluding = excluding;
+if (currency !== undefined) quotation.currency = currency;
+if (totalPrice !== undefined) quotation.totalPrice = totalPrice;
+if (validityPeriod !== undefined) quotation.validityPeriod = validityPeriod;
     quotation.user = null; // Require re-approval
-    quotation.validityPeriod = validityPeriod || quotation.validityPeriod;
+
+
 
     // NEW: persist breakdown if sent
     if (typeof totalDiscount === "number") quotation.totalDiscount = totalDiscount;                  // NEW
