@@ -1,52 +1,91 @@
-import fs from 'fs/promises';
-import path from 'path';
-import PizZip from 'pizzip';
-import Docxtemplater from 'docxtemplater';
-import { NextResponse } from 'next/server';
+// app/api/loadQuoWord/route.js
+import fs from "fs";
+import path from "path";
+import { NextResponse } from "next/server";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
+
+export const runtime = "nodejs";
 
 export async function POST(req) {
   try {
-    // Read the stream and convert it into a JSON object
-    const chunks = [];
-    for await (const chunk of req.body) {
-      chunks.push(chunk);
+    const body = await req.json();
+    let payload = body;
+
+    // ---------- Fetch full quotation if only ID is sent ----------
+    if (body?.quotationId && !body?.Sections) {
+      const base =
+        process.env.INTERNAL_API_BASE ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        "http://localhost:3000";
+
+      const res = await fetch(`${base}/api/quotation/${body.quotationId}`, {
+        cache: "no-store",
+      });
+
+      if (!res.ok)
+        throw new Error(`Failed to fetch quotation ${body.quotationId}`);
+
+      const quotation = await res.json();
+      payload = buildQuotationPayload(
+        quotation,
+        quotation.currency || "USD",
+        quotation.user?.username || "N/A"
+      );
+    } else if (body?.quotation) {
+      payload = buildQuotationPayload(
+        body.quotation,
+        body.quotation.currency || "USD"
+      );
     }
-    const data = JSON.parse(Buffer.concat(chunks).toString());
-    console.log("Received data for document generation:", data);
 
-    // Local file path for the DOCX template
-    const templatePath = path.join(process.cwd(), 'templates', 'SVS_Quotation_NEW.docx');
-    console.log("Attempting to read local file at:", templatePath);
+    // ---------- Detect discount and select template ----------
+    const isUSD = payload?.Currency === "USD";
 
-    // Asynchronously read the local DOCX template
-    const content = await fs.readFile(templatePath);
-    console.log(`Template read successfully. Content length: ${content.length} bytes`);
+    const hasDiscount =
+      (Number(payload?.TotalDiscountPct) > 0) ||
+      (Number(payload?.DiscountAmount) > 0) ||
+      (Number(payload?.DiscountPer) > 0) ||
+      (Number(payload?.SubtotalAfterTotalDiscount) < Number(payload?.TotalPrice));
 
-    const zip = new PizZip(content);
-    console.log("ZIP library instantiated.");
+    let templateFile;
+    if (hasDiscount) {
+      templateFile = "SVS_Quotation_Discount.docx";
+    } else {
+      templateFile = isUSD ? "SVS_Quotation_NEW_USD.docx" : "SVS_Quotation_NEW.docx";
+    }
 
+    const templatePath = path.join(process.cwd(), "templates", templateFile);
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template not found at ${templatePath}`);
+    }
+
+    // ---------- Render Word document ----------
+    const templateBuffer = fs.readFileSync(templatePath);
+    const zip = new PizZip(templateBuffer);
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-    console.log("Docxtemplater instantiated.");
 
-    // Render the document using the data
-    doc.render(data);
-    console.log("Template rendered with data.");
+    doc.render(payload);
 
-    // Generate the document as a nodebuffer
-    const buffer = doc.getZip().generate({ type: 'nodebuffer' });
-    console.log(`Buffer generated. Buffer length: ${buffer.length}`);
+    const buffer = doc.getZip().generate({ type: "nodebuffer" });
+    const filename = `Quotation_${payload?.QuotationNumber || "Preview"}.docx`;
 
-    const responseHeaders = {
-      'Content-Disposition': 'attachment; filename=SVS_Quotation.docx',
-      'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    };
-
-    return new NextResponse(Buffer.from(buffer), { status: 200, headers: responseHeaders });
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Cache-Control": "no-store",
+      },
+    });
   } catch (error) {
-    console.error('Error generating document:', error);
-    return new NextResponse('Error generating document', { status: 500 });
+    console.error("Error generating Word document:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to generate Word document" },
+      { status: 500 }
+    );
   }
 }

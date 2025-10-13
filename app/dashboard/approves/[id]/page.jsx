@@ -1,690 +1,638 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { FaPlus, FaTrash } from "react-icons/fa";
+
+import React, { useState, useEffect, useMemo } from "react";
+import { FaPlus, FaTrash, FaTag, FaEdit } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { updateQuotationApprove } from "@/app/lib/actions";
+import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 const SingleApprovePage = ({ params }) => {
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [quotation, setQuotation] = useState(null);
-  const [users, setUsers] = useState(null);
+  const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
-  const [isUploaded, setIsUploaded] = useState(false);
   const [updateTrigger, setUpdateTrigger] = useState(false);
 
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
+  // --- description popup ---
+  const [isDescPopupOpen, setIsDescPopupOpen] = useState(false);
+  const [activeDescIndex, setActiveDescIndex] = useState(null);
+  const [richDescValue, setRichDescValue] = useState("");
+
+  // --- form data ---
   const [formData, setFormData] = useState({
-    sale: "",
+    user: "",
+    saleName: "",
     clientName: "",
     projectName: "",
     projectLA: "",
-    products: [],
     paymentTerm: "",
     paymentDelivery: "",
+    validityPeriod: "",
     note: "",
     excluding: "",
+    totalDiscount: 0,
   });
 
-  // Rows we edit in this page
   const [rows, setRows] = useState([]);
-  // Which rows should display a section title above them (boundary rows)
   const [showTitles, setShowTitles] = useState([]);
 
-  // -------- helpers --------
-  const calcTotals = () => {
-    const totalUnitPrice = rows.reduce(
-      (sum, r) => sum + (Number(r.unitPrice) || 0),
-      0
+  // ---------- helpers ----------
+  const clampPct = (n) => Math.min(Math.max(Number(n || 0), 0), 100);
+  const formatCurrency = (v) =>
+    new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      Number(v || 0)
     );
+  const stripHtml = (html) => html.replace(/<[^>]*>?/gm, "").trim();
+
+  // ---------- Clean HTML ----------
+function cleanHTML(input = "") {
+  if (!input) return "";
+
+  let output = String(input);
+
+  // Normalize simple breaks and paragraphs
+  output = output.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n");
+
+  // Ordered lists → "1.  Item"
+  output = output.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (_, list) => {
+    let counter = 0;
+    return list
+      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, li) => {
+        counter++;
+        const cleanItem = li.replace(/<[^>]+>/g, "").trim().replace(/\s+/g, " ");
+        return `${counter}.  ${cleanItem}\n`;
+      })
+      .trim();
+  });
+
+  // Unordered lists → "·  Item" (2 spaces for correct alignment)
+  output = output.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (_, list) => {
+    return list
+      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, li) => {
+        const cleanItem = li.replace(/<[^>]+>/g, "").trim().replace(/\s+/g, " ");
+        return `·  ${cleanItem}\n`;
+      })
+      .trim();
+  });
+
+  // Strip any remaining tags and normalize spacing
+  output = output
+    .replace(/<\/?(strong|em|u|span|div|h\d|blockquote|a|b|i)[^>]*>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return output;
+}
+
+
+  // ---------- Wrap long text ----------
+ function wrapDesc(text, maxLen = 40) {
+  if (!text) return ["—"];
+
+  const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
+  const firstPass = normalized
+    .split(/\n+/g) // only split on line breaks
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const out = [];
+
+  for (const chunk of firstPass) {
+    let s = chunk;
+    while (s.length > maxLen) {
+      let cut = s.lastIndexOf(" ", maxLen);
+      if (cut < Math.floor(maxLen * 0.6)) cut = maxLen;
+      out.push(s.slice(0, cut).toUpperCase());
+      s = s.slice(cut).trim();
+    }
+    if (s) out.push(s.toUpperCase());
+  }
+
+  return out.length ? out : ["—"];
+}
+
+
+  // ---------- totals ----------
+  const totals = useMemo(() => {
+    const subtotal = rows.reduce((acc, r) => {
+      const qty = Number(r.qty || 0);
+      const unit = Number(r.unit || 0);
+      const disc = clampPct(r.discount);
+      const base = qty * unit;
+      return acc + base * (1 - disc / 100);
+    }, 0);
+    const totalDiscPct = clampPct(formData.totalDiscount);
+    const subtotalAfterTotalDiscount = subtotal * (1 - totalDiscPct / 100);
     const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
-    const vatAmount = totalUnitPrice * vatRate;
-    const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+    const vatAmount = subtotalAfterTotalDiscount * vatRate;
+    const total = subtotalAfterTotalDiscount + vatAmount;
     return {
-      totalUnitPrice: totalUnitPrice.toFixed(2),
-      vatAmount: vatAmount.toFixed(2),
-      totalUnitPriceWithVAT: totalUnitPriceWithVAT.toFixed(2),
+      subtotal,
+      subtotalAfterTotalDiscount,
+      vatAmount,
+      total,
+      totalDiscPct,
     };
-  };
+  }, [rows, selectedCurrency, formData.totalDiscount]);
 
-  // Build products list for doc/export: include title ONLY for first row of each section
-  const buildProductsForDoc = () => {
-    const out = [];
-    let last = undefined;
-
-    rows.forEach((r, idx) => {
-      let title;
-      if (showTitles[idx]) {
-        const norm = (r.titleAbove || "").trim();
-        if (norm && norm !== last) {
-          title = norm;
-          last = norm;
-        }
-      }
-      out.push({
-        Number: (idx + 1).toString().padStart(3, "0"),
-        ProductCode: r.productCode || "—",
-        UnitPrice: Number(r.unitPrice || 0),
-        Unit: r.unit || 0,
-        Qty: r.qty || 0,
-        Description: r.description || "—",
-        TitleAbove: title,
-        titleAbove: title,
-      });
-    });
-
-    return out;
-  };
-
-  // Build products list for submit/update
-  const buildProductsForSubmit = () => {
-    const out = [];
-    let last = undefined;
-    rows.forEach((r, idx) => {
-      let title;
-      if (showTitles[idx]) {
-        const norm = (r.titleAbove || "").trim();
-        if (norm && norm !== last) {
-          title = norm;
-          last = norm;
-        }
-      }
-      out.push({
-        productCode: r.productCode,
-        unitPrice: r.unitPrice,
-        unit: r.unit,
-        qty: r.qty,
-        description: r.description,
-        titleAbove: title, // normalized boundary only
-      });
-    });
-    return out;
-  };
-
-  // -------- data fetch --------
+  // ---------- fetch quotation ----------
   useEffect(() => {
-    const getQuotationById = async () => {
+    const getQuotation = async () => {
       try {
-        const response = await fetch(`${domain}/api/quotation/${params.id}`, {
-          method: "GET",
-        });
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
+        const res = await fetch(`${domain}/api/quotation/${params.id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
         setQuotation(data);
       } catch (err) {
-        setError(`Fetching failed: ${err.message}`);
+        setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    getQuotationById();
+    getQuotation();
   }, [params.id, updateTrigger]);
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const getUsers = async () => {
       try {
-        const response = await fetch(`${domain}/api/allUsers`, {
-          method: "GET",
-        });
-        const data = await response.json();
+        const res = await fetch(`${domain}/api/allUsers`);
+        const data = await res.json();
         setUsers(data);
-        setLoading(false);
-      } catch (e) {
-        console.error("Error fetching users:", e);
-        setLoading(false);
+      } catch (err) {
+        console.error(err);
       }
     };
-    fetchUsers();
+    getUsers();
   }, []);
 
-  // Initialize form + rows with title boundary detection
+  // ---------- load quotation ----------
   useEffect(() => {
     if (!quotation) return;
-
     setFormData({
       quotationId: quotation.quotationId,
-      user: quotation.user?._id,
-      saleName: quotation.sale ? quotation.sale.name : "",
-      clientName: quotation.client ? quotation.client.name : "",
-      projectName: quotation.projectName,
-      projectLA: quotation.projectLA,
-      products: quotation.products,
-      paymentTerm: quotation.paymentTerm,
-      paymentDelivery: quotation.paymentDelivery,
-      note: quotation.note,
-      excluding: quotation.excluding,
+      user: quotation.user?._id || "",
+      saleName: quotation.sale?.name || "",
+      clientName: quotation.client?.name || "",
+      projectName: quotation.projectName || "",
+      projectLA: quotation.projectLA || "",
+      paymentTerm: quotation.paymentTerm || "",
+      paymentDelivery: quotation.paymentDelivery || "",
+      validityPeriod: quotation.validityPeriod || "",
+      note: quotation.note || "",
+      excluding: quotation.excluding || "",
+      totalDiscount: Number(quotation.totalDiscount || 0),
     });
-
     setSelectedCurrency(quotation.currency || "USD");
 
-    const nextRows = [];
-    const nextShow = [];
-    let prev = undefined;
-
-    (quotation.products || []).forEach((p, idx) => {
+    const newRows = [];
+    const newShow = [];
+    let prev;
+    (quotation.products || []).forEach((p, i) => {
       const norm = (p.titleAbove || "").trim();
       const isBoundary = !!norm && norm !== prev;
-
-      nextRows.push({
+      newRows.push({
         _id: p._id,
-        id: idx + 1,
-        number: idx + 1,
+        id: i + 1,
+        number: i + 1,
         productCode: p.productCode || "",
-        unitPrice: Number(p.unitPrice || 0),
-        unit: p.unit || "",
         qty: p.qty || "",
+        unit: p.unit || "",
+        discount: Number(p.discount || 0),
+        unitPrice: Number(p.unitPrice || 0),
         description: p.description || "",
-        titleAbove: isBoundary ? norm : "", // only keep value at boundary
+        titleAbove: isBoundary ? norm : "",
       });
-      nextShow.push(isBoundary);
-
+      newShow.push(isBoundary);
       if (isBoundary) prev = norm;
     });
-
-    setRows(nextRows);
-    setShowTitles(nextShow);
+    setRows(newRows);
+    setShowTitles(newShow);
   }, [quotation]);
 
-  // -------- row ops --------
+  // ---------- row handlers ----------
   const addRow = () => {
-    const newRow = {
-      id: rows.length + 1,
-      number: rows.length + 1,
-      productCode: "",
-      description: "",
-      qty: "",
-      unit: "",
-      unitPrice: 0,
-      titleAbove: "",
-    };
-    setRows((prev) => [...prev, newRow]);
-    setShowTitles((prev) => [...prev, false]);
+    setRows((p) => [
+      ...p,
+      {
+        id: p.length + 1,
+        number: p.length + 1,
+        productCode: "",
+        description: "",
+        qty: "",
+        unit: "",
+        discount: 0,
+        unitPrice: 0,
+        titleAbove: "",
+      },
+    ]);
+    setShowTitles((p) => [...p, false]);
   };
 
-  const deleteRow = (index) => {
-    const updated = rows.filter((_, i) => i !== index);
-    const renumbered = updated.map((r, i) => ({ ...r, id: i + 1, number: i + 1 }));
+  const deleteRow = (i) => {
+    const updated = rows.filter((_, idx) => idx !== i);
+    const renumbered = updated.map((r, idx) => ({
+      ...r,
+      id: idx + 1,
+      number: idx + 1,
+    }));
     setRows(renumbered);
-    setShowTitles((prev) => prev.filter((_, i) => i !== index));
+    setShowTitles((prev) => prev.filter((_, idx) => idx !== i));
   };
 
-  const handleRowInputChange = (index, fieldName, value) => {
-    setRows((prevRows) =>
-      prevRows.map((row, i) => {
-        if (i !== index) return row;
-        const next = {
-          ...row,
-          [fieldName]: value,
-        };
-        if (fieldName === "qty" && !isNaN(value) && !isNaN(row.unit)) {
-          next.unitPrice = Number(value) * Number(row.unit);
-        } else if (fieldName === "unit" && !isNaN(value) && !isNaN(row.qty)) {
-          next.unitPrice = Number(value) * Number(row.qty);
-        }
+  const toggleTitleForRow = (i) =>
+    setShowTitles((p) => p.map((v, idx) => (i === idx ? !v : v)));
+  const handleTitleChange = (i, v) =>
+    setRows((p) => p.map((r, idx) => (i === idx ? { ...r, titleAbove: v } : r)));
+
+  const handleRowInputChange = (index, field, value) => {
+    const numeric = ["qty", "unit", "discount"];
+    const clean = numeric.includes(field)
+      ? String(value).replace(/[^\d.]/g, "")
+      : value;
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const next = { ...r, [field]: clean };
+        const qty = Number(field === "qty" ? clean : r.qty);
+        const unit = Number(field === "unit" ? clean : r.unit);
+        const disc = clampPct(field === "discount" ? clean : r.discount);
+        next.unitPrice = qty * unit * (1 - disc / 100);
+        next.discount = disc;
         return next;
       })
     );
   };
 
-  // Titles in approve page are **read-only**: we just display them (no toggles/edit).
-  // If you DO want to allow editing, add a toggle + input similar to your Add/Edit pages.
+  const handleInputChange = (f, v) =>
+    setFormData((p) => ({ ...p, [f]: v }));
 
-  // -------- form ops --------
-  const handleInputChange = (fieldName, value) => {
-    setFormData((prev) => ({ ...prev, [fieldName]: value }));
-  };
-
-  const handleAdminChange = (e) => {
-    setFormData((prev) => ({ ...prev, user: e.target.value }));
-  };
-
-  // -------- submit --------
+  // ---------- submit ----------
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const rowInputs = buildProductsForSubmit();
-
     try {
       await updateQuotationApprove({
         id: params.id,
         ...formData,
-        products: rowInputs,
+        products: rows,
+        currency: selectedCurrency,
+        totalDiscount: clampPct(formData.totalDiscount),
+        subtotal: totals.subtotal,
+        subtotalAfterTotalDiscount: totals.subtotalAfterTotalDiscount,
+        vatAmount: totals.vatAmount,
+        totalPrice: totals.total,
       });
+      alert("Approval saved!");
       setUpdateTrigger((p) => !p);
     } catch (err) {
-      console.error("Failed to update!", err);
+      console.error("Approval update failed:", err);
+      alert("Update failed!");
     }
   };
 
-  // -------- downloads / upload --------
-  const downloadQuotationPdfDocument = async () => {
-    try {
-      const totals = calcTotals();
-      const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
+  // ---------- document builder ----------
+  const buildDocumentData = () => {
+    const adminName =
+      users?.find((u) => u._id === formData.user)?.username || "N/A";
+    const data = buildQuotationPayload(quotation, selectedCurrency, adminName);
 
-      const documentData = {
-        QuotationNumber: quotation.quotationId,
-        ClientName: quotation.client?.name,
-        userName: quotation.user?.username,
-        ClientPhone: quotation.client?.phone || "No address provided",
-        ClientEmail: quotation.client?.email || "No contact info",
-        ClientAddress: quotation.client?.address || "No address info",
-        ClientContactMobile: quotation.client?.contactMobile || "No contact info",
-        ClientContactName: quotation.client?.contactName || "No contact info",
-        SaleName: quotation.sale?.name || "No address provided",
-        UserPhone: quotation.sale?.phone || "No address provided",
-        UserEmail: quotation.sale?.email || "No contact info",
-        UserAddress: quotation.sale?.address || "No address info",
-        ProjectName: quotation.projectName,
-        ProjectLA: quotation.projectLA,
-        Products: buildProductsForDoc(), // <-- includes TitleAbove only at boundaries
-        CurrencySymbol: selectedCurrency === "USD" ? "$" : "SAR",
-        TotalPrice: totals.totalUnitPrice,
-        VatRate: vatRate.toFixed(2),
-        VatPrice: totals.vatAmount,
-        NetPrice: totals.totalUnitPriceWithVAT,
-        PaymentTerm: quotation.paymentTerm,
-        PaymentDelivery: quotation.paymentDelivery,
-        Note: quotation.note,
-        Excluding: quotation.excluding,
-        CreatedAt: quotation.createdAt
-          ? new Date(quotation.createdAt).toDateString().slice(4, 16)
-          : "",
-      };
-
-      const response = await fetch(`${domain}/api/loadQuoPdf`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(documentData),
-      });
-
-      if (!response.ok)
-        throw new Error(`Server responded with status: ${response.status}`);
-
-      const fileBlob = await response.blob();
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(fileBlob);
-      link.download = `Quotation_${documentData.QuotationNumber}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Error downloading the document:", error);
-    }
-  };
-
-  const downloadQuotationWordDocument = async () => {
-    try {
-      const totals = calcTotals();
-      const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
-
-      const documentData = {
-        QuotationNumber: quotation.quotationId,
-        ClientName: quotation.client?.name,
-        userName: quotation.user?.username,
-        ClientPhone: quotation.client?.phone || "No address provided",
-        ClientEmail: quotation.client?.email || "No contact info",
-        ClientAddress: quotation.client?.address || "No address info",
-        ClientContactMobile: quotation.client?.contactMobile || "No contact info",
-        ClientContactName: quotation.client?.contactName || "No contact info",
-        SaleName: quotation.sale?.name || "No address provided",
-        UserPhone: quotation.sale?.phone || "No address provided",
-        UserEmail: quotation.sale?.email || "No contact info",
-        UserAddress: quotation.sale?.address || "No address info",
-        ProjectName: quotation.projectName,
-        ProjectLA: quotation.projectLA,
-        Products: buildProductsForDoc().map((p) => ({
-          ...p,
-          UnitPrice: Number(p.UnitPrice).toFixed(2),
-        })),
-        Currency: selectedCurrency === "USD" ? "$" : "SAR",
-        TotalPrice: totals.totalUnitPrice,
-        VatRate: vatRate.toFixed(2),
-        VatPrice: totals.vatAmount,
-        NetPrice: totals.totalUnitPriceWithVAT,
-        PaymentTerm: quotation.paymentTerm,
-        PaymentDelivery: quotation.paymentDelivery,
-        Note: quotation.note,
-        Excluding: quotation.excluding,
-        CreatedAt: quotation.createdAt
-          ? new Date(quotation.createdAt).toDateString().slice(4, 16)
-          : "",
-      };
-
-      const response = await fetch(`${domain}/api/loadQuoWord`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(documentData),
-      });
-
-      if (!response.ok)
-        throw new Error(`Server responded with status: ${response.status}`);
-
-      const fileBlob = await response.blob();
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(fileBlob);
-      link.download = `Quotation_${documentData.QuotationNumber}.docx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error("Error downloading the document:", error);
-    }
-  };
-
-  const uploadQuotationDocument = async () => {
-    try {
-      if (!rows?.length) throw new Error("No product rows available.");
-      if (!formData || !quotation)
-        throw new Error("Missing form or quotation details.");
-
-      const totals = calcTotals();
-      const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
-
-      const documentData = {
-        QuotationNumber: formData.quotationId || "No Quotation ID",
-        ClientName: formData.clientName || "No Client Name",
-        CreatedAt: new Date(quotation.createdAt || Date.now())
-          .toISOString()
-          .split("T")[0],
-        ProjectName: formData.projectName || "No Project Name",
-        ProjectLA: formData.projectLA || "No Project Location Address",
-        SaleName: quotation.sale?.name || "No Sales Representative Name",
-        ClientContactName:
-          quotation.client?.contactName || "No Client Contact Name",
-        userName: quotation.user?.username || "No User Name",
-        ClientPhone: quotation.client?.phone || "No Client Phone",
-        UserPhone: quotation.sale?.phone || "No Sales Representative Phone",
-        UserEmail: quotation.sale?.email || "No Sales Representative Email",
-        UserAddress:
-          quotation.sale?.address || "No Sales Representative Address",
-        ClientContactMobile:
-          quotation.client?.contactMobile || "No Client Contact Mobile",
-        ClientEmail: quotation.client?.email || "No Client Email",
-        ClientAddress: quotation.client?.address || "No Client Address",
-        Currency: selectedCurrency === "USD" ? "$" : "SAR",
-        TotalPrice: totals.totalUnitPrice,
-        VatRate: vatRate.toFixed(2),
-        VatPrice: totals.vatAmount,
-        NetPrice: totals.totalUnitPriceWithVAT,
-        PaymentTerm: formData.paymentTerm || "No Payment Term",
-        PaymentDelivery: formData.paymentDelivery || "No Delivery Term",
-        Note: formData.note || "No Note",
-        Excluding: formData.excluding || "No Exclusions",
-        Products: buildProductsForDoc(), // carries TitleAbove at boundaries
-      };
-
-      const response = await fetch(`${domain}/api/loadQuoToSynology`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(documentData),
-      });
-
-      if (!response.ok) {
-        const t = await response.text();
-        throw new Error(
-          `Server responded with status: ${response.status}, message: ${t}`
+    data.Sections?.forEach((section) => {
+      section.Items?.forEach((item) => {
+        item.DescriptionRich = wrapDesc(
+          item.DescriptionRich || item.Description || ""
         );
-      }
+      });
+    });
 
-      setIsUploaded(true);
-      alert("PDF uploaded successfully!");
-    } catch (error) {
-      console.error("Upload error:", error);
-      alert(error?.message || "Upload failed.");
+    // Fields matching PDF detection logic
+    const subtotal = totals.subtotal;
+    const subtotalAfter = totals.subtotalAfterTotalDiscount;
+    const totalPrice = totals.total;
+    const discountPct = clampPct(formData.totalDiscount);
+    const discountAmt = subtotal - subtotalAfter;
+
+    data.discountPer = discountPct;
+    data.discountAmount = discountAmt;
+    data.Subtotal = subtotal;
+    data.SubtotalAfterTotalDiscount = subtotalAfter;
+    data.TotalPrice = subtotal;
+    data.NetPrice = totalPrice;
+    data.TotalDiscountPct = discountPct;
+
+    return data;
+  };
+
+  const downloadDoc = async (endpoint, ext) => {
+    try {
+      const data = buildDocumentData();
+      const res = await fetch(`${domain}/api/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error(`Server ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const qNum = quotation.quotationId || "Quotation";
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${qNum}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(`${ext.toUpperCase()} download failed.`);
     }
   };
 
-  // -------- render --------
+  // ---------- render ----------
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error loading approve: {error}</div>;
+  if (error) return <div>Error loading approval: {error}</div>;
   if (!quotation) return null;
-
-  const totals = calcTotals();
 
   return (
     <div>
       <form onSubmit={handleSubmit}>
         <div className={styles.container}>
-          <div className={styles.container}>Quotation ID: {formData.quotationId}</div>
-
-          <button
-            type="button"
-            className={styles.DownloadButton}
-            onClick={downloadQuotationWordDocument}
+          <div>Quotation ID: {formData.quotationId}</div>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginTop: 8,
+            }}
           >
-            Download Quotation WORD ...
-          </button>
-          <button
-            type="button"
-            className={styles.DownloadButton}
-            onClick={downloadQuotationPdfDocument}
-          >
-            Download Quotation PDF...
-          </button>
-          <button
-            type="button"
-            className={styles.DownloadButton}
-            onClick={uploadQuotationDocument}
-            disabled={isUploaded}
-          >
-            {isUploaded ? "Uploaded" : "Upload Quotation to Synology"}
-          </button>
+            <button
+              type="button"
+              className={styles.DownloadButton}
+              onClick={() => downloadDoc("loadQuoWord", "docx")}
+            >
+              Download WORD
+            </button>
+            <button
+              type="button"
+              className={styles.DownloadButton}
+              onClick={() => downloadDoc("loadQuoPdf", "pdf")}
+            >
+              Download PDF
+            </button>
+          </div>
 
-          <div className={styles.form1}>
-            <input type="hidden" name="id" value={params.id} />
-
-            <div className={styles.selectContainer}>
-              <div className={styles.inputContainer}>
-                <label htmlFor="adminName" className={styles.label}>
-                  Admin Name:
-                </label>
-                <select name="user" value={formData.user || ""} onChange={handleAdminChange}>
-                  <option value="" disabled>
-                    Select An Admin
-                  </option>
-                  {users &&
-                    users
-                      .filter((u) => u.isAdmin)
-                      .map((u) => (
-                        <option key={u._id} value={u._id}>
-                          {u.username}
-                        </option>
-                      ))}
-                </select>
-              </div>
-            </div>
-
+          <div className={styles.form1} style={{ marginTop: 12 }}>
             <div className={styles.inputContainer}>
-              <label className={styles.label}>sale Representative:</label>
+              <label className={styles.label}>Admin Name:</label>
+              <select
+                value={formData.user}
+                onChange={(e) =>
+                  handleInputChange("user", e.target.value)
+                }
+              >
+                <option value="">Select An Admin</option>
+                {users
+                  ?.filter((u) => u.isAdmin)
+                  .map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.username}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            <div className={styles.inputContainer}>
+              <label className={styles.label}>
+                Sales Representative:
+              </label>
               <input
                 type="text"
                 className={styles.input}
                 value={formData.saleName}
-                onChange={(e) => handleInputChange("saleName", e.target.value)}
                 readOnly
               />
             </div>
-
             <div className={styles.inputContainer}>
               <label className={styles.label}>Client Name:</label>
               <input
                 type="text"
                 className={styles.input}
                 value={formData.clientName}
-                onChange={(e) => handleInputChange("clientName", e.target.value)}
                 readOnly
               />
             </div>
-
             <div className={styles.inputContainer}>
               <label className={styles.label}>Project Name:</label>
               <input
                 className={styles.input}
                 value={formData.projectName}
-                onChange={(e) => handleInputChange("projectName", e.target.value)}
                 readOnly
               />
             </div>
-
             <div className={styles.inputContainer}>
-              <label className={styles.label}>Project Location Address:</label>
+              <label className={styles.label}>
+                Project Location:
+              </label>
               <input
                 className={styles.input}
                 value={formData.projectLA}
-                onChange={(e) => handleInputChange("projectLA", e.target.value)}
                 readOnly
               />
             </div>
           </div>
         </div>
 
+        {/* Products Table */}
         <div className={styles.container}>
           <div className={styles.form2}>
             <p className={styles.title}>Products</p>
-
-            <div className={styles.selectContainer}>
-              <div className={styles.selectWrapper}>
-                <label htmlFor="currency" className={styles.selectLabel}>
-                  Select Currency:
-                </label>
-                <select
-                  id="currency"
-                  value={selectedCurrency}
-                  onChange={(e) => setSelectedCurrency(e.target.value)}
-                  className={styles.select}
-                >
-                  <option value="USD">USD</option>
-                  <option value="SAR">SAR</option>
-                </select>
-              </div>
-            </div>
-
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <td>Number</td>
-                  <td>Product Code</td>
+                  <td>No</td>
+                  <td>Code</td>
                   <td>Description</td>
                   <td>Qty</td>
-                  <td>Unit Price</td>
-                  <td>Total Price</td>
-                  <td></td>
+                  <td>Unit</td>
+                  <td>Discount%</td>
+                  <td>Total</td>
+                  <td>Actions</td>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => (
-                  <React.Fragment key={row.id}>
-                    {/* Read-only section title row */}
-                    {showTitles[index] && (
-                      <tr className={`${styles.row} ${styles.titleRow}`}>
-                        <td colSpan={7} className={styles.titleRowCell}>
+                {rows.map((r, i) => (
+                  <React.Fragment key={r.id}>
+                    {showTitles[i] && (
+                      <tr
+                        className={`${styles.row} ${styles.titleRow}`}
+                      >
+                        <td colSpan={8}>
                           <input
                             type="text"
+                            placeholder="Section Title"
+                            value={r.titleAbove}
+                            onChange={(e) =>
+                              handleTitleChange(i, e.target.value)
+                            }
                             className={styles.titleInput}
-                            value={row.titleAbove}
-                            readOnly
                           />
                         </td>
                       </tr>
                     )}
-
                     <tr className={styles.row}>
+                      <td>{String(r.number).padStart(3, "0")}</td>
                       <td>
                         <input
-                          className={`${styles.input} ${styles.numberInput}`}
-                          type="text"
-                          value={row.number.toString().padStart(3, "0")}
-                          readOnly
+                          className={styles.input1}
+                          value={r.productCode}
+                          onChange={(e) =>
+                            handleRowInputChange(
+                              i,
+                              "productCode",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={styles.descButton}
+                          onClick={() => {
+                            setActiveDescIndex(i);
+                            setRichDescValue(r.description || "");
+                            setIsDescPopupOpen(true);
+                          }}
+                        >
+                          <FaEdit style={{ marginRight: 6 }} />
+                          {r.description
+                            ? stripHtml(r.description).slice(0, 35) +
+                              (stripHtml(r.description).length > 35
+                                ? "..."
+                                : "")
+                            : "Add Description"}
+                        </button>
+                      </td>
+                      <td>
+                        <input
+                          className={styles.input1}
+                          value={r.qty}
+                          onChange={(e) =>
+                            handleRowInputChange(i, "qty", e.target.value)
+                          }
                         />
                       </td>
                       <td>
                         <input
                           className={styles.input1}
-                          placeholder={row.productCode}
-                          value={row.productCode}
+                          value={r.unit}
                           onChange={(e) =>
-                            handleRowInputChange(index, "productCode", e.target.value)
-                          }
-                        />
-                      </td>
-                      <td>
-                        <textarea
-                          className={`${styles.input1} ${styles.textarea}`}
-                          placeholder={row.description}
-                          value={row.description}
-                          onChange={(e) =>
-                            handleRowInputChange(index, "description", e.target.value)
+                            handleRowInputChange(i, "unit", e.target.value)
                           }
                         />
                       </td>
                       <td>
                         <input
                           className={styles.input1}
-                          placeholder={row.qty}
-                          value={row.qty}
+                          value={r.discount}
                           onChange={(e) =>
-                            handleRowInputChange(index, "qty", e.target.value)
+                            handleRowInputChange(
+                              i,
+                              "discount",
+                              e.target.value
+                            )
                           }
                         />
                       </td>
-                      <td>
-                        <input
-                          className={styles.input1}
-                          placeholder={row.unit}
-                          value={row.unit}
-                          onChange={(e) =>
-                            handleRowInputChange(index, "unit", e.target.value)
-                          }
-                        />
-                      </td>
-                      <td>{(Number(row.unitPrice) || 0).toFixed(2)}</td>
-                      <td>
-                        {index === rows.length - 1 ? (
-                          <button
-                            type="button"
-                            className={`${styles.iconButton} ${styles.addButton}`}
-                            onClick={addRow}
-                          >
-                            <FaPlus />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className={`${styles.iconButton} ${styles.deleteButton}`}
-                            onClick={() => deleteRow(index)}
-                          >
-                            <FaTrash />
-                          </button>
-                        )}
-                      </td>
+                      <td>{formatCurrency(r.unitPrice)}</td>
+                      <td className={styles.actionsCell}>
+  {/* Title toggle */}
+  <button
+    type="button"
+    className={`${styles.titleButton} ${
+      showTitles[i] ? styles.titleButtonActive : ""
+    }`}
+    onClick={() => toggleTitleForRow(i)}
+    title={showTitles[i] ? "Hide title" : "Add title above row"}
+  >
+    <FaTag size={12} />
+    Title
+  </button>
+
+  {/* Add or Delete row */}
+  {i === rows.length - 1 ? (
+    <button
+      type="button"
+      className={`${styles.iconButton} ${styles.addButton}`}
+      onClick={addRow}
+    >
+      <FaPlus />
+    </button>
+  ) : (
+    <button
+      type="button"
+      className={`${styles.iconButton} ${styles.deleteButton}`}
+      onClick={() => deleteRow(i)}
+    >
+      <FaTrash />
+    </button>
+  )}
+</td>
+
                     </tr>
                   </React.Fragment>
                 ))}
               </tbody>
             </table>
+
+            <div className={styles.inputContainer} style={{ marginTop: 12 }}>
+              <label className={styles.label}>
+                Total Discount % (optional):
+              </label>
+              <input
+                className={styles.input}
+                placeholder="0"
+                value={formData.totalDiscount}
+                onChange={(e) =>
+                  handleInputChange("totalDiscount", e.target.value)
+                }
+              />
+            </div>
           </div>
         </div>
 
+        {/* Totals */}
         <div className={styles.container}>
           <div className={styles.form5}>
-            <p>Total Unit Price (Excluding VAT): {totals.totalUnitPrice}</p>
-            <p>VAT ({selectedCurrency === "USD" ? "0%" : "15%"}): {totals.vatAmount}</p>
-            <p>Total Unit Price (Including VAT): {totals.totalUnitPriceWithVAT}</p>
+            <p>Subtotal: {formatCurrency(totals.subtotal)}</p>
+            <p>
+              Subtotal after Total Discount:{" "}
+              {formatCurrency(totals.subtotalAfterTotalDiscount)}
+            </p>
+            <p>
+              VAT ({selectedCurrency === "USD" ? "0%" : "15%"}):{" "}
+              {formatCurrency(totals.vatAmount)}
+            </p>
+            <p>Total (Incl. VAT): {formatCurrency(totals.total)}</p>
           </div>
         </div>
 
+        {/* Notes */}
         <div className={styles.container}>
           <div className={styles.form1}>
             <div className={styles.inputContainer}>
               <label className={styles.label}>Payment Term:</label>
               <textarea
                 className={styles.input}
-                placeholder="paymentTerm"
                 value={formData.paymentTerm}
-                onChange={(e) => handleInputChange("paymentTerm", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("paymentTerm", e.target.value)
+                }
               />
             </div>
             <div className={styles.inputContainer}>
@@ -692,7 +640,19 @@ const SingleApprovePage = ({ params }) => {
               <textarea
                 className={styles.input}
                 value={formData.paymentDelivery}
-                onChange={(e) => handleInputChange("paymentDelivery", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("paymentDelivery", e.target.value)
+                }
+              />
+            </div>
+            <div className={styles.inputContainer}>
+              <label className={styles.label}>Validity Period:</label>
+              <textarea
+                className={styles.input}
+                value={formData.validityPeriod}
+                onChange={(e) =>
+                  handleInputChange("validityPeriod", e.target.value)
+                }
               />
             </div>
             <div className={styles.inputContainer}>
@@ -700,7 +660,9 @@ const SingleApprovePage = ({ params }) => {
               <textarea
                 className={styles.input}
                 value={formData.note}
-                onChange={(e) => handleInputChange("note", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("note", e.target.value)
+                }
               />
             </div>
             <div className={styles.inputContainer}>
@@ -708,13 +670,110 @@ const SingleApprovePage = ({ params }) => {
               <textarea
                 className={styles.input}
                 value={formData.excluding}
-                onChange={(e) => handleInputChange("excluding", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("excluding", e.target.value)
+                }
               />
             </div>
-            <button type="submit">Submit</button>
+
+            <button type="submit">Update</button>
           </div>
         </div>
       </form>
+
+      {/* Description Popup */}
+      {isDescPopupOpen && (
+        <div
+          onClick={() => setIsDescPopupOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0f172a",
+              color: "#e5e7eb",
+              width: "80%",
+              maxWidth: "1000px",
+              borderRadius: "10px",
+              padding: "24px",
+              boxShadow: "0 0 40px rgba(0,0,0,0.5)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+          >
+            <h2 style={{ color: "#fff", margin: 0 }}>
+              Edit Product Description
+            </h2>
+
+            <ReactQuill
+              theme="snow"
+              value={richDescValue}
+              onChange={setRichDescValue}
+              className="quillDark"
+              modules={{
+                toolbar: [
+                  [{ header: [1, 2, false] }],
+                  ["bold", "italic", "underline", "strike"],
+                  [{ list: "ordered" }, { list: "bullet" }],
+                  ["link", "clean"],
+                ],
+              }}
+            />
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 12,
+              }}
+            >
+              <button
+                onClick={() => setIsDescPopupOpen(false)}
+                style={{
+                  padding: "8px 14px",
+                  background: "#334155",
+                  color: "#e5e7eb",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (activeDescIndex !== null)
+                    handleRowInputChange(
+                      activeDescIndex,
+                      "description",
+                      richDescValue
+                    );
+                  setIsDescPopupOpen(false);
+                }}
+                style={{
+                  padding: "8px 14px",
+                  background: "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

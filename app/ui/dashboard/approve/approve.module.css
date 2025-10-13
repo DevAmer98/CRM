@@ -349,6 +349,60 @@
 }
 
 
+.descButton {
+  background: #1e293b;
+  color: #e5e7eb;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  padding: 6px 10px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.descButton:hover {
+  background: #2d3648;
+}
+
+
+/* Dark description popup tweaks */
+.quillDark .ql-toolbar {
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 8px 8px 0 0;
+}
+
+.quillDark .ql-toolbar button svg {
+  fill: #e2e8f0 !important;
+}
+
+.quillDark .ql-toolbar button:hover svg {
+  fill: #60a5fa !important;
+}
+
+.quillDark .ql-container {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  border-radius: 0 0 8px 8px;
+}
+
+.quillDark .ql-editor {
+  min-height: 350px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #f1f5f9;
+}
+
+.quillDark .ql-editor::before {
+  color: #64748b !important;
+}
+
+
 .previewBackdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; }
 .previewModal { background:#fff; border-radius:12px; width:min(1000px, 95vw); max-height:90vh; display:flex; flex-direction:column; overflow:hidden; }
 .previewHeader { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-bottom:1px solid #eee; font-weight:600; }

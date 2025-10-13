@@ -1,15 +1,22 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { FaPlus, FaTrash, FaTag } from "react-icons/fa";
+import { FaPlus, FaTrash, FaTag,FaEdit } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { editQuotation, updateQuotation } from "@/app/lib/actions";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 
 const SingleQuotation = ({ params }) => {
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [quotation, setQuotation] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
+  // --- NEW: description popup state ---
+const [isDescPopupOpen, setIsDescPopupOpen] = useState(false);
+const [activeDescIndex, setActiveDescIndex] = useState(null);
+const [richDescValue, setRichDescValue] = useState("");
+
 
   const [formData, setFormData] = useState({
     clientName: "",
@@ -56,6 +63,9 @@ const SingleQuotation = ({ params }) => {
     }).format(n);
   };
 
+  const stripHtml = (html) => html.replace(/<[^>]*>?/gm, "").trim();
+
+
   // CHANGED: totals now include line discount and total discount
   const totals = useMemo(() => {
     // subtotal after per-line discounts
@@ -99,15 +109,62 @@ const SingleQuotation = ({ params }) => {
     const vatRate = selectedCurrency === "USD" ? 0 : 15;
     const cf = currencyFields(selectedCurrency);
 
+function cleanHTML(input = "") {
+  if (!input) return "";
+
+  let output = input
+    // Normalize breaks and paragraphs
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n");
+
+  // Handle <ol> ordered lists → "1. Item"
+  output = output.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, listItems) => {
+    let counter = 0;
+    return listItems
+      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, item) => {
+        counter++;
+        const cleanItem = item.replace(/<[^>]+>/g, "").trim().replace(/\s+/g, " ");
+        return `${counter}.  ${cleanItem}\n`;
+      })
+      .trim();
+  });
+
+  // Handle <ul> bullet lists → "· Item" (manual dot bullet for perfect alignment)
+  output = output.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, listItems) => {
+    return listItems
+      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, item) => {
+        const cleanItem = item.replace(/<[^>]+>/g, "").trim().replace(/\s+/g, " ");
+        return `·  ${cleanItem}\n`;
+      })
+      .trim();
+  });
+
+  // Strip all remaining tags (bold, spans, etc.)
+  output = output
+    .replace(/<\/?(strong|em|u|span|div|h\d|blockquote|a|b|i)[^>]*>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return output;
+}
+
+
+
     // helper to split description on ". - _" used as separators AND wrap to ~40 chars
     function wrapDesc(text, maxLen = 40) {
       if (!text) return ["—"];
-      const normalized = String(text).replace(/\r\n?/g, "\n");
-      const firstPass = normalized
-        .split(/\n|[._-]{1,}/g)
-        .map((s) => s.replace(/^[.\-_*•]+\s*/, ""))
-        .map((s) => s.trim())
-        .filter(Boolean);
+const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
+
+
+ const firstPass = normalized
+   .split(/\n+/g) // only split on line breaks
+   .map((s) => s.trim())
+  .filter(Boolean);
+
+
+  
 
       const out = [];
       for (const chunk of firstPass) {
@@ -159,6 +216,8 @@ const SingleQuotation = ({ params }) => {
         Number: String(currentSection.__counter).padStart(3, "0"),
         ProductCode: (r.productCode || "—").toUpperCase(),
         DescriptionRich: wrapDesc(r.description),
+
+
         Qty: qty,
         Unit: formatCurrency(unit),
         UnitPrice: formatCurrency(rowSubtotal),
@@ -187,10 +246,10 @@ const SingleQuotation = ({ params }) => {
 
       Currency: selectedCurrency,
 
-      // CHANGED labels to match new flow
-      TotalPrice: formatCurrency(Subtotal), // Subtotal after line discounts (pre total discount & VAT)
-      TotalDiscountPct: totalDiscountPct,   // NEW (optional)
-      SubtotalAfterTotalDiscount: formatCurrency(subtotalAfterTotalDiscount), // NEW
+      
+      TotalPrice: formatCurrency(Subtotal), 
+      TotalDiscountPct: totalDiscountPct,   
+      SubtotalAfterTotalDiscount: formatCurrency(subtotalAfterTotalDiscount), 
       VatRate: vatRate,
       VatPrice: formatCurrency(VatPrice),
       NetPrice: formatCurrency(NetPrice),   // Grand total
@@ -200,6 +259,19 @@ const SingleQuotation = ({ params }) => {
       CurrencySymbol: cf.CurrencySymbol,
       IsSAR: cf.isSAR,
       IsUSD: !cf.isSAR,
+
+
+
+TotalAfter: formatCurrency(subtotalAfterTotalDiscount),
+
+discountPer:
+  totalDiscountPct > 0 ? `${clampPct(totalDiscountPct)}%` : "0%",
+discountAmount:
+  totalDiscountPct > 0
+    ? formatCurrency(Subtotal - subtotalAfterTotalDiscount)
+    : formatCurrency(0),
+
+
 
       ValidityPeriod: formData.validityPeriod || "No Validity Preiod",
       PaymentTerm: formData.paymentTerm || "No Payment Term",
@@ -451,27 +523,31 @@ const SingleQuotation = ({ params }) => {
 
   // ---------- preview / download ----------
   const previewQuotationDocument = async (asPopup = false) => {
-    const url = `/api/quotation/${params.id}/preview`;
+  try {
+    const payload = buildDocumentData("word-to-pdf");
+    const res = await fetch(`/api/quotation/${params.id}/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) throw new Error(`Preview failed (${res.status})`);
+    const buf = await res.arrayBuffer();
+    const blob = new Blob([buf], { type: "application/pdf" });
+    const blobUrl = URL.createObjectURL(blob);
 
     if (asPopup) {
-      try {
-        const res = await fetch(url, { method: "GET" });
-        if (!res.ok) throw new Error(`Preview failed (${res.status})`);
-        const buf = await res.arrayBuffer();
-        const blob = new Blob([buf], { type: "application/pdf" });
-        const blobUrl = URL.createObjectURL(blob);
-
-        if (pdfUrl && pdfUrl.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
-        setPdfUrl(blobUrl);
-        setIsPreviewOpen(true);
-      } catch (e) {
-        console.error("Preview fetch error:", e);
-        alert(e.message || "Failed to load preview.");
-      }
+      if (pdfUrl && pdfUrl.startsWith("blob:")) URL.revokeObjectURL(pdfUrl);
+      setPdfUrl(blobUrl);
+      setIsPreviewOpen(true);
     } else {
-      window.open(url, "_blank", "noopener,noreferrer");
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
     }
-  };
+  } catch (e) {
+    console.error("Preview fetch error:", e);
+    alert(e.message || "Failed to load preview.");
+  }
+};
 
   // ---------- upload ----------
   const uploadQuotationDocument = async () => {
@@ -658,13 +734,24 @@ const SingleQuotation = ({ params }) => {
                         />
                       </td>
                       <td>
-                        <textarea
-                          className={`${styles.input1} ${styles.textarea}`}
-                          placeholder="Description"
-                          value={row.description}
-                          onChange={(e) => handleRowInputChange(index, "description", e.target.value)}
-                        />
-                      </td>
+  <button
+    type="button"
+    className={styles.descButton}
+    onClick={() => {
+      setActiveDescIndex(index);
+      setRichDescValue(row.description || "");
+      setIsDescPopupOpen(true);
+    }}
+  >
+    <FaEdit style={{ marginRight: 6 }} />
+    {row.description
+      ? `${stripHtml(row.description).slice(0, 35)}${
+          stripHtml(row.description).length > 35 ? "..." : ""
+        }`
+      : "Add Description"}
+  </button>
+</td>
+
                       <td>
                         <input
                           className={styles.input1}
@@ -840,7 +927,10 @@ const SingleQuotation = ({ params }) => {
                   if (!pdfUrl) return;
                   const a = document.createElement("a");
                   a.href = pdfUrl;
-                  a.download = `Quotation_${formData.quotationId || "Preview"}.pdf`;
+                 // a.download = `Quotation_${formData.quotationId || "Preview"}.pdf`;
+                  const qNum = formData.quotationId || quotation?.quotationId || "Preview";
+a.download = `Quotation_${qNum}.pdf`;
+
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
@@ -885,6 +975,91 @@ const SingleQuotation = ({ params }) => {
           </div>
         </div>
       )}
+
+      {/* ---------- Description Popup ---------- */}
+{isDescPopupOpen && (
+  <div
+    onClick={() => setIsDescPopupOpen(false)}
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.7)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 2000,
+    }}
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: "#0f172a",
+        color: "#e5e7eb",
+        width: "80%",
+        maxWidth: "1000px",
+        borderRadius: "10px",
+        padding: "24px",
+        boxShadow: "0 0 40px rgba(0,0,0,0.5)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      <h2 style={{ color: "#fff", margin: 0 }}>Edit Product Description</h2>
+
+  
+
+     <ReactQuill
+  theme="snow"
+  value={richDescValue}
+  onChange={setRichDescValue}
+  className="quillDark"
+  modules={{
+    toolbar: [
+      [{ header: [1, 2, false] }],
+      ["bold", "italic", "underline", "strike"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["link", "clean"],
+    ],
+  }}
+/>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+        <button
+          onClick={() => setIsDescPopupOpen(false)}
+          style={{
+            padding: "8px 14px",
+            background: "#334155",
+            color: "#e5e7eb",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={() => {
+            if (activeDescIndex !== null)
+              handleRowInputChange(activeDescIndex, "description", richDescValue);
+            setIsDescPopupOpen(false);
+          }}
+          style={{
+            padding: "8px 14px",
+            background: "#2563eb",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+        >
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };
