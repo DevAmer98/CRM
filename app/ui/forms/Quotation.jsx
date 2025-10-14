@@ -6,8 +6,10 @@ import React, { useEffect, useState } from 'react'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
-import ReactQuill from 'react-quill'
+import dynamic from 'next/dynamic'
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
 import 'react-quill/dist/quill.snow.css'
+
 
 /* ---------------- Schema ---------------- */
 const productSchema = z.object({
