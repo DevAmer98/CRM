@@ -185,32 +185,33 @@ const handleRowInputChange = (index, field, value) => {
 
   // CHANGED: include per-line and total discounts in calculation
   const calculateTotalUnitPrice = () => {
-    let subtotalAfterLineDiscounts = 0;
+  if (typeof document === "undefined") return { subtotal: 0, vatAmount: 0, totalUnitPriceWithVAT: 0, totalDiscountPct: 0 };
 
-    rows.forEach((_, index) => {
-      const qty = Number(document.querySelector(`[name="qty${index}"]`)?.value || 0);
-      const unit = Number(document.querySelector(`[name="unit${index}"]`)?.value || 0);
-      const discountPct = clampPct(document.querySelector(`[name="discount${index}"]`)?.value || 0);
+  let subtotalAfterLineDiscounts = 0;
+  rows.forEach((_, index) => {
+    const qty = Number(document.querySelector(`[name="qty${index}"]`)?.value || 0);
+    const unit = Number(document.querySelector(`[name="unit${index}"]`)?.value || 0);
+    const discountPct = clampPct(document.querySelector(`[name="discount${index}"]`)?.value || 0);
 
-      const base = qty * unit;
-      const discounted = base * (1 - discountPct / 100);
-      subtotalAfterLineDiscounts += discounted;
-    });
+    const base = qty * unit;
+    const discounted = base * (1 - discountPct / 100);
+    subtotalAfterLineDiscounts += discounted;
+  });
 
-    const totalDiscPct = clampPct((document.querySelector(`[name="totalDiscount"]`))?.value || 0);
-    const subtotalAfterTotalDiscount = subtotalAfterLineDiscounts * (1 - totalDiscPct / 100);
+  const totalDiscPct = clampPct(document.querySelector(`[name="totalDiscount"]`)?.value || 0);
+  const subtotalAfterTotalDiscount = subtotalAfterLineDiscounts * (1 - totalDiscPct / 100);
 
-    const vatRate = selectedCurrency === 'USD' ? 0 : 0.15;
-    const vatAmount = subtotalAfterTotalDiscount * vatRate;
-    const totalUnitPriceWithVAT = subtotalAfterTotalDiscount + vatAmount;
+  const vatRate = selectedCurrency === 'USD' ? 0 : 0.15;
+  const vatAmount = subtotalAfterTotalDiscount * vatRate;
+  const totalUnitPriceWithVAT = subtotalAfterTotalDiscount + vatAmount;
 
-    return {
-      subtotal: Number(subtotalAfterLineDiscounts.toFixed(2)),
-      vatAmount: Number(vatAmount.toFixed(2)),
-      totalUnitPriceWithVAT: Number(totalUnitPriceWithVAT.toFixed(2)),
-      totalDiscountPct: totalDiscPct, // for optional UI preview if you need it
-    };
+  return {
+    subtotal: Number(subtotalAfterLineDiscounts.toFixed(2)),
+    vatAmount: Number(vatAmount.toFixed(2)),
+    totalUnitPriceWithVAT: Number(totalUnitPriceWithVAT.toFixed(2)),
+    totalDiscountPct: totalDiscPct,
   };
+};
 
   return (
     <div className={styles.container}>
