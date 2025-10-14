@@ -2,11 +2,14 @@
 'use client'
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
 import { addQuotation } from '@/app/lib/actions'
-import { FaPlus, FaTrash, FaTag } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaTag, FaEdit } from 'react-icons/fa';
 import React, { useEffect, useState } from 'react'
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import ReactQuill from 'react-quill';
+import "react-quill/dist/quill.snow.css";
+
 
 // NEW: allow per-line discount
 const productSchema = z.object({
@@ -41,14 +44,30 @@ const AddQuotation = () => {
   const router = useRouter();
   const [clients, setClients] = useState([]);
   const [sales, setSales] = useState([]);
-  const [rows, setRows] = useState([{ number: 1 }]);
+  const [rows, setRows] = useState([{ number: 1 }]); 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
   const [selectedCurrency, setSelectedCurrency] = useState('USD');
+  const [isDescPopupOpen, setIsDescPopupOpen] = useState(false);
+  const [activeDescIndex, setActiveDescIndex] = useState(null);
+  const [richDescValue, setRichDescValue] = useState("");
 
   // show title input above row
   const [showTitles, setShowTitles] = useState([false]);
+    const stripHtml = (html) => html.replace(/<[^>]*>?/gm, "").trim();
+
+
+    // Add this function
+const handleRowInputChange = (index, field, value) => {
+  setRows((prev) =>
+    prev.map((row, i) =>
+      i === index ? { ...row, [field]: value } : row
+    )
+  );
+};
+
+
 
   const fetchClients = async () => {
     try {
@@ -119,7 +138,7 @@ const AddQuotation = () => {
         unit: unitVal,
         qty: qtyVal,
         unitPrice: Number(lineTotal.toFixed(2)), // CHANGED: store discounted line total
-        description: form[`description${index}`].value,
+        description: rows[index]?.description || "",
         titleAbove: currentSectionTitle, // inherited
         discount: discountPct || undefined, // NEW
       });
@@ -287,9 +306,25 @@ const AddQuotation = () => {
                       <td>
                         <input type='text' name={`productCode${index}`} className={styles.input1} />
                       </td>
-                      <td>
-                        <textarea name={`description${index}`} className={`${styles.input1} ${styles.textarea}`}></textarea>
-                      </td>
+                            <td>
+  <button
+    type="button"
+    className={styles.descButton}
+    onClick={() => {
+      setActiveDescIndex(index);
+      setRichDescValue(row.description || "");
+      setIsDescPopupOpen(true);
+    }}
+  >
+    <FaEdit style={{ marginRight: 6 }} />
+    {row.description
+      ? `${stripHtml(row.description).slice(0, 35)}${
+          stripHtml(row.description).length > 35 ? "..." : ""
+        }`
+      : "Add Description"}
+  </button>
+</td>
+
                       <td>
                         <input type='number' name={`qty${index}`} className={styles.input1} step="any" />
                       </td>
@@ -378,6 +413,89 @@ const AddQuotation = () => {
           </div>
         </div>
       </form>
+        {/* ---------- Description Popup ---------- */}
+      {isDescPopupOpen && (
+        <div
+          onClick={() => setIsDescPopupOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 2000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#0f172a",
+              color: "#e5e7eb",
+              width: "80%",
+              maxWidth: "1000px",
+              borderRadius: "10px",
+              padding: "24px",
+              boxShadow: "0 0 40px rgba(0,0,0,0.5)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+            }}
+          >
+            <h2 style={{ color: "#fff", margin: 0 }}>Edit Product Description</h2>
+      
+        
+      
+           <ReactQuill
+        theme="snow"
+        value={richDescValue}
+        onChange={setRichDescValue}
+        className="quillDark"
+        modules={{
+          toolbar: [
+            [{ header: [1, 2, false] }],
+            ["bold", "italic", "underline", "strike"],
+            [{ list: "ordered" }, { list: "bullet" }],
+            ["link", "clean"],
+          ],
+        }}
+      />
+      
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button
+                onClick={() => setIsDescPopupOpen(false)}
+                style={{
+                  padding: "8px 14px",
+                  background: "#334155",
+                  color: "#e5e7eb",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (activeDescIndex !== null)
+                    handleRowInputChange(activeDescIndex, "description", richDescValue);
+                  setIsDescPopupOpen(false);
+                }}
+                style={{
+                  padding: "8px 14px",
+                  background: "#2563eb",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
