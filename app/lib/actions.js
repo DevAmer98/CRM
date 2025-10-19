@@ -2006,7 +2006,7 @@ export const updateQuotation = async (formData) => {
     redirect("/dashboard/quotations");
   }
 };
-
+/*
 export const editQuotation = async (formData) => {
   const {
     id,
@@ -2014,7 +2014,7 @@ export const editQuotation = async (formData) => {
     projectLA,
     products,
     paymentTerm,
-    paymentDelivery,
+    paymentDelivery, 
     validityPeriod,
     note,
     excluding,
@@ -2069,6 +2069,80 @@ if (validityPeriod !== undefined) quotation.validityPeriod = validityPeriod;
 
   } catch (err) {
     console.error(err);
+    throw new Error("Failed to update quotation!");
+  } finally {
+    revalidatePath("/dashboard/quotations");
+    redirect("/dashboard/quotations");
+  }
+};
+*/
+
+
+
+export const editQuotation = async (formData) => {
+  const {
+    id,
+    projectName,
+    projectLA,
+    products,
+    paymentTerm,
+    paymentDelivery,
+    validityPeriod,
+    note,
+    excluding,
+    totalPrice,
+    currency,
+
+    // NEW
+    totalDiscount,                 
+    subtotal,                      
+    subtotalAfterTotalDiscount,    
+    vatAmount                      
+  } = formData;
+
+  try {
+    await connectToDB();
+
+    const quotation = await Quotation.findById(id);
+    if (!quotation) {
+      throw new Error("Quotation not found");
+    }
+
+    // ✅ Safely update basic fields (allow empty strings, 0, etc.)
+    if (projectName !== undefined) quotation.projectName = projectName;
+    if (projectLA !== undefined) quotation.projectLA = projectLA;
+    if (paymentTerm !== undefined) quotation.paymentTerm = paymentTerm;
+    if (paymentDelivery !== undefined) quotation.paymentDelivery = paymentDelivery;
+    if (note !== undefined) quotation.note = note;
+    if (excluding !== undefined) quotation.excluding = excluding;
+    if (currency !== undefined) quotation.currency = currency;
+    if (totalPrice !== undefined) quotation.totalPrice = totalPrice;
+    if (validityPeriod !== undefined) quotation.validityPeriod = validityPeriod;
+
+    // Require re-approval after edit
+    quotation.user = null;
+
+    // ✅ Persist breakdown values if provided (even if 0)
+    if (typeof totalDiscount === "number") quotation.totalDiscount = totalDiscount;
+    if (typeof subtotal === "number") quotation.subtotal = subtotal;
+    if (typeof subtotalAfterTotalDiscount === "number") quotation.subtotalAfterTotalDiscount = subtotalAfterTotalDiscount;
+    if (typeof vatAmount === "number") quotation.vatAmount = vatAmount;
+
+    // ✅ Validate and update products (allow 0 price/unit/qty)
+    if (Array.isArray(products) && products.length > 0) {
+      quotation.products = products.filter(
+        p =>
+          p &&
+          p.productCode &&                  // keep valid product codes
+          p.qty != null &&                  // allow qty = 0
+          p.unit != null                    // allow unit = 0
+      );
+    }
+
+    await quotation.save();
+
+  } catch (err) {
+    console.error("Error editing quotation:", err);
     throw new Error("Failed to update quotation!");
   } finally {
     revalidatePath("/dashboard/quotations");
