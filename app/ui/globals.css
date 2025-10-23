@@ -8,6 +8,13 @@
     padding: 0;
     box-sizing: border-box;
   }
+  
+.input[type="text"],
+textarea,
+select {
+  text-transform: uppercase !important;
+}
+
 
   .scrollbar-thin {
   scrollbar-width: thin;

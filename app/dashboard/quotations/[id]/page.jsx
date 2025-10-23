@@ -223,7 +223,7 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
         UnitPrice: formatCurrency(rowSubtotal),
       });
     });
-
+/*
     const payload = {
       renderMode: mode,
       templateId: "quotation-v1",
@@ -301,7 +301,85 @@ discountAmount:
 
     return payload;
   };
+*/
 
+
+const payload = {
+  renderMode: mode,
+  templateId: "quotation-v1",
+
+  QuotationNumber: (formData.quotationId || "No Quotation ID").toUpperCase(),
+  ClientName: (formData.clientName || "No Client Name").toUpperCase(),
+  CreatedAt: new Date(quotation.createdAt || Date.now())
+    .toISOString()
+    .split("T")[0],
+  ProjectName: (formData.projectName || "No Project Name").toUpperCase(),
+  ProjectLA: (formData.projectLA || "No Project Location Address").toUpperCase(),
+  SaleName: (quotation.sale?.name || "No Sales Representative Name").toUpperCase(),
+  ClientContactName: (quotation.client?.contactName || "No Client Contact Name").toUpperCase(),
+  userName: (quotation.user?.username || "No User Name").toUpperCase(),
+  ClientPhone: (quotation.client?.phone || "No Client Phone").toUpperCase(),
+  UserPhone: (quotation.sale?.phone || "No Sales Representative Phone").toUpperCase(),
+  UserEmail: (quotation.sale?.email || "No Sales Representative Email").toUpperCase(),
+  UserAddress: (quotation.sale?.address || "No Sales Representative Address").toUpperCase(),
+  ClientContactMobile: (quotation.client?.contactMobile || "No Client Contact Mobile").toUpperCase(),
+  ClientEmail: (quotation.client?.email || "No Client Email").toUpperCase(),
+  ClientAddress: (quotation.client?.address || "No Client Address").toUpperCase(),
+
+  Currency: (selectedCurrency || "").toUpperCase(),
+
+  TotalPrice: formatCurrency(Subtotal),
+  TotalDiscountPct: totalDiscountPct,
+  SubtotalAfterTotalDiscount: formatCurrency(subtotalAfterTotalDiscount),
+  VatRate: vatRate,
+  VatPrice: formatCurrency(VatPrice),
+  NetPrice: formatCurrency(NetPrice),
+
+  CurrencyWrap: (cf.CurrencyWrap || "").toUpperCase(),
+  CurrencyNote: (cf.CurrencyNote || "").toUpperCase(),
+  CurrencySymbol: (cf.CurrencySymbol || "").toUpperCase(),
+  IsSAR: cf.isSAR,
+  IsUSD: !cf.isSAR,
+
+  TotalAfter: formatCurrency(subtotalAfterTotalDiscount),
+
+  discountPer:
+    totalDiscountPct > 0
+      ? `${clampPct(totalDiscountPct)}%`
+      : "0%",
+  discountAmount:
+    totalDiscountPct > 0
+      ? formatCurrency(Subtotal - subtotalAfterTotalDiscount)
+      : formatCurrency(0),
+
+  ValidityPeriod: (formData.validityPeriod || "No Validity Period").toUpperCase(),
+  PaymentTerm: (formData.paymentTerm || "No Payment Term").toUpperCase(),
+  PaymentDelivery: (formData.paymentDelivery || "No Delivery Term").toUpperCase(),
+  Note: (formData.note || "No Note").toUpperCase(),
+  Excluding: (formData.excluding || "No Exclusions").toUpperCase(),
+
+  Sections,
+};
+
+// DEBUG
+console.groupCollapsed("[DOC DATA] buildDocumentData() – Sections");
+payload.Sections.forEach((s, i) => {
+  console.log(`Section ${i + 1} Title:`, s.Title || "(no title)");
+  console.table(
+    s.Items.map((p) => ({
+      Number: p.Number,
+      Code: p.ProductCode,
+      Qty: p.Qty,
+      Unit: p.Unit,
+      Subtotal: p.UnitPrice,
+      Lines: Array.isArray(p.DescriptionRich) ? p.DescriptionRich.length : 0,
+    }))
+  );
+});
+console.groupEnd();
+
+return payload;
+  };
   // ---------- data fetch ----------
   useEffect(() => {
     const getQuotationById = async () => {
@@ -417,6 +495,38 @@ discountAmount:
     setShowTitles((prev) => prev.map((v, i) => (i === index ? !v : v)));
   };
 
+
+  const handleRowInputChange = (index, fieldName, value) => {
+  const numericFields = ["qty", "unit", "discount"];
+  const clean = numericFields.includes(fieldName)
+    ? String(value).replace(/[^\d.]/g, "")
+    : typeof value === "string"
+    ? value.toUpperCase()
+    : value;
+
+  setRows((prev) =>
+    prev.map((row, i) => {
+      if (i !== index) return row;
+      const next = { ...row, [fieldName]: clean };
+
+      // recompute totals
+      const qty = Number(fieldName === "qty" ? clean : row.qty || 0);
+      const unit = Number(fieldName === "unit" ? clean : row.unit || 0);
+      const disc =
+        fieldName === "discount" ? clampPct(clean) : clampPct(row.discount);
+
+      const base = (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unit) ? unit : 0);
+      next.unitPrice = base * (1 - disc / 100);
+      next.discount = disc;
+
+      return next;
+    })
+  );
+};
+
+
+
+/*
   const handleRowInputChange = (index, fieldName, value) => {
     const numericFields = ["qty", "unit", "discount"];
     const clean =
@@ -443,7 +553,7 @@ discountAmount:
       })
     );
   };
-
+*/
   const handleTitleChange = (index, value) => {
     setRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, titleAbove: value } : row))
@@ -451,9 +561,15 @@ discountAmount:
   };
 
   // ---------- simple form ops ----------
+
+
   const handleInputChange = (fieldName, value) => {
-    setFormData((prev) => ({ ...prev, [fieldName]: value }));
-  };
+  setFormData((prev) => ({
+    ...prev,
+    [fieldName]: typeof value === "string" ? value.toUpperCase() : value,
+  }));
+};
+
 
   // ---------- submit/update ----------
   const buildRowsForSubmit = () => {
