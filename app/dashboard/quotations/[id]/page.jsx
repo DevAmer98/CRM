@@ -28,6 +28,7 @@ const [richDescValue, setRichDescValue] = useState("");
     validityPeriod: "",
     note: "",
     excluding: "",
+        warranty: "",
     totalPrice: "",
     totalDiscount: 0, // NEW: subtotal discount %
   });
@@ -356,6 +357,7 @@ const payload = {
   PaymentTerm: (formData.paymentTerm || "No Payment Term").toUpperCase(),
   PaymentDelivery: (formData.paymentDelivery || "No Delivery Term").toUpperCase(),
   Note: (formData.note || "No Note").toUpperCase(),
+  Warranty: (formData.warranty || "No Warranty").toUpperCase(),
   Excluding: (formData.excluding || "No Exclusions").toUpperCase(),
 
   Sections,
@@ -416,6 +418,7 @@ return payload;
       paymentDelivery: quotation.paymentDelivery || "",
       validityPeriod: quotation.validityPeriod || "",
       note: quotation.note || "",
+      warranty: quotation.warranty || "",
       excluding: quotation.excluding || "",
       totalPrice: quotation.totalPrice || "",
       totalDiscount: Number(quotation.totalDiscount || 0), // NEW
@@ -996,6 +999,14 @@ return payload;
                 className={styles.input}
                 value={formData.excluding}
                 onChange={(e) => handleInputChange("excluding", e.target.value)}
+              />
+            </div>
+            <div className={styles.inputContainer}>
+              <label className={styles.label}>Warranty:</label>
+              <textarea
+                className={styles.input}
+                value={formData.warranty}
+                onChange={(e) => handleInputChange("warranty", e.target.value)}
               />
             </div>
 

@@ -32,6 +32,7 @@ const quotationSchema = z.object({
   paymentDelivery: z.string().optional(),
   validityPeriod: z.string().optional(),
   note: z.string().optional(),
+  warranty: z.string().optional(),
   excluding: z.string().optional(),
   currency: z.enum(['USD', 'SAR'], { message: 'Currency is required' }),
   totalDiscount: z.number().min(0).max(100).optional(),
@@ -54,6 +55,10 @@ const AddQuotation = () => {
   const [activeDescIndex, setActiveDescIndex] = useState(null)
   const [richDescValue, setRichDescValue] = useState('')
   const [totalDiscount, setTotalDiscount] = useState(0)
+  const [showNote, setShowNote] = useState(false);
+  const [showWarranty, setShowWarranty] = useState(false);
+  const [showExcluding, setShowExcluding] = useState(false);
+
 
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, '').trim()
   const clampPct = (n) => Math.min(Math.max(Number(n) || 0, 0), 100)
@@ -163,8 +168,9 @@ const AddQuotation = () => {
       paymentTerm: form.paymentTerm.value,
       paymentDelivery: form.paymentDelivery.value,
       validityPeriod: form.validityPeriod.value,
-      note: form.note.value,
-      excluding: form.excluding.value,
+      note: form.note ? form.note.value : '',
+      warranty: form.warranty ? form.warranty.value : '',
+      excluding: form.excluding ? form.excluding.value : '',
       currency: selectedCurrency,
       totalDiscount,
       totalPrice: totalWithVat,
@@ -238,34 +244,62 @@ const AddQuotation = () => {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <React.Fragment key={i}>
-                  {showTitles[i] && (
-                    <tr><td colSpan={8}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" /></td></tr>
-                  )}
-                  <tr>
-                    <td>{r.number.toString().padStart(3, '0')}</td>
-                    <td><input className={styles.input1} value={r.productCode} onChange={(e) => handleRowInputChange(i, 'productCode', e.target.value)} /></td>
-                    <td>
-                      <button type="button" className={styles.descButton}
-                        onClick={() => { setActiveDescIndex(i); setRichDescValue(r.description || ''); setIsDescPopupOpen(true) }}>
-                        <FaEdit style={{ marginRight: 6 }} />
-                        {r.description ? stripHtml(r.description).slice(0, 35) + (stripHtml(r.description).length > 35 ? '...' : '') : 'Add Description'}
-                      </button>
-                    </td>
-                    <td><input type="number" className={styles.input1} value={r.qty} onChange={(e) => handleRowInputChange(i, 'qty', e.target.value)} /></td>
-                    <td><input type="number" className={styles.input1} value={r.unit} onChange={(e) => handleRowInputChange(i, 'unit', e.target.value)} /></td>
-                    <td><input type="number" className={styles.input1} value={r.discount} onChange={(e) => handleRowInputChange(i, 'discount', e.target.value)} /></td>
-                    <td>{(r.qty * r.unit * (1 - r.discount / 100)).toFixed(2)}</td>
-                    <td>
-                      <button type="button" onClick={() => toggleTitleForRow(i)}><FaTag /></button>
-                      {i === rows.length - 1
-                        ? <button type="button" onClick={addRow}><FaPlus /></button>
-                        : <button type="button" onClick={() => deleteRow(i)}><FaTrash /></button>}
-                    </td>
-                  </tr>
-                </React.Fragment>
-              ))}
+            {rows.map((r, i) => (
+  <React.Fragment key={i}>
+    {showTitles[i] && (
+      <tr><td colSpan={8}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" /></td></tr>
+    )}
+    <tr>
+      <td>{r.number.toString().padStart(3, '0')}</td>
+      <td><input className={styles.input1} value={r.productCode} onChange={(e) => handleRowInputChange(i, 'productCode', e.target.value)} /></td>
+      <td>
+        <button type="button" className={styles.descButton}
+          onClick={() => { setActiveDescIndex(i); setRichDescValue(r.description || ''); setIsDescPopupOpen(true) }}>
+          <FaEdit style={{ marginRight: 6 }} />
+          {r.description ? stripHtml(r.description).slice(0, 35) + (stripHtml(r.description).length > 35 ? '...' : '') : 'Add Description'}
+        </button>
+      </td>
+      <td><input type="number" className={styles.input1} value={r.qty} onChange={(e) => handleRowInputChange(i, 'qty', e.target.value)} /></td>
+      <td><input type="number" className={styles.input1} value={r.unit} onChange={(e) => handleRowInputChange(i, 'unit', e.target.value)} /></td>
+      <td><input type="number" className={styles.input1} value={r.discount} onChange={(e) => handleRowInputChange(i, 'discount', e.target.value)} /></td>
+      <td>{(r.qty * r.unit * (1 - r.discount / 100)).toFixed(2)}</td>
+      <td className={styles.actionsCell}>
+  {/* Toggle Title Above Row */}
+  <button
+    type="button"
+    title="Add Section Title Above"
+    className={`${styles.iconButton} ${showTitles[i] ? styles.titleActive : ''}`}
+    onClick={() => toggleTitleForRow(i)}
+  >
+    <FaTag />
+  </button>
+
+  {/* Add or Delete Row */}
+  {i === rows.length - 1 ? (
+    <button
+      type="button"
+      className={`${styles.iconButton} ${styles.addButton}`}
+      onClick={addRow}
+      title="Add New Product"
+    >
+      <FaPlus />
+    </button>
+  ) : (
+    <button
+      type="button"
+      className={`${styles.iconButton} ${styles.deleteButton}`}
+      onClick={() => deleteRow(i)}
+      title="Remove Product"
+    >
+      <FaTrash />
+    </button>
+  )}
+</td>
+
+    </tr>
+  </React.Fragment>
+))}
+
             </tbody>
           </table>
 
@@ -280,15 +314,100 @@ const AddQuotation = () => {
           </div>
         </div>
 
-        {/* --- Footer --- */}
-        <div className={styles.form1}>
-          <textarea name="paymentTerm" placeholder="Payment Term" className={styles.input}></textarea>
-          <textarea name="paymentDelivery" placeholder="Payment Delivery" className={styles.input}></textarea>
-          <textarea name="note" placeholder="Note" className={styles.input}></textarea>
-          <textarea name="validityPeriod" placeholder="Validity Period" className={styles.input}></textarea>
-          <textarea name="excluding" placeholder="Excluding" className={styles.input}></textarea>
-          <button type="submit">Submit</button>
-        </div>
+      {/* --- Footer --- */}
+{/* --- Footer Section --- */}
+<div className={styles.footerSection}>
+  <div className={styles.inputContainer}>
+    <label className={styles.label}>Payment Terms:</label>
+    <textarea
+      name="paymentTerm"
+      placeholder="Enter Payment Terms"
+      className={styles.input}
+    ></textarea>
+  </div>
+
+  <div className={styles.inputContainer}>
+    <label className={styles.label}>Delivery Terms:</label>
+    <textarea
+      name="paymentDelivery"
+      placeholder="Enter Delivery Terms"
+      className={styles.input}
+    ></textarea>
+  </div>
+
+  <div className={styles.inputContainer}>
+    <label className={styles.label}>Validity Period:</label>
+    <textarea
+      name="validityPeriod"
+      placeholder="Enter Validity Period"
+      className={styles.input}
+    ></textarea>
+  </div>
+
+  {/* --- Optional Sections --- */}
+  <div className={styles.optionalToggles}>
+    <label className={styles.toggleLabel}>
+      <input
+        type="checkbox"
+        checked={showNote}
+        onChange={() => setShowNote(!showNote)}
+      />
+      <span>Add Note</span>
+    </label>
+
+    <label className={styles.toggleLabel}>
+      <input
+        type="checkbox"
+        checked={showWarranty}
+        onChange={() => setShowWarranty(!showWarranty)}
+      />
+      <span>Add Warranty</span>
+    </label>
+
+    <label className={styles.toggleLabel}>
+      <input
+        type="checkbox"
+        checked={showExcluding}
+        onChange={() => setShowExcluding(!showExcluding)}
+      />
+      <span>Add Excluding</span>
+    </label>
+  </div>
+
+  {showNote && (
+    <div className={styles.inputContainer}>
+      <label className={styles.label}>Note:</label>
+      <textarea name="note" placeholder="Enter Note" className={styles.input}></textarea>
+    </div>
+  )}
+
+  {showWarranty && (
+    <div className={styles.inputContainer}>
+      <label className={styles.label}>Warranty:</label>
+      <textarea
+        name="warranty"
+        placeholder="Enter Warranty Details"
+        className={styles.input}
+      ></textarea>
+    </div>
+  )}
+
+  {showExcluding && (
+    <div className={styles.inputContainer}>
+      <label className={styles.label}>Excluding:</label>
+      <textarea
+        name="excluding"
+        placeholder="Enter Excluding Details"
+        className={styles.input}
+      ></textarea>
+    </div>
+  )}
+
+  <button type="submit" className={styles.submitButton}>
+    Submit
+  </button>
+</div>
+
       </form>
 
       {/* --- Description Popup --- */}

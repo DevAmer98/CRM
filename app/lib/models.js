@@ -395,6 +395,8 @@ const quotationSchema = new Schema(
     note: { type: String },
     validityPeriod: { type: String },
     excluding: { type: String },
+    warranty: { type: String },
+
 
     // --- Totals & discounts breakdown ---
     subtotal: { type: Number, default: 0 },                    // NEW: after per-line discounts

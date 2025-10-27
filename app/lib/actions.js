@@ -1877,7 +1877,7 @@ export const addQuotation = async (formData) => {
   const {
     saleId, clientId, projectName, projectLA,
     products, paymentTerm, paymentDelivery, note,
-    validityPeriod, excluding, totalPrice, currency,
+    validityPeriod, excluding, totalPrice, currency,warranty,
     // NEW: accept optional discount breakdowns
     totalDiscount,                 // NEW (% on subtotal)
     subtotal,                      // NEW
@@ -1920,6 +1920,7 @@ export const addQuotation = async (formData) => {
       note,
       validityPeriod,
       excluding,
+      warranty,
       totalPrice,
       currency,
       quotationId: customQuotationId,
@@ -1944,7 +1945,7 @@ export const updateQuotation = async (formData) => {
   const {
     id, projectName, projectLA, products,
     paymentTerm, paymentDelivery, note, excluding,
-    totalPrice, currency,
+    totalPrice, currency,warranty,
 
     // NEW: allow optional updates
     totalDiscount,                 // NEW
@@ -1978,6 +1979,7 @@ export const updateQuotation = async (formData) => {
       validityPeriod,
       paymentTerm,
       paymentDelivery,
+      warranty,
       note,
       totalPrice,
       excluding,
@@ -2089,6 +2091,7 @@ export const editQuotation = async (formData) => {
     paymentDelivery,
     validityPeriod,
     note,
+    warranty,
     excluding,
     totalPrice,
     currency,
@@ -2114,6 +2117,7 @@ export const editQuotation = async (formData) => {
     if (paymentTerm !== undefined) quotation.paymentTerm = paymentTerm;
     if (paymentDelivery !== undefined) quotation.paymentDelivery = paymentDelivery;
     if (note !== undefined) quotation.note = note;
+    if (warranty !== undefined) quotation.warranty = warranty;
     if (excluding !== undefined) quotation.excluding = excluding;
     if (currency !== undefined) quotation.currency = currency;
     if (totalPrice !== undefined) quotation.totalPrice = totalPrice;

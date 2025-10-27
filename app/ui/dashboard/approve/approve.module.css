@@ -17,6 +17,164 @@
   min-width: 180px; /* keeps layout stable */
 }
 
+
+/* --- Collapsible Toggles --- */
+.toggleSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.toggleItem {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.toggleHeader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.toggleHeader:hover {
+  background: #334155;
+}
+
+.toggleHeader span:last-child {
+  font-size: 20px;
+  color: #60a5fa;
+  font-weight: 500;
+}
+
+.toggleHeader.active {
+  background: #2563eb;
+  color: #fff;
+}
+
+.toggleContent {
+  padding: 16px;
+  background: #1e293b;
+  border-top: 1px solid #334155;
+  animation: slideDown 0.25s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+.footerSection {
+  margin-top: 20px;
+  background: var(--bgSoft);
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.optionalToggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 10px;
+  padding: 10px 0;
+  border-top: 1px solid #334155;
+  border-bottom: 1px solid #334155;
+}
+
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.toggleLabel input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb; /* modern blue toggle color */
+  cursor: pointer;
+}
+
+.toggleLabel span {
+  transition: color 0.2s ease;
+}
+
+.toggleLabel:hover span {
+  color: #60a5fa;
+}
+
+/* Input Fields */
+.inputContainer textarea {
+  min-height: 70px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #f1f5f9;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+.submitButton {
+  margin-top: 20px;
+  width: 100%;
+  background: teal;
+  color: white;
+  border: none;
+  padding: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: background 0.2s ease;
+}
+
+.submitButton:hover {
+  background: #0d9488;
+}
+
+
+/* --- Submit Button --- */
+.submitButton {
+  width: 100%;
+  padding: 14px;
+  background-color: teal;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 10px;
+  transition: background 0.2s ease;
+}
+.submitButton:hover {
+  background-color: #0d9488;
+}
+
+
 /* --- Title toggle (pill) ---------------------------- */
 .titleButton {
   display: inline-flex;
