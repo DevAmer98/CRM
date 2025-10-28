@@ -129,6 +129,7 @@ const ShowQuotations = ({ quotations, count }) => {
         <thead>
         
           <tr>
+            <td></td>
             <td>Client Name</td>
             <td>Project Name</td>
             <td>Quotation Number</td>

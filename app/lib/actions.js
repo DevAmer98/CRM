@@ -1945,7 +1945,7 @@ export const updateQuotation = async (formData) => {
   const {
     id, projectName, projectLA, products,
     paymentTerm, paymentDelivery, note, excluding,
-    totalPrice, currency,warranty,
+    totalPrice, currency,warranty,validityPeriod,
 
     // NEW: allow optional updates
     totalDiscount,                 // NEW
