@@ -23,6 +23,7 @@
     "docxtemplater": "^3.65.0",
     "dotenv": "^17.2.0",
     "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.515.0",
     "mongodb": "^6.13.1",
     "mongoose": "^8.11.0",

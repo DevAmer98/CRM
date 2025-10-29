@@ -12,7 +12,7 @@ import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
 
-/* ---------------------- LIBREOFFICE PATH DETECTION ---------------------- */
+/* ---------- Detect LibreOffice ---------- */
 function getLibreOfficePath() {
   const p = process.platform;
   if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
@@ -20,7 +20,7 @@ function getLibreOfficePath() {
   return "/usr/bin/soffice";
 }
 
-/* ---------------------- DOCX RENDERING ---------------------- */
+/* ---------- Render DOCX ---------- */
 async function renderDocxBuffer(templateBuffer, data) {
   try {
     const zip = new PizZip(templateBuffer);
@@ -37,8 +37,8 @@ async function renderDocxBuffer(templateBuffer, data) {
   }
 }
 
-/* ---------------------- NORMALIZATION FIX ---------------------- */
-// 🧹 Clean up XML flags that make LibreOffice treat tables as unbreakable
+/* ---------- Normalize DOCX XML ---------- */
+// 🧹 Clean up XML tags that make LibreOffice treat tables as unbreakable
 async function normalizeDocx(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   let xml = await zip.file("word/document.xml").async("string");
@@ -46,16 +46,16 @@ async function normalizeDocx(buffer) {
   xml = xml
     // Force table rows to be splittable
     .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-    // Reset fixed heights to auto
+    // Reset fixed row heights to auto
     .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-    // Remove empty text runs created by docxtemplater
+    // Remove empty runs inserted by docxtemplater
     .replace(/<w:r><w:t xml:space="preserve"\/><\/w:r>/g, "");
 
   zip.file("word/document.xml", xml);
   return zip.generateAsync({ type: "nodebuffer" });
 }
 
-/* ---------------------- DOCX ➜ PDF CONVERSION ---------------------- */
+/* ---------- DOCX → PDF Conversion ---------- */
 async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
   const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
@@ -65,8 +65,7 @@ async function docxToPdfBytes(payload) {
     num(payload?.DiscountPer) ||
     num(payload?.TotalDiscountPct);
   const discountAmount =
-    num(payload?.discount_amount) ||
-    num(payload?.DiscountAmount);
+    num(payload?.discount_amount) || num(payload?.DiscountAmount);
   const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
   const subtotalAfter =
     num(payload?.total_after) || num(payload?.SubtotalAfterTotalDiscount);
@@ -88,7 +87,7 @@ async function docxToPdfBytes(payload) {
     hasDiscount,
   });
 
-  // Select the proper template
+  // Choose the correct template file
   let templateFile;
   if (hasDiscount) {
     templateFile = isUSD
@@ -101,24 +100,24 @@ async function docxToPdfBytes(payload) {
   }
 
   const templatePath = path.join(process.cwd(), "templates", templateFile);
-  if (!fs.existsSync(templatePath)) throw new Error(`Template not found: ${templatePath}`);
-
+  if (!fs.existsSync(templatePath)) throw new Error(`Template not found at ${templatePath}`);
   console.log("📄 [Preview PDF] Using template:", templateFile);
 
+  // Render DOCX and normalize its XML
   const templateBuffer = fs.readFileSync(templatePath);
   const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
-
-  // ✅ Normalize XML before giving it to LibreOffice
   console.log("🧩 Normalizing DOCX XML before PDF conversion...");
   const normalizedBuffer = await normalizeDocx(renderedBuffer);
 
-  const tmpDir =
-    process.platform === "win32" ? path.join(process.cwd(), "tmp") : os.tmpdir();
+  // Save to temporary location
+  const tmpDir = process.platform === "win32" ? path.join(process.cwd(), "tmp") : os.tmpdir();
   fs.mkdirSync(tmpDir, { recursive: true });
 
   const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
   fs.writeFileSync(tmpDocx, normalizedBuffer);
+  console.log("🧩 Generated DOCX:", tmpDocx);
 
+  // Convert to PDF via LibreOffice
   const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
@@ -139,7 +138,7 @@ async function docxToPdfBytes(payload) {
   return pdfBytes;
 }
 
-/* ---------------------- INTERNAL BASE ---------------------- */
+/* ---------- Internal Base ---------- */
 function getInternalBase(req) {
   if (process.env.INTERNAL_API_BASE) return process.env.INTERNAL_API_BASE;
 
@@ -152,7 +151,7 @@ function getInternalBase(req) {
   return `${forceHttp ? "http" : hintedProto}://${host}`;
 }
 
-/* ---------------------- SANITIZE SECTIONS ---------------------- */
+/* ---------- Clean Up Sections ---------- */
 function sanitizeSections(payload) {
   if (!Array.isArray(payload.Sections)) return payload;
 
@@ -164,7 +163,8 @@ function sanitizeSections(payload) {
     if (
       (!section?.Title || !section.Title.trim()) &&
       (!section?.Items || section.Items.length === 0)
-    ) return false;
+    )
+      return false;
 
     if (!section?.Title?.trim()) {
       section.Title = undefined;
@@ -172,13 +172,14 @@ function sanitizeSections(payload) {
     } else {
       section.TitleRow = section.Title;
     }
+
     return true;
   });
 
   return payload;
 }
 
-/* ---------------------- GET ---------------------- */
+/* ---------- GET ---------- */
 export async function GET(req, { params }) {
   try {
     const { quotationId } = params;
@@ -208,7 +209,7 @@ export async function GET(req, { params }) {
   }
 }
 
-/* ---------------------- POST ---------------------- */
+/* ---------- POST ---------- */
 export async function POST(req, { params }) {
   try {
     const { quotationId } = params;
@@ -229,7 +230,7 @@ export async function POST(req, { params }) {
   }
 }
 
-/* ---------------------- PDF HEADERS ---------------------- */
+/* ---------- Headers Helper ---------- */
 function pdfHeaders(filename) {
   return {
     "Content-Type": "application/pdf",
