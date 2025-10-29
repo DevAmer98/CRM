@@ -37,23 +37,25 @@ async function renderDocxBuffer(templateBuffer, data) {
   }
 }
 
-/* ---------- Normalize DOCX XML ---------- */
-// 🧹 Clean up XML tags that make LibreOffice treat tables as unbreakable
+
 async function normalizeDocx(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   let xml = await zip.file("word/document.xml").async("string");
 
   xml = xml
-    // Force table rows to be splittable
     .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-    // Reset fixed row heights to auto
     .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-    // Remove empty runs inserted by docxtemplater
-    .replace(/<w:r><w:t xml:space="preserve"\/><\/w:r>/g, "");
+    .replace(/<w:r><w:t xml:space="preserve"\/><\/w:r>/g, "")
+    // ✅ new lines below
+    .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "") // remove floating table positioning
+    .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>');
 
   zip.file("word/document.xml", xml);
   return zip.generateAsync({ type: "nodebuffer" });
 }
+
+
+
 
 /* ---------- DOCX → PDF Conversion ---------- */
 async function docxToPdfBytes(payload) {
