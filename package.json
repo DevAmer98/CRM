@@ -15,6 +15,7 @@
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-navigation-menu": "^1.2.13",
     "@tabby_ai/hijri-converter": "^1.0.5",
+    "basic-ftp": "^5.0.5",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
