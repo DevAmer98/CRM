@@ -110,7 +110,7 @@ async function docxToPdfBytes(payload) {
   const normalizedBuffer = await normalizeDocx(renderedBuffer);
 
   // Save to temporary location
-  const tmpDir = process.platform === "win32" ? path.join(process.cwd(), "tmp") : os.tmpdir();
+const tmpDir = path.join(process.cwd(), "tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
 
   const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
