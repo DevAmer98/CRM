@@ -132,8 +132,8 @@ async function docxToPdfBytes(payload) {
 
   const pdfBytes = fs.readFileSync(outPdf);
 
-  try { fs.unlinkSync(tmpDocx); } catch {}
-  try { fs.unlinkSync(outPdf); } catch {}
+  //try { fs.unlinkSync(tmpDocx); } catch {}
+  //try { fs.unlinkSync(outPdf); } catch {}
 
   return pdfBytes;
 }
