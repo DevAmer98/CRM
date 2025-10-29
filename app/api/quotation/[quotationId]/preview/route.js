@@ -116,6 +116,8 @@ async function docxToPdfBytes(payload) {
   const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
   fs.writeFileSync(tmpDocx, normalizedBuffer);
   console.log("🧩 Generated DOCX:", tmpDocx);
+  console.log("🧩 File exists now?", fs.existsSync(tmpDocx));
+
 
   // Convert to PDF via LibreOffice
   const soffice = getLibreOfficePath();
