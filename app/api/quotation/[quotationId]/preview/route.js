@@ -47,34 +47,38 @@ async function normalizeDocx(buffer) {
   for (const f of files) {
     let xml = await zip.file(f).async("string");
 
-    // ✅ 1. Normalize table structure
+    // 1️⃣ Ensure tables can break and don’t float
     xml = xml
       .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
       .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-      .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
+      .replace(/<w:tblpPr[\s\S]*?<\/w:tblpPr>/g, "")
       .replace(
         /<w:tblLook [^>]*\/>/g,
         '<w:tblLook w:noHBand="0" w:noVBand="0"/>'
       )
       .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
 
-    // ✅ 2. Remove "keepNext" only from title-before-table paragraphs
+    // 2️⃣ Remove “keep with next” before tables (prevents title dragging)
     xml = xml.replace(
       /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
       (m, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
     );
 
-    // ✅ 3. Mark all table rows as breakable (without touching table structure)
+    // 3️⃣ Make all table rows breakable — but safely (preserve tags)
     xml = xml.replace(/<w:tr([^>]*)>/g, (match, attrs) => {
-      // if already has cantSplit, override it to false
-      if (attrs.includes("cantSplit")) {
-        return match.replace(/cantSplit="[^"]*"/, 'cantSplit="false"');
+      // Skip malformed attributes
+      if (attrs.includes("w:cantSplit")) {
+        return match.replace(/w:cantSplit="[^"]*"/, 'w:cantSplit="false"');
       }
       return `<w:tr${attrs} w:cantSplit="false">`;
     });
 
-    // ✅ 4. Remove empty paragraphs (excess margin)
-    xml = xml.replace(/<w:p>\s*<\/w:p>/g, "");
+    // 4️⃣ Remove empty paragraphs safely (avoids extra margin)
+    xml = xml.replace(/<w:p(?: [^>]*)?>\s*<\/w:p>/g, "");
+
+    // 5️⃣ Ensure XML remains well-formed: remove double <w:tbl> if any accidental insertion
+    xml = xml.replace(/<w:tbl><w:tbl>/g, "<w:tbl>");
+    xml = xml.replace(/<\/w:tbl><\/w:tbl>/g, "</w:tbl>");
 
     zip.file(f, xml);
   }
