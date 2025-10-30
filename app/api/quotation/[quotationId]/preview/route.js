@@ -39,60 +39,51 @@ async function renderDocxBuffer(templateBuffer, data) {
 
 /* ---------- Normalize DOCX XML ---------- */
 async function normalizeDocx(buffer) {
-  try {
-    const zip = await JSZip.loadAsync(buffer);
-    const files = Object.keys(zip.files).filter((f) =>
-      f.match(/^word\/(document|header\d*|footer\d*)\.xml$/)
+  const zip = await JSZip.loadAsync(buffer);
+  const files = Object.keys(zip.files).filter((f) =>
+    f.match(/^word\/(document|header\d*|footer\d*)\.xml$/)
+  );
+
+  for (const f of files) {
+    let xml = await zip.file(f).async("string");
+
+    // 1️⃣ Ensure tables can break and don’t float
+    xml = xml
+      .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
+      .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
+      .replace(/<w:tblpPr[\s\S]*?<\/w:tblpPr>/g, "")
+      .replace(
+        /<w:tblLook [^>]*\/>/g,
+        '<w:tblLook w:noHBand="0" w:noVBand="0"/>'
+      )
+      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
+
+    // 2️⃣ Remove “keep with next” before tables (prevents title dragging)
+    xml = xml.replace(
+      /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
+      (m, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
     );
 
-    for (const f of files) {
-      let xml = await zip.file(f).async("string");
+    // 3️⃣ Make all table rows breakable — but safely (preserve tags)
+    xml = xml.replace(/<w:tr([^>]*)>/g, (match, attrs) => {
+      // Skip malformed attributes
+      if (attrs.includes("w:cantSplit")) {
+        return match.replace(/w:cantSplit="[^"]*"/, 'w:cantSplit="false"');
+      }
+      return `<w:tr${attrs} w:cantSplit="false">`;
+    });
 
-      // --- 1️⃣ Normalize table behavior ---
-      xml = xml
-        .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-        .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-        .replace(/<w:tblpPr[\s\S]*?<\/w:tblpPr>/g, "")
-        .replace(
-          /<w:tblLook [^>]*\/>/g,
-          '<w:tblLook w:noHBand="0" w:noVBand="0"/>'
-        )
-        .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
+    // 4️⃣ Remove empty paragraphs safely (avoids extra margin)
+    xml = xml.replace(/<w:p(?: [^>]*)?>\s*<\/w:p>/g, "");
 
-      // --- 2️⃣ Remove "keepNext" only before tables ---
-      xml = xml.replace(
-        /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
-        (m, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
-      );
+    // 5️⃣ Ensure XML remains well-formed: remove double <w:tbl> if any accidental insertion
+    xml = xml.replace(/<w:tbl><w:tbl>/g, "<w:tbl>");
+    xml = xml.replace(/<\/w:tbl><\/w:tbl>/g, "</w:tbl>");
 
-      // --- 3️⃣ Ensure table rows can split ---
-      xml = xml.replace(/<w:tr([^>]*)>/g, (match, attrs) => {
-        if (attrs.includes("w:cantSplit")) {
-          return match.replace(/w:cantSplit="[^"]*"/, 'w:cantSplit="false"');
-        }
-        return `<w:tr${attrs} w:cantSplit="false">`;
-      });
-
-      // --- 4️⃣ Remove truly empty paragraphs only (no <w:r>, <w:bookmark>, etc.) ---
-      xml = xml.replace(
-        /<w:p(?: [^>]*)?>\s*(?:<w:pPr>[\s\S]*?<\/w:pPr>)?\s*<\/w:p>/g,
-        ""
-      );
-
-      // --- 5️⃣ Sanity repair for table duplication ---
-      xml = xml.replace(/<w:tbl><w:tbl>/g, "<w:tbl>");
-      xml = xml.replace(/<\/w:tbl><\/w:tbl>/g, "</w:tbl>");
-
-      zip.file(f, xml);
-    }
-
-    const newBuffer = await zip.generateAsync({ type: "nodebuffer" });
-    console.log("✅ DOCX normalization complete (fixed paragraph structure)");
-    return newBuffer;
-  } catch (err) {
-    console.error("❌ normalizeDocx() failed:", err);
-    throw err;
+    zip.file(f, xml);
   }
+
+  return zip.generateAsync({ type: "nodebuffer" });
 }
 
 
@@ -211,18 +202,18 @@ async function docxToPdfBytes(payload) {
     },
   };
 
-await execFileAsync(
-  "/usr/local/bin/unoconv25",
-  [
-    "--connection",
-    "socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext",
-    "-f",
-    "pdf",
-    tmpDocx,
-  ],
-  execOptions
-);
-
+  await execFileAsync(
+    "/opt/libreoffice25.2/program/python",
+    [
+      "/usr/bin/unoconv",
+      "--connection",
+      "socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext",
+      "-f",
+      "pdf",
+      tmpDocx,
+    ],
+    execOptions
+  );
 
   const pdfBytes = fs.readFileSync(outPdf);
   console.log("✅ PDF generated:", outPdf);
