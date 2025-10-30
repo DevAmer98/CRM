@@ -86,7 +86,7 @@ async function normalizeDocx(buffer) {
 
 
 
-/* ---------- DOCX → PDF Conversion (LibreOffice headless, stable) ---------- */
+/* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
 async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
   const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
@@ -149,50 +149,33 @@ async function docxToPdfBytes(payload) {
   fs.writeFileSync(tmpDocx, normalizedBuffer);
   console.log("🧩 Generated DOCX:", tmpDocx);
 
-  const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
-  /* ✅ Convert using LibreOffice directly (no unoconv, no python) */
-  await execFileAsync(soffice, [
-    "--headless",
-    "--convert-to",
-    "pdf:writer_pdf_Export",
-    "--outdir",
-    tmpDir,
-    tmpDocx,
-  ]);
+  /* ✅ Use LibreOffice 25.2 Python + unoconv */
+  const execOptions = {
+    env: {
+      ...process.env,
+      PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
+      UNO_PATH: "/opt/libreoffice25.2/program",
+      PYTHONPATH: "/opt/libreoffice25.2/program",
+    },
+  };
 
+  await execFileAsync(
+    "/opt/libreoffice25.2/program/python",
+    [
+      "/usr/bin/unoconv",
+      "--connection",
+      "socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext",
+      "-f",
+      "pdf",
+      tmpDocx,
+    ],
+    execOptions
+  );
 
-
-  // Try multiple filters to ensure compatibility across LibreOffice versions
-const convertCommands = [
-  ["--headless", "--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir, tmpDocx],
-  ["--headless", "--convert-to", "pdf:impress_pdf_Export", "--outdir", tmpDir, tmpDocx],
-  ["--headless", "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
-];
-
-let converted = false;
-
-for (const args of convertCommands) {
-  try {
-    console.log("🧩 Trying conversion with args:", args.join(" "));
-    await execFileAsync(soffice, args);
-    if (fs.existsSync(outPdf)) {
-      converted = true;
-      break;
-    }
-  } catch (e) {
-    console.warn("⚠️ Conversion attempt failed:", e.message);
-  }
-}
-
-if (!converted) {
-  throw new Error(`LibreOffice failed to generate PDF from ${tmpDocx}`);
-}
-
-const pdfBytes = fs.readFileSync(outPdf);
-console.log("✅ PDF generated successfully:", outPdf);
-
+  const pdfBytes = fs.readFileSync(outPdf);
+  console.log("✅ PDF generated:", outPdf);
 
   return pdfBytes;
 }
