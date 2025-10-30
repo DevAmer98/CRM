@@ -38,7 +38,7 @@ async function renderDocxBuffer(templateBuffer, data) {
 }
 
 /* ---------- Normalize DOCX XML ---------- */
-aasync function normalizeDocx(buffer) {
+async function normalizeDocx(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   const files = Object.keys(zip.files).filter((f) =>
     f.match(/^word\/(document|header\d*|footer\d*)\.xml$/)
