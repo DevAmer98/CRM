@@ -59,13 +59,13 @@ async function normalizeDocx(buffer) {
         )
         .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
 
-      // --- 2️⃣ Remove keepNext before tables ---
+      // --- 2️⃣ Remove "keepNext" only before tables ---
       xml = xml.replace(
         /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
         (m, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
       );
 
-      // --- 3️⃣ Ensure all rows are breakable ---
+      // --- 3️⃣ Ensure table rows can split ---
       xml = xml.replace(/<w:tr([^>]*)>/g, (match, attrs) => {
         if (attrs.includes("w:cantSplit")) {
           return match.replace(/w:cantSplit="[^"]*"/, 'w:cantSplit="false"');
@@ -73,26 +73,21 @@ async function normalizeDocx(buffer) {
         return `<w:tr${attrs} w:cantSplit="false">`;
       });
 
-      // --- 4️⃣ Remove empty paragraphs ---
-      xml = xml.replace(/<w:p(?: [^>]*)?>\s*<\/w:p>/g, "");
+      // --- 4️⃣ Remove truly empty paragraphs only (no <w:r>, <w:bookmark>, etc.) ---
+      xml = xml.replace(
+        /<w:p(?: [^>]*)?>\s*(?:<w:pPr>[\s\S]*?<\/w:pPr>)?\s*<\/w:p>/g,
+        ""
+      );
 
-      // --- 5️⃣ Fix accidental duplicates ---
+      // --- 5️⃣ Sanity repair for table duplication ---
       xml = xml.replace(/<w:tbl><w:tbl>/g, "<w:tbl>");
       xml = xml.replace(/<\/w:tbl><\/w:tbl>/g, "</w:tbl>");
-
-      // --- 6️⃣ Quick XML sanity check ---
-      if ((xml.match(/<w:tbl>/g) || []).length !== (xml.match(/<\/w:tbl>/g) || []).length) {
-        console.warn(`⚠️ Unbalanced <w:tbl> tags detected in ${f}`);
-      }
-      if ((xml.match(/<w:p>/g) || []).length !== (xml.match(/<\/w:p>/g) || []).length) {
-        console.warn(`⚠️ Unbalanced <w:p> tags detected in ${f}`);
-      }
 
       zip.file(f, xml);
     }
 
     const newBuffer = await zip.generateAsync({ type: "nodebuffer" });
-    console.log("✅ DOCX normalization complete (well-formed XML check passed)");
+    console.log("✅ DOCX normalization complete (fixed paragraph structure)");
     return newBuffer;
   } catch (err) {
     console.error("❌ normalizeDocx() failed:", err);
