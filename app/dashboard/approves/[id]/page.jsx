@@ -121,7 +121,6 @@ function cleanHTML(input = "") {
 
 */
 
-
 function wrapDesc(text, maxLen = 40) {
   if (!text) return ["—"];
 
@@ -139,15 +138,22 @@ function wrapDesc(text, maxLen = 40) {
       let cut = s.lastIndexOf(" ", maxLen);
       if (cut < Math.floor(maxLen * 0.6)) cut = maxLen;
 
-      // ✨ remove trailing punctuation before pushing
-      let part = s.slice(0, cut).replace(/[.,]+$/g, "").trim();
-      out.push(part.toUpperCase());
+      // 🔧 Trim only *extra* commas/dots if followed by another punctuation
+      let part = s
+        .slice(0, cut)
+        .replace(/([.,]){2,}$/g, "$1") // collapse "..", ",," etc. to one
+        .replace(/([.,]){1}\s*$/g, "$1") // keep one punctuation mark
+        .trim();
 
+      out.push(part.toUpperCase());
       s = s.slice(cut).trim();
     }
 
     if (s) {
-      let cleanTail = s.replace(/[.,]+$/g, "").trim();
+      let cleanTail = s
+        .replace(/([.,]){2,}$/g, "$1")
+        .replace(/([.,]){1}\s*$/g, "$1")
+        .trim();
       out.push(cleanTail.toUpperCase());
     }
   }
