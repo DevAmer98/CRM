@@ -47,6 +47,52 @@ async function normalizeDocx(buffer) {
   for (const f of files) {
     let xml = await zip.file(f).async("string");
 
+    // ✅ 1. Normalize table structure
+    xml = xml
+      .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
+      .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
+      .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
+      .replace(
+        /<w:tblLook [^>]*\/>/g,
+        '<w:tblLook w:noHBand="0" w:noVBand="0"/>'
+      )
+      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
+
+    // ✅ 2. Remove "keepNext" only from title-before-table paragraphs
+    xml = xml.replace(
+      /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
+      (m, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
+    );
+
+    // ✅ 3. Mark all table rows as breakable (without touching table structure)
+    xml = xml.replace(/<w:tr([^>]*)>/g, (match, attrs) => {
+      // if already has cantSplit, override it to false
+      if (attrs.includes("cantSplit")) {
+        return match.replace(/cantSplit="[^"]*"/, 'cantSplit="false"');
+      }
+      return `<w:tr${attrs} w:cantSplit="false">`;
+    });
+
+    // ✅ 4. Remove empty paragraphs (excess margin)
+    xml = xml.replace(/<w:p>\s*<\/w:p>/g, "");
+
+    zip.file(f, xml);
+  }
+
+  return zip.generateAsync({ type: "nodebuffer" });
+}
+
+
+
+/*async function normalizeDocx(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const files = Object.keys(zip.files).filter((f) =>
+    f.match(/^word\/(document|header\d*|footer\d*)\.xml$/)
+  );
+
+  for (const f of files) {
+    let xml = await zip.file(f).async("string");
+
     // ✅ 1. Normalize table structure for page breaks
     xml = xml
       .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
@@ -75,7 +121,7 @@ async function normalizeDocx(buffer) {
 
   return zip.generateAsync({ type: "nodebuffer" });
 }
-
+*/
 
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
 async function docxToPdfBytes(payload) {
