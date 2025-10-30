@@ -38,38 +38,135 @@ async function renderDocxBuffer(templateBuffer, data) {
 }
 
 /* ---------- Normalize DOCX XML ---------- */
+/*async function normalizeDocx(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  let xml = await zip.file("word/document.xml").async("string");
+
+  xml = xml
+    .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
+    .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
+    .replace(/<w:r><w:t xml:space="preserve"\/><\/w:r>/g, "")
+    .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
+    .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
+    .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
+
+  zip.file("word/document.xml", xml);
+  return zip.generateAsync({ type: "nodebuffer" });
+}
+
+*/
+
+
 async function normalizeDocx(buffer) {
   const zip = await JSZip.loadAsync(buffer);
-  const files = Object.keys(zip.files).filter((f) =>
+  const files = Object.keys(zip.files).filter(f =>
     f.match(/^word\/(document|header\d*|footer\d*)\.xml$/)
   );
 
   for (const f of files) {
     let xml = await zip.file(f).async("string");
-
     xml = xml
-      // ✅ Allow table rows to break
       .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-      // ✅ Auto row height
       .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-      // ✅ Remove floating-positioned tables
       .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
-      // ✅ Ensure consistent table look
-      .replace(
-        /<w:tblLook [^>]*\/>/g,
-        '<w:tblLook w:noHBand="0" w:noVBand="0"/>'
-      )
-      // ✅ Force tables to overlap “never”
-      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>')
-      // ✅ Remove “keep with next / keep lines” (prevents LibreOffice from grouping rows)
-      .replace(/<w:keepNext\/>/g, "")
-      .replace(/<w:keepLines\/>/g, "");
-
+      .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
+      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
     zip.file(f, xml);
   }
 
   return zip.generateAsync({ type: "nodebuffer" });
 }
+
+
+/* ---------- DOCX → PDF Conversion ---------- */
+/*
+async function docxToPdfBytes(payload) {
+  const isUSD = payload?.Currency === "USD";
+  const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
+
+  const discountPer =
+    num(payload?.discount_per) ||
+    num(payload?.DiscountPer) ||
+    num(payload?.TotalDiscountPct);
+  const discountAmount =
+    num(payload?.discount_amount) || num(payload?.DiscountAmount);
+  const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
+  const subtotalAfter =
+    num(payload?.total_after) || num(payload?.SubtotalAfterTotalDiscount);
+  const totalPrice = num(payload?.TotalPrice) || num(payload?.totalPrice);
+
+  const hasDiscount =
+    discountPer > 0 ||
+    discountAmount > 0 ||
+    (subtotalAfter > 0 && subtotalAfter < subtotal) ||
+    (subtotalAfter > 0 && subtotalAfter < totalPrice);
+
+  console.log("🧾 [Preview PDF] Discount detection summary:");
+  console.table({
+    discountPer,
+    discountAmount,
+    subtotal,
+    subtotalAfter,
+    totalPrice,
+    hasDiscount,
+  });
+
+  // Choose the correct template file
+  let templateFile;
+  if (hasDiscount) {
+    templateFile = isUSD
+      ? "SVS_Quotation_Discount_USD.docx"
+      : "SVS_Quotation_Discount.docx";
+  } else {
+    templateFile = isUSD
+      ? "SVS_Quotation_NEW_USD.docx"
+      : "SVS_Quotation_NEW.docx";
+  }
+
+  const templatePath = path.join(process.cwd(), "templates", templateFile);
+  if (!fs.existsSync(templatePath))
+    throw new Error(`Template not found at ${templatePath}`);
+  console.log("📄 [Preview PDF] Using template:", templateFile);
+
+  // Render DOCX and normalize its XML
+  const templateBuffer = fs.readFileSync(templatePath);
+  const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
+  console.log("🧩 Normalizing DOCX XML before PDF conversion...");
+  const normalizedBuffer = await normalizeDocx(renderedBuffer);
+
+  // Save to temporary location (project tmp)
+  const tmpDir = path.join(process.cwd(), "tmp");
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
+  fs.writeFileSync(tmpDocx, normalizedBuffer);
+  console.log("🧩 Generated DOCX:", tmpDocx);
+  console.log("🧩 File exists now?", fs.existsSync(tmpDocx));
+
+  // ✅ Convert to PDF via LibreOffice using impress_pdf_Export
+  const soffice = getLibreOfficePath();
+  const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
+
+  await execFileAsync(soffice, [
+    "--headless",
+    "--convert-to",
+    "pdf:impress_pdf_Export",
+    "--outdir",
+    tmpDir,
+    tmpDocx,
+  ]);
+
+  const pdfBytes = fs.readFileSync(outPdf);
+
+  // keep files for debugging (comment out cleanup)
+  // try { fs.unlinkSync(tmpDocx); } catch {}
+  // try { fs.unlinkSync(outPdf); } catch {}
+
+  return pdfBytes;
+}
+
+*/
+
 
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
 async function docxToPdfBytes(payload) {
@@ -162,8 +259,13 @@ async function docxToPdfBytes(payload) {
   const pdfBytes = fs.readFileSync(outPdf);
   console.log("✅ PDF generated:", outPdf);
 
+  // Optional cleanup (keep for debugging)
+  // try { fs.unlinkSync(tmpDocx); } catch {}
+  // try { fs.unlinkSync(outPdf); } catch {}
+
   return pdfBytes;
 }
+
 
 /* ---------- Internal Base ---------- */
 function getInternalBase(req) {
