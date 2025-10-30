@@ -47,33 +47,31 @@ async function normalizeDocx(buffer) {
   for (const f of files) {
     let xml = await zip.file(f).async("string");
 
+    // ✅ 1. Table normalization
     xml = xml
-      // ✅ Breakable rows
       .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-      // ✅ Auto row heights
       .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-      // ✅ Remove floating-positioned tables
       .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
-      // ✅ Normalize table looks
-      .replace(
-        /<w:tblLook [^>]*\/>/g,
-        '<w:tblLook w:noHBand="0" w:noVBand="0"/>'
-      )
-      // ✅ Ensure tables don’t overlap
-      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>')
-      // ✅ Remove “keep-with-next” and “keep-lines” from all paragraphs
-      .replace(/<w:keepNext\/>/g, "")
-      .replace(/<w:keepLines\/>/g, "")
-      // ✅ Also remove from paragraph properties that might wrap before tables
-      .replace(/<w:pPr>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:pPr>/g, (m) =>
-        m.replace(/<w:keepNext\/>/g, "")
-      );
+      .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
+      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
+
+    // ✅ 2. Remove "keep-with-next" only before tables
+    xml = xml.replace(
+      /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
+      (match, para, tbl) => {
+        return para.replace(/<w:keepNext\/>/g, "") + tbl;
+      }
+    );
+
+    // ✅ 3. Remove empty paragraphs that create margin
+    xml = xml.replace(/<w:p>\s*<\/w:p>/g, "");
 
     zip.file(f, xml);
   }
 
   return zip.generateAsync({ type: "nodebuffer" });
 }
+
 
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
 async function docxToPdfBytes(payload) {
