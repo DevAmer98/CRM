@@ -100,7 +100,7 @@ async function normalizeDocx(buffer) {
 
 
 
-/* ---------- DOCX → PDF Conversion (LibreOffice headless, stable) ---------- */
+/* ---------- DOCX → PDF Conversion (stable headless LibreOffice 25.2) ---------- */
 async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
   const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
@@ -132,7 +132,7 @@ async function docxToPdfBytes(payload) {
     hasDiscount,
   });
 
-  // Choose the correct template file
+  // ✅ Choose the correct template file
   let templateFile;
   if (hasDiscount) {
     templateFile = isUSD
@@ -149,13 +149,13 @@ async function docxToPdfBytes(payload) {
     throw new Error(`Template not found at ${templatePath}`);
   console.log("📄 [Preview PDF] Using template:", templateFile);
 
-  // Render DOCX and normalize its XML
+  // ✅ Render and normalize DOCX
   const templateBuffer = fs.readFileSync(templatePath);
   const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
   console.log("🧩 Normalizing DOCX XML before PDF conversion...");
   const normalizedBuffer = await normalizeDocx(renderedBuffer);
 
-  // Save to temporary location
+  // ✅ Save to temporary file
   const tmpDir = path.join(process.cwd(), "tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
 
@@ -164,57 +164,68 @@ async function docxToPdfBytes(payload) {
   console.log("🧩 Generated DOCX:", tmpDocx);
 
   const soffice = getLibreOfficePath();
-  const execOptions = {
-  env: {
-    ...process.env,
-    PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
-    UNO_PATH: "/opt/libreoffice25.2/program",
-    PYTHONPATH: "/opt/libreoffice25.2/program",
-    HOME: "/tmp",
-    XDG_RUNTIME_DIR: "/tmp",
-    XDG_CONFIG_HOME: "/tmp",
-    XDG_CACHE_HOME: "/tmp",
-    SAL_USE_VCLPLUGIN: "headless",
-  },
-};
-
-
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
+  const execOptions = {
+    env: {
+      ...process.env,
+      PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
+      UNO_PATH: "/opt/libreoffice25.2/program",
+      PYTHONPATH: "/opt/libreoffice25.2/program",
+      HOME: "/tmp",
+      XDG_RUNTIME_DIR: "/tmp",
+      XDG_CONFIG_HOME: "/tmp",
+      XDG_CACHE_HOME: "/tmp",
+      SAL_USE_VCLPLUGIN: "headless",
+    },
+  };
 
-  // Try multiple filters to ensure compatibility across LibreOffice versions
-const convertCommands = [
-  ["--headless", "--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir, tmpDocx],
-  ["--headless", "--convert-to", "pdf:impress_pdf_Export", "--outdir", tmpDir, tmpDocx],
-  ["--headless", "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
-];
+  // ✅ Multiple filters for maximum compatibility
+  const convertCommands = [
+    ["--headless", "--invisible", "--norestore", "--nodefault",
+     "--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir, tmpDocx],
+    ["--headless", "--invisible", "--norestore", "--nodefault",
+     "--convert-to", "pdf:impress_pdf_Export", "--outdir", tmpDir, tmpDocx],
+    ["--headless", "--invisible", "--norestore", "--nodefault",
+     "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
+  ];
 
-let converted = false;
+  let converted = false;
 
-for (const args of convertCommands) {
-  try {
-    console.log("🧩 Trying conversion with args:", args.join(" "));
-    await execFileAsync(soffice, args, execOptions);
+  for (const args of convertCommands) {
+    try {
+      console.log("🧩 Trying conversion with args:", args.join(" "));
 
-    if (fs.existsSync(outPdf)) {
-      converted = true;
-      break;
+      // 🧠 Create unique LibreOffice profile to prevent lock/profile errors
+      const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), "lo-profile-"));
+      const profileArgs = ["--env:UserInstallation=file://" + tmpProfile];
+
+      await execFileAsync(soffice, [...profileArgs, ...args], execOptions);
+
+      if (fs.existsSync(outPdf)) {
+        converted = true;
+        console.log("✅ PDF generated successfully:", outPdf);
+        fs.rmSync(tmpProfile, { recursive: true, force: true });
+        break;
+      } else {
+        console.warn("⚠️ No PDF found after this attempt");
+        fs.rmSync(tmpProfile, { recursive: true, force: true });
+      }
+    } catch (e) {
+      console.warn("⚠️ Conversion attempt failed:", e.message);
     }
-  } catch (e) {
-    console.warn("⚠️ Conversion attempt failed:", e.message);
   }
-}
 
-if (!converted) {
-  throw new Error(`LibreOffice failed to generate PDF from ${tmpDocx}`);
-}
+  if (!converted) {
+    throw new Error(`LibreOffice failed to generate PDF from ${tmpDocx}`);
+  }
 
-const pdfBytes = fs.readFileSync(outPdf);
-console.log("✅ PDF generated successfully:", outPdf);
-
+  const pdfBytes = fs.readFileSync(outPdf);
+  console.log("✅ PDF conversion complete:", outPdf);
 
   return pdfBytes;
 }
+
 
 /* ---------- Internal Base ---------- */
 function getInternalBase(req) {
