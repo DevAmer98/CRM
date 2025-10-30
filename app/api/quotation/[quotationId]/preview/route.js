@@ -6,7 +6,7 @@ import { promisify } from "util";
 import { execFile } from "child_process";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
-import JSZip from "jszip"; // ✅ added
+import JSZip from "jszip";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
 
 export const runtime = "nodejs";
@@ -37,26 +37,7 @@ async function renderDocxBuffer(templateBuffer, data) {
   }
 }
 
-/*
-async function normalizeDocx(buffer) {
-  const zip = await JSZip.loadAsync(buffer);
-  let xml = await zip.file("word/document.xml").async("string");
-
-  xml = xml
-    .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-    .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-    .replace(/<w:r><w:t xml:space="preserve"\/><\/w:r>/g, "")
-    // ✅ new lines below
-    .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "") // remove floating table positioning
-    .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>');
-
-  zip.file("word/document.xml", xml);
-  return zip.generateAsync({ type: "nodebuffer" });
-}
-
-*/
-
-
+/* ---------- Normalize DOCX XML ---------- */
 async function normalizeDocx(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   let xml = await zip.file("word/document.xml").async("string");
@@ -67,14 +48,11 @@ async function normalizeDocx(buffer) {
     .replace(/<w:r><w:t xml:space="preserve"\/><\/w:r>/g, "")
     .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
     .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
-    // ✅ force normal inline overlap mode
     .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
 
   zip.file("word/document.xml", xml);
   return zip.generateAsync({ type: "nodebuffer" });
 }
-
-
 
 /* ---------- DOCX → PDF Conversion ---------- */
 async function docxToPdfBytes(payload) {
@@ -121,7 +99,8 @@ async function docxToPdfBytes(payload) {
   }
 
   const templatePath = path.join(process.cwd(), "templates", templateFile);
-  if (!fs.existsSync(templatePath)) throw new Error(`Template not found at ${templatePath}`);
+  if (!fs.existsSync(templatePath))
+    throw new Error(`Template not found at ${templatePath}`);
   console.log("📄 [Preview PDF] Using template:", templateFile);
 
   // Render DOCX and normalize its XML
@@ -130,8 +109,8 @@ async function docxToPdfBytes(payload) {
   console.log("🧩 Normalizing DOCX XML before PDF conversion...");
   const normalizedBuffer = await normalizeDocx(renderedBuffer);
 
-  // Save to temporary location
-const tmpDir = path.join(process.cwd(), "tmp");
+  // Save to temporary location (project tmp)
+  const tmpDir = path.join(process.cwd(), "tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
 
   const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
@@ -139,15 +118,14 @@ const tmpDir = path.join(process.cwd(), "tmp");
   console.log("🧩 Generated DOCX:", tmpDocx);
   console.log("🧩 File exists now?", fs.existsSync(tmpDocx));
 
-
-  // Convert to PDF via LibreOffice
+  // ✅ Convert to PDF via LibreOffice using impress_pdf_Export
   const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
   await execFileAsync(soffice, [
     "--headless",
     "--convert-to",
-    "pdf:writer_pdf_Export",
+    "pdf:impress_pdf_Export",
     "--outdir",
     tmpDir,
     tmpDocx,
@@ -155,8 +133,9 @@ const tmpDir = path.join(process.cwd(), "tmp");
 
   const pdfBytes = fs.readFileSync(outPdf);
 
-  //try { fs.unlinkSync(tmpDocx); } catch {}
-  //try { fs.unlinkSync(outPdf); } catch {}
+  // keep files for debugging (comment out cleanup)
+  // try { fs.unlinkSync(tmpDocx); } catch {}
+  // try { fs.unlinkSync(outPdf); } catch {}
 
   return pdfBytes;
 }
@@ -237,7 +216,10 @@ export async function POST(req, { params }) {
   try {
     const { quotationId } = params;
     let payload = await req.json();
-    console.log("🧩 [Preview PDF POST] Received payload keys:", Object.keys(payload));
+    console.log(
+      "🧩 [Preview PDF POST] Received payload keys:",
+      Object.keys(payload)
+    );
 
     payload = sanitizeSections(payload);
     const pdfBytes = await docxToPdfBytes(payload);
