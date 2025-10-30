@@ -1,4 +1,3 @@
-now this removed all the borders 
 
 
 import { NextResponse } from "next/server";
