@@ -164,6 +164,21 @@ async function docxToPdfBytes(payload) {
   console.log("🧩 Generated DOCX:", tmpDocx);
 
   const soffice = getLibreOfficePath();
+  const execOptions = {
+  env: {
+    ...process.env,
+    PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
+    UNO_PATH: "/opt/libreoffice25.2/program",
+    PYTHONPATH: "/opt/libreoffice25.2/program",
+    HOME: "/tmp",
+    XDG_RUNTIME_DIR: "/tmp",
+    XDG_CONFIG_HOME: "/tmp",
+    XDG_CACHE_HOME: "/tmp",
+    SAL_USE_VCLPLUGIN: "headless",
+  },
+};
+
+
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
 
@@ -179,7 +194,8 @@ let converted = false;
 for (const args of convertCommands) {
   try {
     console.log("🧩 Trying conversion with args:", args.join(" "));
-    await execFileAsync(soffice, args);
+    await execFileAsync(soffice, args, execOptions);
+
     if (fs.existsSync(outPdf)) {
       converted = true;
       break;
