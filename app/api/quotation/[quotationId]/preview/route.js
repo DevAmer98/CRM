@@ -211,18 +211,18 @@ async function docxToPdfBytes(payload) {
     },
   };
 
-  await execFileAsync(
-    "/opt/libreoffice25.2/program/python",
-    [
-      "/usr/bin/unoconv",
-      "--connection",
-      "socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext",
-      "-f",
-      "pdf",
-      tmpDocx,
-    ],
-    execOptions
-  );
+await execFileAsync(
+  "/usr/local/bin/unoconv25",
+  [
+    "--connection",
+    "socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext",
+    "-f",
+    "pdf",
+    tmpDocx,
+  ],
+  execOptions
+);
+
 
   const pdfBytes = fs.readFileSync(outPdf);
   console.log("✅ PDF generated:", outPdf);
