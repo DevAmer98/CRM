@@ -181,16 +181,17 @@ async function docxToPdfBytes(payload) {
   };
 
   // ✅ Multiple filters for maximum compatibility
- const convertCommands = [
+ // ✅ Multiple filters for maximum compatibility
+const convertCommands = [
   ["--headless", "--invisible", "--norestore", "--nodefault",
    "--nolockcheck", "--nofirststartwizard",
-   "--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir, tmpDocx],
+   "--convert-to", "pdf:writer_pdf_Export", tmpDocx],
   ["--headless", "--invisible", "--norestore", "--nodefault",
    "--nolockcheck", "--nofirststartwizard",
-   "--convert-to", "pdf:impress_pdf_Export", "--outdir", tmpDir, tmpDocx],
+   "--convert-to", "pdf:impress_pdf_Export", tmpDocx],
   ["--headless", "--invisible", "--norestore", "--nodefault",
    "--nolockcheck", "--nofirststartwizard",
-   "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
+   "--convert-to", "pdf", tmpDocx],
 ];
 
 let converted = false;
@@ -199,15 +200,27 @@ for (const args of convertCommands) {
   try {
     console.log("🧩 Trying conversion with args:", args.join(" "));
 
-    // Create unique LibreOffice user profile
+    // 🧠 Create isolated user profile for LibreOffice
     const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), "lo-profile-"));
-    const profileArgs = ["--env:UserInstallation=file://" + tmpProfile];
+    const profileArgs = [
+      `--env:UserInstallation=file://${tmpProfile}`,
+      `--outdir=${tmpDir}`,
+    ];
 
-    // Ensure output file path is explicit (not relative)
-    const pdfPath = path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf"));
-    await execFileAsync(soffice, [...profileArgs, ...args], execOptions);
+    // 🧠 Explicitly set working directory to tmpDir
+    const execOptionsWithCwd = { ...execOptions, cwd: tmpDir };
 
-    if (fs.existsSync(pdfPath)) {
+    const pdfPath = path.join(
+      tmpDir,
+      path.basename(tmpDocx).replace(/\.docx$/, ".pdf")
+    );
+
+    await execFileAsync(soffice, [...profileArgs, ...args], execOptionsWithCwd);
+
+    // Allow a tiny delay for filesystem sync
+    await new Promise((r) => setTimeout(r, 800));
+
+    if (fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 1000) {
       console.log("✅ PDF generated successfully:", pdfPath);
       converted = true;
       fs.rmSync(tmpProfile, { recursive: true, force: true });
@@ -225,8 +238,9 @@ if (!converted) {
   throw new Error(`LibreOffice failed to generate PDF from ${tmpDocx}`);
 }
 
-const pdfBytes = fs.readFileSync(path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf")));
-console.log("✅ PDF conversion complete:", path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf")));
+const pdfPath = path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf"));
+const pdfBytes = fs.readFileSync(pdfPath);
+console.log("✅ PDF conversion complete:", pdfPath);
 
 
   return pdfBytes;
