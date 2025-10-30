@@ -49,7 +49,7 @@ async function normalizeDocx(buffer) {
   for (const f of files) {
     let xml = await zip.file(f).async("string");
 
-    // ✅ 1. Normalize table structure for page breaks
+    // ✅ 1. Table normalization
     xml = xml
       .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
       .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
@@ -57,19 +57,15 @@ async function normalizeDocx(buffer) {
       .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
       .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
 
-    // ✅ 2. Remove "keepNext" only from title-before-table paragraphs
+    // ✅ 2. Remove "keep-with-next" only before tables
     xml = xml.replace(
       /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
-      (m, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
+      (match, para, tbl) => {
+        return para.replace(/<w:keepNext\/>/g, "") + tbl;
+      }
     );
 
-    // ✅ 3. Force all first table rows to be breakable
-    xml = xml.replace(
-      /(<w:tbl>[\s\S]*?<w:tr)([^>]*>)/g,
-      '<w:tbl><w:tr w:cantSplit="false"$2'
-    );
-
-    // ✅ 4. Remove empty <w:p> that cause visual gaps
+    // ✅ 3. Remove empty paragraphs that create margin
     xml = xml.replace(/<w:p>\s*<\/w:p>/g, "");
 
     zip.file(f, xml);
