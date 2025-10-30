@@ -38,7 +38,7 @@ async function renderDocxBuffer(templateBuffer, data) {
 }
 
 /* ---------- Normalize DOCX XML ---------- */
-async function normalizeDocx(buffer) {
+/*async function normalizeDocx(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   let xml = await zip.file("word/document.xml").async("string");
 
@@ -53,6 +53,30 @@ async function normalizeDocx(buffer) {
   zip.file("word/document.xml", xml);
   return zip.generateAsync({ type: "nodebuffer" });
 }
+
+*/
+
+
+async function normalizeDocx(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const files = Object.keys(zip.files).filter(f =>
+    f.match(/^word\/(document|header\d*|footer\d*)\.xml$/)
+  );
+
+  for (const f of files) {
+    let xml = await zip.file(f).async("string");
+    xml = xml
+      .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
+      .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
+      .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
+      .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
+      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
+    zip.file(f, xml);
+  }
+
+  return zip.generateAsync({ type: "nodebuffer" });
+}
+
 
 /* ---------- DOCX → PDF Conversion ---------- */
 /*
