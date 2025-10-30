@@ -48,22 +48,26 @@ async function normalizeDocx(buffer) {
     let xml = await zip.file(f).async("string");
 
     xml = xml
-      // ✅ Allow table rows to break
+      // ✅ Breakable rows
       .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-      // ✅ Auto row height
+      // ✅ Auto row heights
       .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
       // ✅ Remove floating-positioned tables
       .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
-      // ✅ Ensure consistent table look
+      // ✅ Normalize table looks
       .replace(
         /<w:tblLook [^>]*\/>/g,
         '<w:tblLook w:noHBand="0" w:noVBand="0"/>'
       )
-      // ✅ Force tables to overlap “never”
+      // ✅ Ensure tables don’t overlap
       .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>')
-      // ✅ Remove “keep with next / keep lines” (prevents LibreOffice from grouping rows)
+      // ✅ Remove “keep-with-next” and “keep-lines” from all paragraphs
       .replace(/<w:keepNext\/>/g, "")
-      .replace(/<w:keepLines\/>/g, "");
+      .replace(/<w:keepLines\/>/g, "")
+      // ✅ Also remove from paragraph properties that might wrap before tables
+      .replace(/<w:pPr>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:pPr>/g, (m) =>
+        m.replace(/<w:keepNext\/>/g, "")
+      );
 
     zip.file(f, xml);
   }
