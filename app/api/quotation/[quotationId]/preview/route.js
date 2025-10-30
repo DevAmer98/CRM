@@ -16,25 +16,11 @@ const execFileAsync = promisify(execFile);
 
 /* ---------- Detect LibreOffice ---------- */
 function getLibreOfficePath() {
-  const possiblePaths = [
-    "/opt/libreoffice25.2/program/soffice", // ✅ your installed version
-    "/usr/bin/soffice",
-    "/usr/local/bin/soffice",
-    "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
-    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
-  ];
-
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      console.log("🧭 Using LibreOffice binary at:", p);
-      return p;
-    }
-  }
-
-  throw new Error("LibreOffice not found in any known location.");
+  const p = process.platform;
+  if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
+  if (p === "darwin") return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
+  return "/usr/bin/soffice";
 }
-
-
 
 /* ---------- Render DOCX ---------- */
 async function renderDocxBuffer(templateBuffer, data) {
@@ -100,7 +86,7 @@ async function normalizeDocx(buffer) {
 
 
 
-/* ---------- DOCX → PDF Conversion (stable headless LibreOffice 25.2) ---------- */
+/* ---------- DOCX → PDF Conversion (LibreOffice headless, stable) ---------- */
 async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
   const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
@@ -132,7 +118,7 @@ async function docxToPdfBytes(payload) {
     hasDiscount,
   });
 
-  // ✅ Choose the correct template file
+  // Choose the correct template file
   let templateFile;
   if (hasDiscount) {
     templateFile = isUSD
@@ -149,13 +135,13 @@ async function docxToPdfBytes(payload) {
     throw new Error(`Template not found at ${templatePath}`);
   console.log("📄 [Preview PDF] Using template:", templateFile);
 
-  // ✅ Render and normalize DOCX
+  // Render DOCX and normalize its XML
   const templateBuffer = fs.readFileSync(templatePath);
   const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
   console.log("🧩 Normalizing DOCX XML before PDF conversion...");
   const normalizedBuffer = await normalizeDocx(renderedBuffer);
 
-  // ✅ Save to temporary file
+  // Save to temporary location
   const tmpDir = path.join(process.cwd(), "tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
 
@@ -166,39 +152,23 @@ async function docxToPdfBytes(payload) {
   const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
-const execOptions = {
-  cwd: tmpDir,
-  env: {
-    ...process.env,
-    PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
-    UNO_PATH: "/opt/libreoffice25.2/program",
-    PYTHONPATH: "/opt/libreoffice25.2/program:/opt/libreoffice25.2/program/python-core-3.10.18/lib",
-    LD_LIBRARY_PATH: "/opt/libreoffice25.2/program:/usr/lib64",
-    URE_BOOTSTRAP: "vnd.sun.star.pathname:/opt/libreoffice25.2/program/fundamentalrc",
-    HOME: "/tmp",
-    LANG: "en_US.UTF-8",
-    LC_ALL: "en_US.UTF-8",
-    XDG_RUNTIME_DIR: "/tmp",
-    XDG_CONFIG_HOME: "/tmp",
-    XDG_CACHE_HOME: "/tmp",
-    SAL_USE_VCLPLUGIN: "headless",
-    SAL_DISABLE_OPENCL: "true",
-  },
-};
+  /* ✅ Convert using LibreOffice directly (no unoconv, no python) */
+  await execFileAsync(soffice, [
+    "--headless",
+    "--convert-to",
+    "pdf:writer_pdf_Export",
+    "--outdir",
+    tmpDir,
+    tmpDocx,
+  ]);
 
 
-  // ✅ Multiple filters for maximum compatibility
- // ✅ Multiple filters for maximum compatibility
+
+  // Try multiple filters to ensure compatibility across LibreOffice versions
 const convertCommands = [
-  ["--headless", "--invisible", "--norestore", "--nodefault",
-   "--nolockcheck", "--nofirststartwizard",
-   "--convert-to", "pdf:writer_pdf_Export", tmpDocx],
-  ["--headless", "--invisible", "--norestore", "--nodefault",
-   "--nolockcheck", "--nofirststartwizard",
-   "--convert-to", "pdf:impress_pdf_Export", tmpDocx],
-  ["--headless", "--invisible", "--norestore", "--nodefault",
-   "--nolockcheck", "--nofirststartwizard",
-   "--convert-to", "pdf", tmpDocx],
+  ["--headless", "--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir, tmpDocx],
+  ["--headless", "--convert-to", "pdf:impress_pdf_Export", "--outdir", tmpDir, tmpDocx],
+  ["--headless", "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
 ];
 
 let converted = false;
@@ -206,35 +176,10 @@ let converted = false;
 for (const args of convertCommands) {
   try {
     console.log("🧩 Trying conversion with args:", args.join(" "));
-
-    // 🧠 Create isolated user profile for LibreOffice
-    const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), "lo-profile-"));
-    const profileArgs = [
-      `--env:UserInstallation=file://${tmpProfile}`,
-      `--outdir=${tmpDir}`,
-    ];
-
-    // 🧠 Explicitly set working directory to tmpDir
-    const execOptionsWithCwd = { ...execOptions, cwd: tmpDir };
-
-    const pdfPath = path.join(
-      tmpDir,
-      path.basename(tmpDocx).replace(/\.docx$/, ".pdf")
-    );
-
-    await execFileAsync(soffice, [...profileArgs, ...args], execOptionsWithCwd);
-
-    // Allow a tiny delay for filesystem sync
-    await new Promise((r) => setTimeout(r, 800));
-
-    if (fs.existsSync(pdfPath) && fs.statSync(pdfPath).size > 1000) {
-      console.log("✅ PDF generated successfully:", pdfPath);
+    await execFileAsync(soffice, args);
+    if (fs.existsSync(outPdf)) {
       converted = true;
-      fs.rmSync(tmpProfile, { recursive: true, force: true });
       break;
-    } else {
-      console.warn("⚠️ LibreOffice did not output file:", pdfPath);
-      fs.rmSync(tmpProfile, { recursive: true, force: true });
     }
   } catch (e) {
     console.warn("⚠️ Conversion attempt failed:", e.message);
@@ -245,14 +190,12 @@ if (!converted) {
   throw new Error(`LibreOffice failed to generate PDF from ${tmpDocx}`);
 }
 
-const pdfPath = path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf"));
-const pdfBytes = fs.readFileSync(pdfPath);
-console.log("✅ PDF conversion complete:", pdfPath);
+const pdfBytes = fs.readFileSync(outPdf);
+console.log("✅ PDF generated successfully:", outPdf);
 
 
   return pdfBytes;
 }
-
 
 /* ---------- Internal Base ---------- */
 function getInternalBase(req) {
