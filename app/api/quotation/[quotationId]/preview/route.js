@@ -166,19 +166,23 @@ async function docxToPdfBytes(payload) {
   const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
-  const execOptions = {
-    env: {
-      ...process.env,
-      PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
-      UNO_PATH: "/opt/libreoffice25.2/program",
-      PYTHONPATH: "/opt/libreoffice25.2/program",
-      HOME: "/tmp",
-      XDG_RUNTIME_DIR: "/tmp",
-      XDG_CONFIG_HOME: "/tmp",
-      XDG_CACHE_HOME: "/tmp",
-      SAL_USE_VCLPLUGIN: "headless",
-    },
-  };
+const execOptions = {
+  cwd: tmpDir, // ensure working directory is writable
+  env: {
+    ...process.env,
+    PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
+    UNO_PATH: "/opt/libreoffice25.2/program",
+    PYTHONPATH: "/opt/libreoffice25.2/program",
+    LD_LIBRARY_PATH: "/opt/libreoffice25.2/program",
+    URE_BOOTSTRAP: "vnd.sun.star.pathname:/opt/libreoffice25.2/program/fundamentalrc",
+    HOME: "/tmp",
+    XDG_RUNTIME_DIR: "/tmp",
+    XDG_CONFIG_HOME: "/tmp",
+    XDG_CACHE_HOME: "/tmp",
+    SAL_USE_VCLPLUGIN: "headless",
+  },
+};
+
 
   // ✅ Multiple filters for maximum compatibility
  // ✅ Multiple filters for maximum compatibility
