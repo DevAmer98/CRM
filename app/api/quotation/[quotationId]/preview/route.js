@@ -37,7 +37,7 @@ async function renderDocxBuffer(templateBuffer, data) {
   }
 }
 
-
+/*
 async function normalizeDocx(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   let xml = await zip.file("word/document.xml").async("string");
@@ -54,6 +54,25 @@ async function normalizeDocx(buffer) {
   return zip.generateAsync({ type: "nodebuffer" });
 }
 
+*/
+
+
+async function normalizeDocx(buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  let xml = await zip.file("word/document.xml").async("string");
+
+  xml = xml
+    .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
+    .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
+    .replace(/<w:r><w:t xml:space="preserve"\/><\/w:r>/g, "")
+    .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
+    .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
+    // ✅ force normal inline overlap mode
+    .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
+
+  zip.file("word/document.xml", xml);
+  return zip.generateAsync({ type: "nodebuffer" });
+}
 
 
 
