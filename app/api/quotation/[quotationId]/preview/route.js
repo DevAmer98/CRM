@@ -16,11 +16,25 @@ const execFileAsync = promisify(execFile);
 
 /* ---------- Detect LibreOffice ---------- */
 function getLibreOfficePath() {
-  const p = process.platform;
-  if (p === "win32") return "C:\\Program Files\\LibreOffice\\program\\soffice.exe";
-  if (p === "darwin") return "/Applications/LibreOffice.app/Contents/MacOS/soffice";
-  return "/usr/bin/soffice";
+  const possiblePaths = [
+    "/opt/libreoffice25.2/program/soffice", // ✅ your installed version
+    "/usr/bin/soffice",
+    "/usr/local/bin/soffice",
+    "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      console.log("🧭 Using LibreOffice binary at:", p);
+      return p;
+    }
+  }
+
+  throw new Error("LibreOffice not found in any known location.");
 }
+
+
 
 /* ---------- Render DOCX ---------- */
 async function renderDocxBuffer(templateBuffer, data) {
