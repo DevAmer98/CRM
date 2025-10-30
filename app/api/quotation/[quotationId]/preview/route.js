@@ -49,34 +49,24 @@ async function normalizeDocx(buffer) {
   for (const f of files) {
     let xml = await zip.file(f).async("string");
 
-    // ✅ 1. Allow table rows to split (fixes page push)
+    // ✅ 1. Table normalization
     xml = xml
-      .replace(/<w:cantSplit[^>]*>/g, "")
-      .replace(/<w:tr(?![^>]*w:cantSplit)/g, '<w:tr w:cantSplit="false"')
-      .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>');
-
-    // ✅ 2. Remove floating & wrapping table positioning
-    xml = xml.replace(/<w:tblpPr[\s\S]*?<\/w:tblpPr>/g, "");
-
-    // ✅ 3. Normalize table look & overlap behavior
-    xml = xml
+      .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
+      .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
+      .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
       .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
       .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
 
-    // ✅ 4. Remove “keep-with-next” *only when directly before tables*
+    // ✅ 2. Remove "keep-with-next" only before tables
     xml = xml.replace(
       /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
-      (match, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
+      (match, para, tbl) => {
+        return para.replace(/<w:keepNext\/>/g, "") + tbl;
+      }
     );
 
-    // ✅ 5. Also remove “keepLines” to prevent grouping with next block
-    xml = xml.replace(/<w:keepLines\/>/g, "");
-
-    // ✅ 6. Remove truly empty paragraphs (avoid extra white space)
-    xml = xml.replace(/<w:p(?: [^>]*)?>\s*(?:<w:pPr>[\s\S]*?<\/w:pPr>)?\s*<\/w:p>/g, "");
-
-    // ✅ 7. Prevent extra margin between title and table (clean up multiple <w:p> between them)
-    xml = xml.replace(/(<w:p[^>]*>[\s\S]*?<\/w:p>)(\s*<w:p>\s*<\/w:p>)+(\s*<w:tbl)/g, "$1$3");
+    // ✅ 3. Remove empty paragraphs that create margin
+    xml = xml.replace(/<w:p>\s*<\/w:p>/g, "");
 
     zip.file(f, xml);
   }
