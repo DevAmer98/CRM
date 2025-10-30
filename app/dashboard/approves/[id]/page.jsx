@@ -93,6 +93,7 @@ function cleanHTML(input = "") {
 
 
   // ---------- Wrap long text ----------
+  /*
  function wrapDesc(text, maxLen = 40) {
   if (!text) return ["—"];
 
@@ -117,6 +118,44 @@ function cleanHTML(input = "") {
 
   return out.length ? out : ["—"];
 }
+
+*/
+
+
+function wrapDesc(text, maxLen = 40) {
+  if (!text) return ["—"];
+
+  const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
+  const firstPass = normalized
+    .split(/\n+/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const out = [];
+
+  for (const chunk of firstPass) {
+    let s = chunk;
+    while (s.length > maxLen) {
+      let cut = s.lastIndexOf(" ", maxLen);
+      if (cut < Math.floor(maxLen * 0.6)) cut = maxLen;
+
+      // ✨ remove trailing punctuation before pushing
+      let part = s.slice(0, cut).replace(/[.,]+$/g, "").trim();
+      out.push(part.toUpperCase());
+
+      s = s.slice(cut).trim();
+    }
+
+    if (s) {
+      let cleanTail = s.replace(/[.,]+$/g, "").trim();
+      out.push(cleanTail.toUpperCase());
+    }
+  }
+
+  return out.length ? out : ["—"];
+}
+
+
 
 
   // ---------- totals ----------
