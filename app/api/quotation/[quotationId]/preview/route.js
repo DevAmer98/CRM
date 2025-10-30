@@ -55,6 +55,7 @@ async function normalizeDocx(buffer) {
 }
 
 /* ---------- DOCX → PDF Conversion ---------- */
+/*
 async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
   const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
@@ -139,6 +140,108 @@ async function docxToPdfBytes(payload) {
 
   return pdfBytes;
 }
+
+*/
+
+
+/* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
+async function docxToPdfBytes(payload) {
+  const isUSD = payload?.Currency === "USD";
+  const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
+
+  const discountPer =
+    num(payload?.discount_per) ||
+    num(payload?.DiscountPer) ||
+    num(payload?.TotalDiscountPct);
+  const discountAmount =
+    num(payload?.discount_amount) || num(payload?.DiscountAmount);
+  const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
+  const subtotalAfter =
+    num(payload?.total_after) || num(payload?.SubtotalAfterTotalDiscount);
+  const totalPrice = num(payload?.TotalPrice) || num(payload?.totalPrice);
+
+  const hasDiscount =
+    discountPer > 0 ||
+    discountAmount > 0 ||
+    (subtotalAfter > 0 && subtotalAfter < subtotal) ||
+    (subtotalAfter > 0 && subtotalAfter < totalPrice);
+
+  console.log("🧾 [Preview PDF] Discount detection summary:");
+  console.table({
+    discountPer,
+    discountAmount,
+    subtotal,
+    subtotalAfter,
+    totalPrice,
+    hasDiscount,
+  });
+
+  // Choose the correct template file
+  let templateFile;
+  if (hasDiscount) {
+    templateFile = isUSD
+      ? "SVS_Quotation_Discount_USD.docx"
+      : "SVS_Quotation_Discount.docx";
+  } else {
+    templateFile = isUSD
+      ? "SVS_Quotation_NEW_USD.docx"
+      : "SVS_Quotation_NEW.docx";
+  }
+
+  const templatePath = path.join(process.cwd(), "templates", templateFile);
+  if (!fs.existsSync(templatePath))
+    throw new Error(`Template not found at ${templatePath}`);
+  console.log("📄 [Preview PDF] Using template:", templateFile);
+
+  // Render DOCX and normalize its XML
+  const templateBuffer = fs.readFileSync(templatePath);
+  const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
+  console.log("🧩 Normalizing DOCX XML before PDF conversion...");
+  const normalizedBuffer = await normalizeDocx(renderedBuffer);
+
+  // Save to temporary location
+  const tmpDir = path.join(process.cwd(), "tmp");
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
+  fs.writeFileSync(tmpDocx, normalizedBuffer);
+  console.log("🧩 Generated DOCX:", tmpDocx);
+
+  const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
+
+  /* ✅ Use LibreOffice 25.2 Python + unoconv */
+  const execOptions = {
+    env: {
+      ...process.env,
+      PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
+      UNO_PATH: "/opt/libreoffice25.2/program",
+      PYTHONPATH: "/opt/libreoffice25.2/program",
+    },
+  };
+
+  await execFileAsync(
+    "/opt/libreoffice25.2/program/python",
+    [
+      "/usr/bin/unoconv",
+      "--connection",
+      "socket,host=127.0.0.1,port=2002;urp;StarOffice.ComponentContext",
+      "-f",
+      "pdf",
+      tmpDocx,
+    ],
+    execOptions
+  );
+
+  const pdfBytes = fs.readFileSync(outPdf);
+  console.log("✅ PDF generated:", outPdf);
+
+  // Optional cleanup (keep for debugging)
+  // try { fs.unlinkSync(tmpDocx); } catch {}
+  // try { fs.unlinkSync(outPdf); } catch {}
+
+  return pdfBytes;
+}
+
 
 /* ---------- Internal Base ---------- */
 function getInternalBase(req) {
