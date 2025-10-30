@@ -79,6 +79,7 @@ async function normalizeDocx(buffer) {
 }
 
 
+
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
 async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
