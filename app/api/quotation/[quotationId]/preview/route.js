@@ -181,47 +181,53 @@ async function docxToPdfBytes(payload) {
   };
 
   // ✅ Multiple filters for maximum compatibility
-  const convertCommands = [
-    ["--headless", "--invisible", "--norestore", "--nodefault",
-     "--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir, tmpDocx],
-    ["--headless", "--invisible", "--norestore", "--nodefault",
-     "--convert-to", "pdf:impress_pdf_Export", "--outdir", tmpDir, tmpDocx],
-    ["--headless", "--invisible", "--norestore", "--nodefault",
-     "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
-  ];
+ const convertCommands = [
+  ["--headless", "--invisible", "--norestore", "--nodefault",
+   "--nolockcheck", "--nofirststartwizard",
+   "--convert-to", "pdf:writer_pdf_Export", "--outdir", tmpDir, tmpDocx],
+  ["--headless", "--invisible", "--norestore", "--nodefault",
+   "--nolockcheck", "--nofirststartwizard",
+   "--convert-to", "pdf:impress_pdf_Export", "--outdir", tmpDir, tmpDocx],
+  ["--headless", "--invisible", "--norestore", "--nodefault",
+   "--nolockcheck", "--nofirststartwizard",
+   "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
+];
 
-  let converted = false;
+let converted = false;
 
-  for (const args of convertCommands) {
-    try {
-      console.log("🧩 Trying conversion with args:", args.join(" "));
+for (const args of convertCommands) {
+  try {
+    console.log("🧩 Trying conversion with args:", args.join(" "));
 
-      // 🧠 Create unique LibreOffice profile to prevent lock/profile errors
-      const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), "lo-profile-"));
-      const profileArgs = ["--env:UserInstallation=file://" + tmpProfile];
+    // Create unique LibreOffice user profile
+    const tmpProfile = fs.mkdtempSync(path.join(os.tmpdir(), "lo-profile-"));
+    const profileArgs = ["--env:UserInstallation=file://" + tmpProfile];
 
-      await execFileAsync(soffice, [...profileArgs, ...args], execOptions);
+    // Ensure output file path is explicit (not relative)
+    const pdfPath = path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf"));
+    await execFileAsync(soffice, [...profileArgs, ...args], execOptions);
 
-      if (fs.existsSync(outPdf)) {
-        converted = true;
-        console.log("✅ PDF generated successfully:", outPdf);
-        fs.rmSync(tmpProfile, { recursive: true, force: true });
-        break;
-      } else {
-        console.warn("⚠️ No PDF found after this attempt");
-        fs.rmSync(tmpProfile, { recursive: true, force: true });
-      }
-    } catch (e) {
-      console.warn("⚠️ Conversion attempt failed:", e.message);
+    if (fs.existsSync(pdfPath)) {
+      console.log("✅ PDF generated successfully:", pdfPath);
+      converted = true;
+      fs.rmSync(tmpProfile, { recursive: true, force: true });
+      break;
+    } else {
+      console.warn("⚠️ LibreOffice did not output file:", pdfPath);
+      fs.rmSync(tmpProfile, { recursive: true, force: true });
     }
+  } catch (e) {
+    console.warn("⚠️ Conversion attempt failed:", e.message);
   }
+}
 
-  if (!converted) {
-    throw new Error(`LibreOffice failed to generate PDF from ${tmpDocx}`);
-  }
+if (!converted) {
+  throw new Error(`LibreOffice failed to generate PDF from ${tmpDocx}`);
+}
 
-  const pdfBytes = fs.readFileSync(outPdf);
-  console.log("✅ PDF conversion complete:", outPdf);
+const pdfBytes = fs.readFileSync(path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf")));
+console.log("✅ PDF conversion complete:", path.join(tmpDir, path.basename(tmpDocx).replace(/\.docx$/, ".pdf")));
+
 
   return pdfBytes;
 }
