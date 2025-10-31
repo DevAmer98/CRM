@@ -224,86 +224,6 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
         UnitPrice: formatCurrency(rowSubtotal),
       });
     });
-/*
-    const payload = {
-      renderMode: mode,
-      templateId: "quotation-v1",
-
-      QuotationNumber: formData.quotationId || "No Quotation ID",
-      ClientName: formData.clientName || "No Client Name",
-      CreatedAt: new Date(quotation.createdAt || Date.now()).toISOString().split("T")[0],
-      ProjectName: formData.projectName || "No Project Name",
-      ProjectLA: formData.projectLA || "No Project Location Address",
-      SaleName: quotation.sale?.name || "No Sales Representative Name",
-      ClientContactName: quotation.client?.contactName || "No Client Contact Name",
-      userName: quotation.user?.username || "No User Name",
-      ClientPhone: quotation.client?.phone || "No Client Phone",
-      UserPhone: quotation.sale?.phone || "No Sales Representative Phone",
-      UserEmail: quotation.sale?.email || "No Sales Representative Email",
-      UserAddress: quotation.sale?.address || "No Sales Representative Address",
-      ClientContactMobile: quotation.client?.contactMobile || "No Client Contact Mobile",
-      ClientEmail: quotation.client?.email || "No Client Email",
-      ClientAddress: quotation.client?.address || "No Client Address",
-
-      Currency: selectedCurrency,
-
-      
-      TotalPrice: formatCurrency(Subtotal), 
-      TotalDiscountPct: totalDiscountPct,   
-      SubtotalAfterTotalDiscount: formatCurrency(subtotalAfterTotalDiscount), 
-      VatRate: vatRate,
-      VatPrice: formatCurrency(VatPrice),
-      NetPrice: formatCurrency(NetPrice),   // Grand total
-
-      CurrencyWrap: cf.CurrencyWrap,
-      CurrencyNote: cf.CurrencyNote,
-      CurrencySymbol: cf.CurrencySymbol,
-      IsSAR: cf.isSAR,
-      IsUSD: !cf.isSAR,
-
-
-
-TotalAfter: formatCurrency(subtotalAfterTotalDiscount),
-
-discountPer:
-  totalDiscountPct > 0 ? `${clampPct(totalDiscountPct)}%` : "0%",
-discountAmount:
-  totalDiscountPct > 0
-    ? formatCurrency(Subtotal - subtotalAfterTotalDiscount)
-    : formatCurrency(0),
-
-
-
-      ValidityPeriod: formData.validityPeriod || "No Validity Preiod",
-      PaymentTerm: formData.paymentTerm || "No Payment Term",
-      PaymentDelivery: formData.paymentDelivery || "No Delivery Term",
-      Note: formData.note || "No Note",
-      Excluding: formData.excluding || "No Exclusions",
-
-      Sections,
-    };
-
-    // DEBUG
-    console.groupCollapsed("[DOC DATA] buildDocumentData() – Sections");
-    payload.Sections.forEach((s, i) => {
-      console.log(`Section ${i + 1} Title:`, s.Title || "(no title)");
-      console.table(
-        s.Items.map((p) => ({
-          Number: p.Number,
-          Code: p.ProductCode,
-          Qty: p.Qty,
-          Unit: p.Unit,
-          Subtotal: p.UnitPrice,
-          Lines: Array.isArray(p.DescriptionRich) ? p.DescriptionRich.length : 0,
-        }))
-      );
-    });
-    console.groupEnd();
-
-    return payload;
-  };
-*/
-
 
 const payload = {
   renderMode: mode,
@@ -530,34 +450,7 @@ return payload;
 
 
 
-/*
-  const handleRowInputChange = (index, fieldName, value) => {
-    const numericFields = ["qty", "unit", "discount"];
-    const clean =
-      numericFields.includes(fieldName) ? String(value).replace(/[^\d.]/g, "") : value;
 
-    setRows((prev) =>
-      prev.map((row, i) => {
-        if (i !== index) return row;
-        const next = { ...row, [fieldName]: clean };
-
-        // recompute unitPrice = qty * unit * (1 - discount/100)
-        const qty = Number(fieldName === "qty" ? clean : row.qty || 0);
-        const unit = Number(fieldName === "unit" ? clean : row.unit || 0);
-        const disc =
-          fieldName === "discount"
-            ? clampPct(clean)
-            : clampPct(row.discount);
-
-        const base = (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unit) ? unit : 0);
-        next.unitPrice = base * (1 - disc / 100);
-        next.discount = disc; // ensure clamped if they edited discount
-
-        return next;
-      })
-    );
-  };
-*/
   const handleTitleChange = (index, value) => {
     setRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, titleAbove: value } : row))

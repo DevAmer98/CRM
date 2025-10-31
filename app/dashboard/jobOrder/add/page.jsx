@@ -124,12 +124,23 @@ const AddJobOrderPage = () => {
 
             <div>
               <label>Quotation</label>
-              <select value={selectedQuotation} onChange={handleQuotationChange} disabled={!selectedClient}>
-                <option value="">Select Quotation</option>
-                {selectedClientData?.quotations.map(quotation => (
-                  <option key={quotation._id} value={quotation._id}>{quotation.projectName}</option>
-                ))}
-              </select>
+             <select
+  value={selectedQuotation}
+  onChange={handleQuotationChange}
+  disabled={!selectedClient}
+>
+  <option value="">Select Quotation</option>
+  {selectedClientData?.quotations.map(quotation => (
+    <option key={quotation._id} value={quotation._id}>
+      {quotation.quotationId
+        ? quotation.projectName
+          ? `${quotation.quotationId} (${quotation.projectName})`
+          : quotation.quotationId
+        : quotation.projectName || "Unnamed Quotation"}
+    </option>
+  ))}
+</select>
+
             </div>
           </div>
 
@@ -201,7 +212,7 @@ const AddJobOrderPage = () => {
                 {quotationProducts.map((product, index) => (
                   <tr key={index}>
                     <td>{product.productCode || '-'}</td>
-                    <td>{product.description || '-'}</td>
+<td dangerouslySetInnerHTML={{ __html: product.description || '-' }} />
                     <td>{product.qty || 0}</td>
                   </tr>
                 ))}

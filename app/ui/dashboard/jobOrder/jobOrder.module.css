@@ -15,6 +15,15 @@
   margin-top: 10px;
 }
 
+.productTable td {
+  white-space: pre-wrap;     /* keeps line breaks and wraps text */
+  word-wrap: break-word;     /* ensures long words wrap too */
+  overflow-wrap: anywhere;   /* modern fallback for long strings */
+  vertical-align: top;       /* align content to top for readability */
+  max-width: 400px;          /* optional: limit column width */
+}
+
+
 .productTable th,
 .productTable td {
   border: 1px solid #ccc;
