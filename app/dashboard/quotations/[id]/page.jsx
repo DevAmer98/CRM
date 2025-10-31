@@ -356,9 +356,10 @@ const payload = {
   ValidityPeriod: (formData.validityPeriod || "No Validity Period").toUpperCase(),
   PaymentTerm: (formData.paymentTerm || "No Payment Term").toUpperCase(),
   PaymentDelivery: (formData.paymentDelivery || "No Delivery Term").toUpperCase(),
-  Note: (formData.note || "No Note").toUpperCase(),
-  Warranty: (formData.warranty || "No Warranty").toUpperCase(),
-  Excluding: (formData.excluding || "No Exclusions").toUpperCase(),
+  Note: formData.note && formData.note.trim() !== "" ? formData.note.toUpperCase() : undefined,
+  Warranty: formData.warranty && formData.warranty.trim() !== "" ? formData.warranty.toUpperCase() : undefined,
+  Excluding: formData.excluding && formData.excluding.trim() !== "" ? formData.excluding.toUpperCase() : undefined,
+
 
   Sections,
 };
