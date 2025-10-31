@@ -83,7 +83,130 @@ async function normalizeDocx(buffer) {
 }
 
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
+
 async function docxToPdfBytes(payload) {
+  const isUSD = payload?.Currency === "USD";
+  const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
+
+  const discountPer =
+    num(payload?.discount_per) ||
+    num(payload?.DiscountPer) ||
+    num(payload?.TotalDiscountPct);
+  const discountAmount =
+    num(payload?.discount_amount) || num(payload?.DiscountAmount);
+  const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
+  const subtotalAfter =
+    num(payload?.total_after) || num(payload?.SubtotalAfterTotalDiscount);
+  const totalPrice = num(payload?.TotalPrice) || num(payload?.totalPrice);
+
+  const hasDiscount =
+    discountPer > 0 ||
+    discountAmount > 0 ||
+    (subtotalAfter > 0 && subtotalAfter < subtotal) ||
+    (subtotalAfter > 0 && subtotalAfter < totalPrice);
+
+  console.log("🧾 [Preview PDF] Discount detection summary:");
+  console.table({
+    discountPer,
+    discountAmount,
+    subtotal,
+    subtotalAfter,
+    totalPrice,
+    hasDiscount,
+  });
+
+  // ✅ Choose the correct template
+  let templateFile;
+  if (hasDiscount) {
+    templateFile = isUSD
+      ? "SVS_Quotation_Discount_USD.docx"
+      : "SVS_Quotation_Discount.docx";
+  } else {
+    templateFile = isUSD
+      ? "SVS_Quotation_NEW_USD.docx"
+      : "SVS_Quotation_NEW.docx";
+  }
+
+  const templatePath = path.join(process.cwd(), "templates", templateFile);
+  if (!fs.existsSync(templatePath))
+    throw new Error(`Template not found: ${templatePath}`);
+
+  const templateBuffer = fs.readFileSync(templatePath);
+  const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
+  const normalizedBuffer = await normalizeDocx(renderedBuffer);
+
+  // ✅ Create isolated temp directory
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "quotation-"));
+  const tmpDocx = path.join(tmpDir, "quotation.docx");
+  const outPdf = path.join(tmpDir, "quotation.pdf");
+
+  fs.writeFileSync(tmpDocx, normalizedBuffer);
+  console.log("🧩 Temporary DOCX created:", tmpDocx);
+
+  /* 🧠 LibreOffice runtime env */
+  const execOptions = {
+    cwd: tmpDir,
+    env: {
+      ...process.env,
+      PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
+      UNO_PATH: "/opt/libreoffice25.2/program",
+      PYTHONPATH: "/opt/libreoffice25.2/program",
+      LD_LIBRARY_PATH: "/opt/libreoffice25.2/program:/usr/lib64",
+      URE_BOOTSTRAP: "vnd.sun.star.pathname:/opt/libreoffice25.2/program/fundamentalrc",
+      HOME: "/tmp",
+      LANG: "en_US.UTF-8",
+      LC_ALL: "en_US.UTF-8",
+      XDG_RUNTIME_DIR: "/tmp",
+      XDG_CONFIG_HOME: "/tmp",
+      XDG_CACHE_HOME: "/tmp",
+      SAL_USE_VCLPLUGIN: "headless",
+      SAL_DISABLE_OPENCL: "true",
+    },
+  };
+
+  const soffice = "/opt/libreoffice25.2/program/soffice";
+
+  const convertCommands = [
+    ["--headless", "--invisible", "--norestore", "--nodefault",
+     "--nolockcheck", "--nofirststartwizard",
+     "--convert-to", "pdf:writer_pdf_Export", tmpDocx],
+    ["--headless", "--invisible", "--norestore", "--nodefault",
+     "--nolockcheck", "--nofirststartwizard",
+     "--convert-to", "pdf", tmpDocx],
+  ];
+
+  let converted = false;
+
+  for (const args of convertCommands) {
+    try {
+      console.log("🧩 Trying conversion:", args.join(" "));
+      await execFileAsync(soffice, args, execOptions);
+
+      if (fs.existsSync(outPdf) && fs.statSync(outPdf).size > 0) {
+        converted = true;
+        console.log("✅ PDF generated successfully:", outPdf);
+        break;
+      }
+    } catch (err) {
+      console.warn("⚠️ Conversion failed:", err.message);
+    }
+  }
+
+  if (!converted) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    throw new Error("LibreOffice failed to generate PDF");
+  }
+
+  const pdfBytes = fs.readFileSync(outPdf);
+  fs.rmSync(tmpDir, { recursive: true, force: true }); // 🔥 Clean up
+
+  console.log("🧹 Temporary files removed");
+  return pdfBytes;
+}
+
+
+
+/*async function docxToPdfBytes(payload) {
   const isUSD = payload?.Currency === "USD";
   const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
 
@@ -175,6 +298,7 @@ async function docxToPdfBytes(payload) {
 
   return pdfBytes;
 }
+*/
 
 /* ---------- Internal Base ---------- */
 function getInternalBase(req) {
