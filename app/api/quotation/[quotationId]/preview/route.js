@@ -190,6 +190,7 @@ function getInternalBase(req) {
 }
 
 /* ---------- Clean Up Sections ---------- */
+/*
 function sanitizeSections(payload) {
   if (!Array.isArray(payload.Sections)) return payload;
 
@@ -216,6 +217,33 @@ function sanitizeSections(payload) {
 
   return payload;
 }
+*/
+
+
+function sanitizeSections(payload) {
+  if (!Array.isArray(payload.Sections)) return payload;
+
+  payload.Sections = payload.Sections.filter(
+    (s) => (s.Title && s.Title.trim() !== "") || (s.Items && s.Items.length > 0)
+  );
+
+  payload.Sections = payload.Sections.map((section) => {
+    const hasTitle = section?.Title && section.Title.trim() !== "";
+
+    if (!hasTitle) {
+      // Ensure Docxtemplater does not render the title block
+      delete section.Title;
+      delete section.TitleRow;
+    } else {
+      section.TitleRow = section.Title.trim();
+    }
+
+    return section;
+  });
+
+  return payload;
+}
+
 
 /* ---------- GET ---------- */
 export async function GET(req, { params }) {
