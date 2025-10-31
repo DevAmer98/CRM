@@ -270,7 +270,6 @@ async function docxToPdfBytes(payload) {
 
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");
 
-  /* ✅ Use LibreOffice 25.2 Python + unoconv */
   const execOptions = {
     env: {
       ...process.env,
