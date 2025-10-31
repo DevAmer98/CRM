@@ -1,5 +1,3 @@
-
-
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -60,21 +58,29 @@ async function normalizeDocx(buffer) {
     // ✅ 2. Remove "keep-with-next" only before tables
     xml = xml.replace(
       /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
-      (match, para, tbl) => {
-        return para.replace(/<w:keepNext\/>/g, "") + tbl;
-      }
+      (match, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
     );
 
     // ✅ 3. Remove empty paragraphs that create margin
     xml = xml.replace(/<w:p>\s*<\/w:p>/g, "");
+
+    // ✅ 4. Remove unwanted page-break / keep-together before tables
+    xml = xml.replace(
+      /<w:pPr>[\s\S]*?(<w:keepNext\/>|<w:pageBreakBefore\/>)[\s\S]*?<\/w:pPr>(\s*<w:tbl)/g,
+      (match, pPr, tbl) =>
+        pPr
+          .replace(/<w:keepNext\/>/g, "")
+          .replace(/<w:pageBreakBefore\/>/g, "") + tbl
+    );
+
+    // ✅ 5. Allow tables to split normally across pages
+    xml = xml.replace(/<w:cantSplit w:val="1"\/>/g, '<w:cantSplit w:val="0"/>');
 
     zip.file(f, xml);
   }
 
   return zip.generateAsync({ type: "nodebuffer" });
 }
-
-
 
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
 async function docxToPdfBytes(payload) {
@@ -278,5 +284,3 @@ function pdfHeaders(filename) {
     "Cross-Origin-Resource-Policy": "same-origin",
   };
 }
-
-
