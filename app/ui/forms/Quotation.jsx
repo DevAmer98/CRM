@@ -105,6 +105,17 @@ const AddQuotation = () => {
 }
 
 
+const cleanQuillHtml = (html) => {
+  if (!html) return ''
+  return html
+    .replace(/&nbsp;/g, ' ')       // convert &nbsp; to normal space
+    .replace(/\s+/g, ' ')          // collapse multiple spaces
+    .replace(/<p><br><\/p>/g, '')  // remove empty paragraphs
+    .replace(/<p>/g, '<p>')        // keep paragraph structure
+    .trim()
+}
+
+
   const addRow = () => {
     setRows((prev) => [
       ...prev,
@@ -486,11 +497,15 @@ const AddQuotation = () => {
             <ReactQuill theme="snow" value={richDescValue} onChange={setRichDescValue} />
             <div style={{ marginTop: 16, textAlign: 'right' }}>
               <button onClick={() => setIsDescPopupOpen(false)} style={{ marginRight: 8 }}>Cancel</button>
-              <button
-                onClick={() => {
-                  if (activeDescIndex !== null) handleRowInputChange(activeDescIndex, 'description', richDescValue)
-                  setIsDescPopupOpen(false)
-                }}
+            <button
+  onClick={() => {
+    if (activeDescIndex !== null) {
+      const cleaned = cleanQuillHtml(richDescValue)
+      handleRowInputChange(activeDescIndex, 'description', cleaned)
+    }
+    setIsDescPopupOpen(false)
+  }}
+
                 style={{ background: '#2563eb', color: '#fff', padding: '6px 12px', borderRadius: 4 }}
               >
                 Save
