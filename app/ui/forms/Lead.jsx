@@ -26,7 +26,6 @@ const leadSchema = z.object({
   status: z.enum(['Pending', 'Contacted', 'In Progress', 'Qualified', 'Won', 'Lost']),
   currency: z.enum(['SAR', 'USD']),
   leadValue: z.number().min(0, 'Lead value must be zero or higher'),
-  products: z.array(z.string().trim().min(1)).optional(),
   note: z.string().optional(),
   companyName: z.string().trim().optional(),
   website: z.string().trim().optional(),
@@ -346,38 +345,7 @@ const AddLeadForm = () => {
             </div>
           </div>
 
-          <div className={styles.field}>
-            <label className={styles.label}>Products</label>
-            <div className={styles.productList}>
-              {products.map((product, index) => (
-                <div className={styles.productRow} key={product.id}>
-                  <input
-                    className={`${styles.input} ${styles.productInput}`}
-                    type="text"
-                    placeholder="Select or type product"
-                    value={product.value}
-                    onChange={(event) => handleProductChange(index, event.target.value)}
-                  />
-                  {products.length > 1 && (
-                    <button
-                      type="button"
-                      className={styles.removeProduct}
-                      onClick={() => removeProductField(index)}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                className={styles.addProduct}
-                onClick={addProductField}
-              >
-                + Add Product
-              </button>
-            </div>
-          </div>
+        
 
           <div className={styles.field}>
             <label className={styles.label}>Note</label>

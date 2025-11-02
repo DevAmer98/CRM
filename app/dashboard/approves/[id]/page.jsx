@@ -343,7 +343,7 @@ function wrapDesc(text, maxLen = 40) {
 
   // ---------- document builder ----------
   const buildDocumentData = () => {
-    const adminName =
+    const adminName = 
       users?.find((u) => u._id === formData.user)?.username || "N/A";
     const data = buildQuotationPayload(quotation, selectedCurrency, adminName);
 
