@@ -265,7 +265,7 @@ const menuItems = [
         title: "Job Order", 
         path: "/dashboard/jobOrder", 
         icon: <Shuffle />, 
-        roles: [ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER] 
+        roles: [ROLES.DASHBOARD_ADMIN,ROLES.SALES_USER, ROLES.SALES_ADMIN] 
       },
       { 
         title: "PL&CoC", 
