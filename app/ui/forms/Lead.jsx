@@ -34,9 +34,9 @@ const leadSchema = z.object({
 });
 
 const salutationOptions = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.'];
-const statusOptions = ['Pending', 'Contacted', 'In Progress', 'Qualified', 'Won', 'Lost'];
+const statusOptions = ['Pending', 'Contacted', 'In Progress', 'Qualified', 'Won', 'Lost','Opportunity'];
 const sourceOptions = ['Referral', 'Website', 'Email Campaign', 'Phone Inquiry', 'Walk-in'];
-const categoryOptions = ['Product', 'Service', 'Consulting', 'Maintenance'];
+const categoryOptions = ['Supply','Apply','Supply & Apply'];
 const currencyOptions = ['SAR', 'USD'];
 
 const AddLeadForm = () => {
