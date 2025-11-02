@@ -4,7 +4,9 @@ import MenuLinks from "./menuLinks/menuLinks";
 import styles from "./sidebar.module.css";
 import { signOut } from "next-auth/react";
 import { ROLES } from '@/app/lib/role';
-import { BriefcaseBusiness, Check, CircleUserRound, DollarSign, FileBadge, FileBox, FileCheck, FileClock, Handshake, LayoutDashboard, ListChecks, LogOut, PackageCheck, ShieldCheck, Shuffle, TicketCheck, UsersRound } from 'lucide-react';
+import { BriefcaseBusiness, Check, CircleUserRound, DollarSign, FileBadge, FileBox, FileChartColumnIncreasing, FileCheck, FileClock, Handshake, LayoutDashboard, ListChecks, LogOut, PackageCheck, ShieldCheck, Shuffle, TicketCheck, UsersRound } from 'lucide-react';
+
+
 
 const menuItems = [
   {
@@ -156,7 +158,7 @@ const menuItems = [
        { 
         title: "Leads", 
         path: "/dashboard/quotations/leads", 
-        icon: <FileClock />, 
+        icon: <FileChartColumnIncreasing />, 
         roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN] 
       },
        { 
