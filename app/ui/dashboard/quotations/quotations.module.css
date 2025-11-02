@@ -276,3 +276,123 @@
 .approved {
   background-color: green;
 }
+
+.companyPicker {
+  width: 100%;
+  min-height: calc(100vh - 140px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.companyPickerInner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.companyPickerTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.companyButtonGroup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.companyButton,
+.companyButton:link,
+.companyButton:visited {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 28px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 14px;
+  transition: color 0.3s ease;
+  overflow: hidden;
+}
+
+.companyButton::before,
+.companyButton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  transition: transform 0.3s ease, background 0.3s ease, opacity 0.3s ease;
+}
+
+.companyButton::before {
+  background: rgba(15, 23, 42, 0.9);
+  transform: translate(0, 0);
+}
+
+.companyButton::after {
+  width: 40px;
+  height: 40px;
+  background: rgba(148, 163, 184, 0.25);
+  top: auto;
+  left: auto;
+  bottom: -12px;
+  right: -12px;
+  transform: translate(0, 0);
+}
+
+.companyButton:hover::before {
+  transform: translate(6%, 14%);
+  background: rgba(37, 99, 235, 0.9);
+}
+
+.companyButton:hover::after {
+  transform: translate(-12px, -12px);
+  opacity: 0;
+}
+
+.companyButton:hover,
+.companyButton:focus-visible {
+  color: #ffffff;
+}
+
+.companyButtonActive,
+.companyButtonActive:hover {
+  color: #ffffff;
+}
+
+.companyButtonActive::before {
+  background: #2563eb;
+}
+
+.companyButtonActive::after {
+  opacity: 0;
+}
+
+.companySwitcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.companySwitcherLabel {
+  font-weight: 600;
+  color: var(--text);
+  min-width: 160px;
+}

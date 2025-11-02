@@ -1,3 +1,4 @@
+// quotation/form.jsx
 'use client'
 import styles from '@/app/ui/dashboard/approve/approve.module.css'
 import { addQuotation } from '@/app/lib/actions'
@@ -10,6 +11,10 @@ import dynamic from 'next/dynamic'
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
 import 'react-quill/dist/quill.snow.css'
 
+const COMPANY_OPTIONS = [
+  { value: 'SMART_VISION', label: 'Smart Vision' },
+  { value: 'ARABIC_LINE', label: 'ArabicLine' },
+];
 
 /* ---------------- Schema ---------------- */
 const productSchema = z.object({
@@ -37,6 +42,7 @@ const quotationSchema = z.object({
   currency: z.enum(['USD', 'SAR'], { message: 'Currency is required' }),
   totalDiscount: z.number().min(0).max(100).optional(),
   totalPrice: z.number().min(0, 'Total price must be 0 or higher'),
+  companyProfile: z.enum(['SMART_VISION', 'ARABIC_LINE']).default('SMART_VISION'),
 })
 
 /* ---------------- Component ---------------- */
@@ -58,6 +64,7 @@ const AddQuotation = () => {
   const [showNote, setShowNote] = useState(false);
   const [showWarranty, setShowWarranty] = useState(false);
   const [showExcluding, setShowExcluding] = useState(false);
+  const [companyProfile, setCompanyProfile] = useState('SMART_VISION');
 
 
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, '').trim()
@@ -86,6 +93,17 @@ const AddQuotation = () => {
   const handleRowInputChange = (index, field, value) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)))
   }
+
+
+
+  const decodeAndCleanHtml = (html) => {
+  if (!html) return ''
+  // Create a temporary element to decode HTML entities
+  const temp = document.createElement('div')
+  temp.innerHTML = html
+  return temp.innerHTML // keeps bold/italic tags but decodes entities
+}
+
 
   const addRow = () => {
     setRows((prev) => [
@@ -174,6 +192,7 @@ const AddQuotation = () => {
       currency: selectedCurrency,
       totalDiscount,
       totalPrice: totalWithVat,
+      companyProfile,
     }
 
     try {
@@ -224,6 +243,24 @@ const AddQuotation = () => {
         {/* --- Products --- */}
         <div className={styles.form2}>
           <p className={styles.title}>Products</p>
+          <div className={styles.brandToggle}>
+            <span className={styles.brandToggleLabel}>Select Company:</span>
+            <div className={styles.brandToggleButtons}>
+              {COMPANY_OPTIONS.map((option) => {
+                const isActive = companyProfile === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`${styles.brandToggleButton} ${isActive ? styles.brandToggleButtonActive : ''}`}
+                    onClick={() => setCompanyProfile(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className={styles.selectWrapper}>
             <label className={styles.selectLabel}>Select Currency:</label>
             <select
@@ -253,11 +290,36 @@ const AddQuotation = () => {
       <td>{r.number.toString().padStart(3, '0')}</td>
       <td><input className={styles.input1} value={r.productCode} onChange={(e) => handleRowInputChange(i, 'productCode', e.target.value)} /></td>
       <td>
-        <button type="button" className={styles.descButton}
-          onClick={() => { setActiveDescIndex(i); setRichDescValue(r.description || ''); setIsDescPopupOpen(true) }}>
-          <FaEdit style={{ marginRight: 6 }} />
-          {r.description ? stripHtml(r.description).slice(0, 35) + (stripHtml(r.description).length > 35 ? '...' : '') : 'Add Description'}
-        </button>
+      <button
+  type="button"
+  className={styles.descButton}
+  onClick={() => {
+    setActiveDescIndex(i)
+    setRichDescValue(r.description || '')
+    setIsDescPopupOpen(true)
+  }}
+>
+  <FaEdit style={{ marginRight: 6 }} />
+  {r.description ? (
+    <span
+      style={{
+        display: 'inline-block',
+        maxWidth: '200px',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        verticalAlign: 'middle',
+      }}
+      dangerouslySetInnerHTML={{
+        __html: decodeAndCleanHtml(r.description),
+      }}
+    />
+  ) : (
+    'Add Description'
+  )}
+</button>
+
+
       </td>
       <td><input type="number" className={styles.input1} value={r.qty} onChange={(e) => handleRowInputChange(i, 'qty', e.target.value)} /></td>
       <td><input type="number" className={styles.input1} value={r.unit} onChange={(e) => handleRowInputChange(i, 'unit', e.target.value)} /></td>

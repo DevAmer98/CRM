@@ -456,6 +456,12 @@ const quotationSchema = new Schema(
       default: 'unpaid',
     },
 
+    companyProfile: {
+      type: String,
+      enum: ['SMART_VISION', 'ARABIC_LINE'],
+      default: 'SMART_VISION',
+    },
+
     currency: {
       type: String,
       enum: ['USD', 'SAR'],
@@ -932,5 +938,4 @@ export const Department = mongoose.models.Department || mongoose.model("Departme
 
 
  
-
 

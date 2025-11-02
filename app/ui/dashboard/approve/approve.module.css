@@ -284,6 +284,62 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
   
+.brandToggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.brandToggleLabel {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.brandToggleButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 9999px;
+  padding: 4px;
+}
+
+.brandToggleButton,
+.brandToggleButton:link,
+.brandToggleButton:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  text-decoration: none;
+}
+
+.brandToggleButton:hover {
+  background: rgba(96, 165, 250, 0.15);
+  color: #ffffff;
+}
+
+.brandToggleButton:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.6);
+  outline-offset: 2px;
+  color: #ffffff;
+}
+
+.brandToggleButtonActive {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 0 0 1px #1d4ed8 inset;
+}
 
 
 
@@ -568,10 +624,6 @@
 .previewFrame { width:100%; height:75vh; border:0; }
 .previewFooter { display:flex; justify-content:flex-end; gap:8px; padding:10px 14px; border-top:1px solid #eee; }
 .previewLoading, .previewError { padding:16px; }
-
-
-
-
 
 
 

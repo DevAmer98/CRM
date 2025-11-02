@@ -654,13 +654,26 @@ export const fetchAllJobs = async () => {
 */
 
 
-export const fetchQuotations = async (quotationId, page = 1) => {
+export const fetchQuotations = async (quotationId, page = 1, companyProfile) => {
   const ITEM_PER_PAGE = 10;
-  let query = {};
+  const filters = [];
 
   if (quotationId) {
-    query.quotationId = { $regex: new RegExp(quotationId, "i") };
+    filters.push({ quotationId: { $regex: new RegExp(quotationId, "i") } });
   }
+  if (companyProfile && ["SMART_VISION", "ARABIC_LINE"].includes(companyProfile)) {
+    if (companyProfile === "SMART_VISION") {
+      filters.push({
+        $or: [
+          { companyProfile: { $exists: false } },
+          { companyProfile: "SMART_VISION" },
+        ],
+      });
+    } else {
+      filters.push({ companyProfile });
+    }
+  }
+  const query = filters.length ? { $and: filters } : {};
 
   try {
     await connectToDB();

@@ -7,6 +7,11 @@ import { editQuotation, updateQuotation } from "@/app/lib/actions";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
+const COMPANY_OPTIONS = [
+  { value: "SMART_VISION", label: "Smart Vision" },
+  { value: "ARABIC_LINE", label: "ArabicLine" },
+];
+
 const SingleQuotation = ({ params }) => {
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
   const [quotation, setQuotation] = useState(null);
@@ -31,6 +36,7 @@ const [richDescValue, setRichDescValue] = useState("");
         warranty: "",
     totalPrice: "",
     totalDiscount: 0, // NEW: subtotal discount %
+    companyProfile: "SMART_VISION",
   });
 
   // table rows + title toggles
@@ -109,6 +115,14 @@ const [richDescValue, setRichDescValue] = useState("");
     } = totals;
     const vatRate = selectedCurrency === "USD" ? 0 : 15;
     const cf = currencyFields(selectedCurrency);
+    const companyProfile = formData.companyProfile || "SMART_VISION";
+    const companyLabel =
+      COMPANY_OPTIONS.find((opt) => opt.value === companyProfile)?.label || "Smart Vision";
+    const templateIdMap = {
+      SMART_VISION: "quotation-v1",
+      ARABIC_LINE: "quotation-arabic-line",
+    };
+    const templateId = templateIdMap[companyProfile] || "quotation-v1";
 
 function cleanHTML(input = "") {
   if (!input) return "";
@@ -227,7 +241,7 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
 
 const payload = {
   renderMode: mode,
-  templateId: "quotation-v1",
+  templateId,
 
   QuotationNumber: (formData.quotationId || "No Quotation ID").toUpperCase(),
   AdminName: (formData.userName || "No Admin Name").toUpperCase(),
@@ -247,6 +261,9 @@ const payload = {
   ClientContactMobile: (quotation.client?.contactMobile || "No Client Contact Mobile").toUpperCase(),
   ClientEmail: (quotation.client?.email || "No Client Email").toUpperCase(),
   ClientAddress: (quotation.client?.address || "No Client Address").toUpperCase(),
+
+  CompanyProfile: companyProfile,
+  CompanyName: companyLabel.toUpperCase(),
 
   Currency: (selectedCurrency || "").toUpperCase(),
 
@@ -344,6 +361,7 @@ return payload;
       excluding: quotation.excluding || "",
       totalPrice: quotation.totalPrice || "",
       totalDiscount: Number(quotation.totalDiscount || 0), // NEW
+      companyProfile: quotation.companyProfile || "SMART_VISION",
     });
 
     setSelectedCurrency(quotation.currency || "USD");
@@ -459,6 +477,13 @@ return payload;
   };
 
   // ---------- simple form ops ----------
+
+  const handleCompanyChange = (value) => {
+    setFormData((prev) => ({
+      ...prev,
+      companyProfile: value,
+    }));
+  };
 
 
   const handleInputChange = (fieldName, value) => {
@@ -680,6 +705,27 @@ return payload;
         <div className={styles.container}>
           <div className={styles.form2}>
             <p className={styles.title}>Products</p>
+
+            <div className={styles.brandToggle}>
+              <span className={styles.brandToggleLabel}>Select Company:</span>
+              <div className={styles.brandToggleButtons}>
+                {COMPANY_OPTIONS.map((option) => {
+                  const isActive = (formData.companyProfile || "SMART_VISION") === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`${styles.brandToggleButton} ${
+                        isActive ? styles.brandToggleButtonActive : ""
+                      }`}
+                      onClick={() => handleCompanyChange(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className={styles.selectContainer}>
               <div className={styles.selectWrapper}>

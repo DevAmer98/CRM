@@ -1939,6 +1939,7 @@ export const addQuotation = async (formData) => {
     saleId, clientId, projectName, projectLA,
     products, paymentTerm, paymentDelivery, note,
     validityPeriod, excluding, totalPrice, currency,warranty,
+    companyProfile,
     // NEW: accept optional discount breakdowns
     totalDiscount,                 // NEW (% on subtotal)
     subtotal,                      // NEW
@@ -1984,6 +1985,7 @@ export const addQuotation = async (formData) => {
       warranty,
       totalPrice,
       currency,
+      companyProfile: companyProfile || undefined,
       quotationId: customQuotationId,
       revisionNumber: 0,
 
@@ -2007,6 +2009,7 @@ export const updateQuotation = async (formData) => {
     id, projectName, projectLA, products,
     paymentTerm, paymentDelivery, note, excluding,
     totalPrice, currency,warranty,validityPeriod,
+    companyProfile,
 
     // NEW: allow optional updates
     totalDiscount,                 // NEW
@@ -2045,6 +2048,7 @@ export const updateQuotation = async (formData) => {
       totalPrice,
       excluding,
       currency,   // keep if you allow editing currency
+      companyProfile,
       user: null, // force re-approval
 
       // NEW: persist if provided
@@ -2156,6 +2160,7 @@ export const editQuotation = async (formData) => {
     excluding,
     totalPrice,
     currency,
+    companyProfile,
 
     // NEW
     totalDiscount,                 
@@ -2183,6 +2188,7 @@ export const editQuotation = async (formData) => {
     if (currency !== undefined) quotation.currency = currency;
     if (totalPrice !== undefined) quotation.totalPrice = totalPrice;
     if (validityPeriod !== undefined) quotation.validityPeriod = validityPeriod;
+    if (companyProfile !== undefined) quotation.companyProfile = companyProfile;
 
     // Require re-approval after edit
     quotation.user = null;

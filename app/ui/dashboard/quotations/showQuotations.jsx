@@ -1,16 +1,41 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from '@/app/ui/dashboard/quotations/quotations.module.css';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 import DeleteQuotation from '../../deleteForms/Quotation';
 import Search from '@/app/ui/dashboard/search/search';
 import Pagination from '@/app/ui/dashboard/pagination/pagination';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-const ShowQuotations = ({ quotations, count }) => {
+const COMPANY_OPTIONS = [
+  { value: 'SMART_VISION', label: 'Smart Vision' },
+  { value: 'ARABIC_LINE', label: 'ArabicLine' },
+];
+
+const ShowQuotations = ({
+  quotations,
+  count,
+  activeCompany = 'SMART_VISION',
+  showCompanyToggle = true,
+  wrapContainer = true,
+}) => {
    const [localQuotations, setLocalQuotations] = useState(quotations);
     const [selectedIds, setSelectedIds] = useState([]);
+    const [companyFilter, setCompanyFilter] = useState(activeCompany);
+    const searchParams = useSearchParams();
+    const { replace } = useRouter();
+    const pathname = usePathname();
+
+   useEffect(() => {
+     setLocalQuotations(quotations);
+     setSelectedIds([]);
+   }, [quotations]);
+
+   useEffect(() => {
+     setCompanyFilter(activeCompany);
+   }, [activeCompany]);
 
    const handleExport = () => {
   const selectedQuotations = localQuotations.filter(quotation =>
@@ -96,8 +121,17 @@ const ShowQuotations = ({ quotations, count }) => {
   XLSX.writeFile(workbook, filename);
 };
 
-  return (
-    <div className={styles.container}>
+  const handleCompanyChange = (company) => {
+    if (company === companyFilter) return;
+    setCompanyFilter(company);
+    const params = new URLSearchParams(searchParams);
+    params.set('company', company);
+    params.set('page', '1');
+    replace(`${pathname}?${params.toString()}`);
+  };
+
+  const content = (
+    <>
       <div className={styles.top}>
         <Search placeholder="Search for a Project..." />
                 <div className={styles.topRight}>
@@ -123,6 +157,26 @@ const ShowQuotations = ({ quotations, count }) => {
 </button>
 
       </div>
+      {showCompanyToggle && (
+        <div className={styles.brandToggle}>
+          <span className={styles.brandToggleLabel}>Filter by Company:</span>
+          <div className={styles.brandToggleButtons}>
+            {COMPANY_OPTIONS.map((option) => {
+              const isActive = companyFilter === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`${styles.brandToggleButton} ${isActive ? styles.brandToggleButtonActive : ''}`}
+                  onClick={() => handleCompanyChange(option.value)}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <table className={styles.table}>
         
          
@@ -179,8 +233,14 @@ const ShowQuotations = ({ quotations, count }) => {
       </table>
 
       <Pagination count={count} />
-    </div>
+    </>
   );
+
+  if (wrapContainer) {
+    return <div className={styles.container}>{content}</div>;
+  }
+
+  return content;
 };
 
 export default ShowQuotations;

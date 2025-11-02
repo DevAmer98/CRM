@@ -10,7 +10,8 @@ import DeleteQuotation from '@/app/ui/deleteForms/Quotation';
 const ApprovePage = async({searchParams}) => {
     const q = searchParams?.q || "";
     const page = searchParams?.page || 1; 
-    const {count , quotations} = await fetchQuotations(q, page);
+    const company = searchParams?.company;
+    const {count , quotations} = await fetchQuotations(q, page, company);
     return (
       <div className={styles.container}> 
         <div className={styles.top}>
