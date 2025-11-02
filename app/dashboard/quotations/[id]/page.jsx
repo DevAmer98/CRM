@@ -230,6 +230,7 @@ const payload = {
   templateId: "quotation-v1",
 
   QuotationNumber: (formData.quotationId || "No Quotation ID").toUpperCase(),
+  AdminName: (formData.userName || "No Admin Name").toUpperCase(),
   ClientName: (formData.clientName || "No Client Name").toUpperCase(),
   CreatedAt: new Date(quotation.createdAt || Date.now())
     .toISOString()
