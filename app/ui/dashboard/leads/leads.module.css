@@ -1,0 +1,203 @@
+.container {
+  margin-top: 20px;
+  background-color: var(--bgSoft);
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.topRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+.addButton{
+  padding: 10px;
+  background-color: #5d57c9;
+  color: var(--text);
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.addButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(14, 165, 233, 0.35);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.table thead {
+  background: rgba(30, 41, 59, 0.75);
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text);
+  border-bottom: 1px solid #1f2937;
+}
+
+.table th {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #cbd5f5;
+}
+
+.nameCell {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.emailCell {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.leadMeta {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.productsCell {
+  color: #cbd5f5;
+  font-size: 13px;
+}
+
+.valueCell {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.followUpYes,
+.followUpNo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.followUpYes {
+  background: rgba(16, 185, 129, 0.16);
+  color: #6ee7b7;
+}
+
+.followUpNo {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fca5a5;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+}
+
+.statusPending {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fcd34d;
+}
+
+.statusContacted {
+  background: rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+}
+
+.statusInProgress {
+  background: rgba(14, 165, 233, 0.2);
+  color: #bae6fd;
+}
+
+.statusQualified {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+
+.statusWon {
+  background: rgba(14, 165, 233, 0.18);
+  color: #38bdf8;
+}
+
+.statusLost {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+}
+
+.emptyState {
+  padding: 36px 0;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 15px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.viewButton {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: transparent;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.viewButton:hover {
+  border-color: #60a5fa;
+  color: #bfdbfe;
+}
+
+.paginationWrapper {
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 18px;
+  }
+
+  .table {
+    min-width: 640px;
+  }
+}

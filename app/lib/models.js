@@ -123,6 +123,40 @@ const salesSchema = new Schema(
   { timestamps: true }
 );
 
+const leadSchema = new Schema(
+  {
+    salutation: { type: String },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, trim: true },
+    agent: { type: Schema.Types.ObjectId, ref: 'Sale' },
+    source: { type: String, trim: true },
+    category: { type: String, trim: true },
+    allowFollowUp: { type: Boolean, default: true },
+    status: {
+      type: String,
+      enum: ['Pending', 'Contacted', 'In Progress', 'Qualified', 'Won', 'Lost'],
+      default: 'Pending',
+    },
+    currency: {
+      type: String,
+      enum: ['SAR', 'USD'],
+      default: 'SAR',
+    },
+    leadValue: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    note: { type: String },
+    companyName: { type: String, trim: true },
+    website: { type: String, trim: true },
+    mobile: { type: String, trim: true },
+    officePhoneNumber: { type: String, trim: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  },
+  { timestamps: true }
+);
+
 const supplierSchema = new Schema(
   {
     supplierId: {
@@ -893,11 +927,10 @@ export const Task = mongoose.models.Task || mongoose.model("Task", taskSchema);
 export const Ticket = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema)
 export const Leave = mongoose.models.Leave || mongoose.model("Leave", leaveSchema)
 export const Shift = mongoose.models.Shift || mongoose.model("Shift", shiftSchema)
+export const Lead = mongoose.models.Lead || mongoose.model("Lead", leadSchema)
 export const Department = mongoose.models.Department || mongoose.model("Department", departmentSchema)
 
 
  
-
-
 
 

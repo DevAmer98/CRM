@@ -9,7 +9,7 @@ import { ROLES } from "./role";
 
 
 
-const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Task, Ticket, Leave, Shift, Department } = require('@/app/lib/models')
+const { User, Client, Supplier, PurchaseOrder, Quotation, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Task, Ticket, Leave, Shift, Department, Lead } = require('@/app/lib/models')
 
 
 export const addUser = async (formData) => {
@@ -132,6 +132,67 @@ export const addClient = async ({ name, phone, contactName, contactMobile, email
     }
     return { success: false, message: 'Failed to add client!' }; // Generic error response
   
+  }
+};
+
+
+export const addLead = async ({
+  salutation,
+  name,
+  email,
+  agentId,
+  source,
+  category,
+  allowFollowUp,
+  status,
+  currency,
+  leadValue,
+  note,
+  companyName,
+  website,
+  mobile,
+  officePhoneNumber,
+}) => {
+  try {
+    const session = await auth();
+    await connectToDB();
+
+
+    const payload = {
+      salutation: salutation || undefined,
+      name,
+      email: email || undefined,
+      source: source || undefined,
+      category: category || undefined,
+      allowFollowUp: typeof allowFollowUp === 'boolean' ? allowFollowUp : true,
+      status,
+      currency,
+      leadValue: typeof leadValue === 'number' ? leadValue : Number(leadValue) || 0,
+      note: note || undefined,
+      companyName: companyName || undefined,
+      website: website || undefined,
+      mobile: mobile || undefined,
+      officePhoneNumber: officePhoneNumber || undefined,
+      createdBy: session?.user?.id || undefined,
+    };
+
+    if (agentId) {
+      const agent = await Sale.findById(agentId);
+      if (!agent) {
+        throw new Error('Selected agent does not exist');
+      }
+      payload.agent = agent._id;
+    }
+
+    const newLead = new Lead(payload);
+    await newLead.save();
+
+    revalidatePath("/dashboard/leads");
+    return { success: true, leadId: newLead._id.toString() };
+  } catch (err) {
+    console.error('Failed to add lead:', err);
+    const message = err?.message || 'Failed to add lead!';
+    return { success: false, message };
   }
 };
 

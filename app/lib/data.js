@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb'; // Import ObjectId for validation
-import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Leave, Shift, Department } from "@/app/lib/models";
+import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, Pl, Approve, ApprovePo, Employee, Leave, Shift, Department, Lead } from "@/app/lib/models";
 import { connectToDB } from './utils';
 import { ROLES } from './role';
 
@@ -679,6 +679,30 @@ export const fetchQuotations = async (quotationId, page = 1) => {
   } catch (err) {
     console.error('Error fetching quotations:', err);
     throw new Error('Failed to fetch quotations');
+  }
+};
+
+export const fetchLeads = async (query = '', page = 1) => {
+  const ITEM_PER_PAGE = 10;
+  const currentPage = Number(page) || 1;
+  const regex = query ? new RegExp(query, 'i') : null;
+
+  const filter = regex ? { name: { $regex: regex } } : {};
+
+  try {
+    await connectToDB();
+    const count = await Lead.countDocuments(filter);
+    const leads = await Lead.find(filter)
+      .populate({ path: 'agent', select: 'name email' })
+      .sort({ createdAt: -1 })
+      .skip((currentPage - 1) * ITEM_PER_PAGE)
+      .limit(ITEM_PER_PAGE)
+      .lean();
+
+    return { count, leads };
+  } catch (err) {
+    console.error('Error fetching leads:', err);
+    throw new Error('Failed to fetch leads');
   }
 };
 

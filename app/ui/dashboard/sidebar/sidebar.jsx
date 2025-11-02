@@ -154,6 +154,12 @@ const menuItems = [
         roles: [ROLES.ADMIN, ROLES.SALES_ADMIN,ROLES.DASHBOARD_ADMIN] 
       },
        { 
+        title: "Leads", 
+        path: "/dashboard/quotations/leads", 
+        icon: <FileClock />, 
+        roles: [ROLES.ADMIN, ROLES.SALES_ADMIN, ROLES.SALES_USER,ROLES.DASHBOARD_ADMIN] 
+      },
+       { 
         title: "Quotations", 
         path: "/dashboard/quotations", 
         icon: <FileClock />, 
