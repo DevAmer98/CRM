@@ -380,7 +380,7 @@ async function docxToPdfBytes(payload) {
 
   const loProfileDir = path.join(tmpDir, "lo-profile");
   fs.mkdirSync(loProfileDir, { recursive: true });
-  const userInstallation = `--env:UserInstallation=${toFileUri(loProfileDir)}`;
+  const userInstallation = `-env:UserInstallation=${toFileUri(loProfileDir)}`;
 
   const baseArgs = [
     "--headless",
