@@ -20,6 +20,45 @@ function getLibreOfficePath() {
   return "/usr/bin/soffice";
 }
 
+function resolveSofficePath() {
+  const explicit = process.env.LIBREOFFICE_PATH?.trim();
+
+  const candidates = [
+    explicit,
+    "/opt/libreoffice25.2/program/soffice",
+    "/usr/lib/libreoffice/program/soffice",
+    "/usr/local/bin/soffice",
+    "/usr/bin/soffice",
+    "/snap/bin/libreoffice",
+    "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+    getLibreOfficePath(),
+  ]
+    .filter(Boolean)
+    .filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      // Continue checking the next candidate
+    }
+  }
+
+  const pathDirs = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
+  for (const dir of pathDirs) {
+    const candidate = path.join(dir, "soffice");
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      // keep searching
+    }
+  }
+
+  return null;
+}
+
 /* ---------- Render DOCX ---------- */
 async function renderDocxBuffer(templateBuffer, data) {
   try {
@@ -144,27 +183,47 @@ async function docxToPdfBytes(payload) {
   console.log("🧩 Temporary DOCX created:", tmpDocx);
 
   /* 🧠 LibreOffice runtime env */
+  const soffice = resolveSofficePath();
+  if (!soffice) {
+    throw new Error(
+      "Could not find LibreOffice 'soffice' binary. Install LibreOffice or set LIBREOFFICE_PATH."
+    );
+  }
+  const sofficeDir = path.dirname(soffice);
+  const envOverrides = {
+    PATH: `${sofficeDir}${path.delimiter}${process.env.PATH || ""}`,
+    HOME: process.env.HOME || "/tmp",
+    LANG: process.env.LANG || "en_US.UTF-8",
+    LC_ALL: process.env.LC_ALL || "en_US.UTF-8",
+    XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR || "/tmp",
+    XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME || "/tmp",
+    XDG_CACHE_HOME: process.env.XDG_CACHE_HOME || "/tmp",
+    SAL_USE_VCLPLUGIN: "headless",
+    SAL_DISABLE_OPENCL: "true",
+  };
+
+  if (soffice.includes("/program/") || process.platform === "linux") {
+    const programDir = soffice.includes("/program/")
+      ? path.dirname(soffice)
+      : sofficeDir;
+    envOverrides.UNO_PATH = programDir;
+    envOverrides.PYTHONPATH = programDir;
+    envOverrides.LD_LIBRARY_PATH = `${programDir}${path.delimiter}${
+      process.env.LD_LIBRARY_PATH || ""
+    }`;
+    envOverrides.URE_BOOTSTRAP = `vnd.sun.star.pathname:${path.join(
+      programDir,
+      "fundamentalrc"
+    )}`;
+  }
+
   const execOptions = {
     cwd: tmpDir,
     env: {
       ...process.env,
-      PATH: `/opt/libreoffice25.2/program:${process.env.PATH}`,
-      UNO_PATH: "/opt/libreoffice25.2/program",
-      PYTHONPATH: "/opt/libreoffice25.2/program",
-      LD_LIBRARY_PATH: "/opt/libreoffice25.2/program:/usr/lib64",
-      URE_BOOTSTRAP: "vnd.sun.star.pathname:/opt/libreoffice25.2/program/fundamentalrc",
-      HOME: "/tmp",
-      LANG: "en_US.UTF-8",
-      LC_ALL: "en_US.UTF-8",
-      XDG_RUNTIME_DIR: "/tmp",
-      XDG_CONFIG_HOME: "/tmp",
-      XDG_CACHE_HOME: "/tmp",
-      SAL_USE_VCLPLUGIN: "headless",
-      SAL_DISABLE_OPENCL: "true",
+      ...envOverrides,
     },
   };
-
-  const soffice = "/opt/libreoffice25.2/program/soffice";
 
   const convertCommands = [
     ["--headless", "--invisible", "--norestore", "--nodefault",
