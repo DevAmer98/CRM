@@ -60,6 +60,29 @@ function resolveSofficePath() {
   return null;
 }
 
+function resolveUnoconvPath() {
+  const explicit = process.env.UNOCONV_PATH?.trim();
+  const candidates = [
+    explicit,
+    "/usr/bin/unoconv",
+    "/usr/local/bin/unoconv",
+    "/opt/libreoffice25.2/program/unoconv",
+  ]
+    .filter(Boolean)
+    .filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      // keep trying
+    }
+  }
+
+  return null;
+}
+
 function toFileUri(targetPath) {
   const resolved = path.resolve(targetPath).replace(/\\/g, "/");
   if (resolved.startsWith("/")) {
@@ -311,6 +334,53 @@ async function docxToPdfBytes(payload) {
 
     console.log("📁 Temp dir contents (detailed):");
     logDirectoryTree(tmpDir);
+  }
+
+  if (!converted) {
+    const unoconv = resolveUnoconvPath();
+    if (unoconv) {
+      console.log("🛟 Falling back to unoconv:", unoconv);
+      try {
+        const unoconvArgs = [
+          "-f",
+          "pdf",
+          "-o",
+          outPdf,
+          tmpDocx,
+        ];
+        const pythonBinary = fs.existsSync(path.join(programDir, "python"))
+          ? path.join(programDir, "python")
+          : null;
+
+        if (pythonBinary) {
+          console.log("🔁 Invoking unoconv via LibreOffice python runtime");
+          await execFileAsync(
+            pythonBinary,
+            [unoconv, ...unoconvArgs],
+            execOptions
+          );
+        } else {
+          console.log("🔁 Invoking unoconv directly");
+          await execFileAsync(unoconv, unoconvArgs, execOptions);
+        }
+
+        if (fs.existsSync(outPdf) && fs.statSync(outPdf).size > 0) {
+          converted = true;
+          console.log("✅ PDF generated via unoconv fallback:", outPdf);
+        } else {
+          console.warn("⚠️ unoconv completed but PDF missing");
+        }
+      } catch (unoconvErr) {
+        console.error("❌ unoconv fallback failed:", unoconvErr.message);
+        if (unoconvErr.stdout) console.error("↳ stdout:", unoconvErr.stdout);
+        if (unoconvErr.stderr) console.error("↳ stderr:", unoconvErr.stderr);
+      } finally {
+        console.log("📁 Temp dir after unoconv attempt:");
+        logDirectoryTree(tmpDir);
+      }
+    } else {
+      console.warn("ℹ️ unoconv not found; skipping fallback");
+    }
   }
 
   if (!converted) {
