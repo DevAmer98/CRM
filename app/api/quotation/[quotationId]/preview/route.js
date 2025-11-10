@@ -59,6 +59,15 @@ function resolveSofficePath() {
   return null;
 }
 
+function toFileUri(targetPath) {
+  const resolved = path.resolve(targetPath).replace(/\\/g, "/");
+  if (resolved.startsWith("/")) {
+    return `file://${resolved}`;
+  }
+  // Windows drive letter (e.g., C:/)
+  return `file:///${resolved}`;
+}
+
 /* ---------- Render DOCX ---------- */
 async function renderDocxBuffer(templateBuffer, data) {
   try {
@@ -237,33 +246,30 @@ async function docxToPdfBytes(payload) {
     },
   };
 
+  const loProfileDir = path.join(tmpDir, "lo-profile");
+  fs.mkdirSync(loProfileDir, { recursive: true });
+  const userInstallation = `--env:UserInstallation=${toFileUri(loProfileDir)}`;
+
+  const baseArgs = [
+    "--headless",
+    "--invisible",
+    "--norestore",
+    "--nodefault",
+    "--nolockcheck",
+    "--nofirststartwizard",
+    userInstallation,
+  ];
+
   const convertCommands = [
     [
-      "--headless",
-      "--invisible",
-      "--norestore",
-      "--nodefault",
-      "--nolockcheck",
-      "--nofirststartwizard",
+      ...baseArgs,
       "--convert-to",
       "pdf:writer_pdf_Export",
       "--outdir",
       tmpDir,
       tmpDocx,
     ],
-    [
-      "--headless",
-      "--invisible",
-      "--norestore",
-      "--nodefault",
-      "--nolockcheck",
-      "--nofirststartwizard",
-      "--convert-to",
-      "pdf",
-      "--outdir",
-      tmpDir,
-      tmpDocx,
-    ],
+    [...baseArgs, "--convert-to", "pdf", "--outdir", tmpDir, tmpDocx],
   ];
 
   let converted = false;
@@ -271,7 +277,13 @@ async function docxToPdfBytes(payload) {
   for (const args of convertCommands) {
     try {
       console.log("🧩 Trying conversion:", args.join(" "));
-      await execFileAsync(soffice, args, execOptions);
+      const { stdout, stderr } = await execFileAsync(soffice, args, execOptions);
+      if (stdout && stdout.trim()) {
+        console.log("↳ stdout:", stdout.trim());
+      }
+      if (stderr && stderr.trim()) {
+        console.warn("↳ stderr:", stderr.trim());
+      }
 
       if (fs.existsSync(outPdf) && fs.statSync(outPdf).size > 0) {
         converted = true;
