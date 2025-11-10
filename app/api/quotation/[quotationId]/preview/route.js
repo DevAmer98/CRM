@@ -3,7 +3,8 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { promisify } from "util";
-import { execFile } from "child_process";
+import { execFile, spawn } from "child_process";
+import net from "net";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import JSZip from "jszip";
@@ -90,6 +91,66 @@ function toFileUri(targetPath) {
   }
   // Windows drive letter (e.g., C:/)
   return `file:///${resolved}`;
+}
+
+function waitForPort(port, timeoutMs = 10000) {
+  const start = Date.now();
+  return new Promise((resolve, reject) => {
+    const tryConnect = () => {
+      const socket = net.createConnection({ port, host: "127.0.0.1" }, () => {
+        socket.end();
+        resolve();
+      });
+      socket.on("error", (err) => {
+        socket.destroy();
+        if (Date.now() - start >= timeoutMs) {
+          reject(
+            new Error(`Port ${port} not ready after ${timeoutMs}ms: ${err.message}`)
+          );
+        } else {
+          setTimeout(tryConnect, 200);
+        }
+      });
+    };
+    tryConnect();
+  });
+}
+
+function terminateProcess(child, signal = "SIGTERM", timeoutMs = 5000) {
+  if (!child) return Promise.resolve();
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    let completed = false;
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      clearTimeout(timer);
+      resolve();
+    };
+
+    child.once("exit", finish);
+    child.once("error", finish);
+
+    const timer = setTimeout(() => {
+      if (!completed) {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          // ignore
+        }
+        finish();
+      }
+    }, timeoutMs);
+
+    try {
+      child.kill(signal);
+    } catch {
+      finish();
+    }
+  });
 }
 
 /* ---------- Render DOCX ---------- */
@@ -341,34 +402,66 @@ async function docxToPdfBytes(payload) {
     if (unoconv) {
       console.log("🛟 Falling back to unoconv:", unoconv);
       try {
-        const unoconvArgs = [
-          "-f",
-          "pdf",
-          "-o",
-          outPdf,
-          tmpDocx,
+        const port = 20000 + Math.floor(Math.random() * 1000);
+        const connection = `socket,host=127.0.0.1,port=${port};urp;StarOffice.ComponentContext`;
+        const listenerArgs = [
+          "--headless",
+          "--invisible",
+          "--norestore",
+          "--nodefault",
+          "--nolockcheck",
+          "--nofirststartwizard",
+          userInstallation,
+          `--accept=${connection}`,
         ];
-        const pythonBinary = fs.existsSync(path.join(programDir, "python"))
-          ? path.join(programDir, "python")
-          : null;
 
-        if (pythonBinary) {
-          console.log("🔁 Invoking unoconv via LibreOffice python runtime");
-          await execFileAsync(
-            pythonBinary,
-            [unoconv, ...unoconvArgs],
-            execOptions
-          );
-        } else {
-          console.log("🔁 Invoking unoconv directly");
-          await execFileAsync(unoconv, unoconvArgs, execOptions);
-        }
+        console.log("🔌 Starting dedicated LibreOffice listener on port", port);
+        const listener = spawn(soffice, listenerArgs, execOptions);
+        listener.stdout?.on("data", (d) =>
+          console.log("soffice(listener) stdout:", d.toString().trim())
+        );
+        listener.stderr?.on("data", (d) =>
+          console.warn("soffice(listener) stderr:", d.toString().trim())
+        );
 
-        if (fs.existsSync(outPdf) && fs.statSync(outPdf).size > 0) {
-          converted = true;
-          console.log("✅ PDF generated via unoconv fallback:", outPdf);
-        } else {
-          console.warn("⚠️ unoconv completed but PDF missing");
+        try {
+          await waitForPort(port, 10000);
+          console.log("✅ Listener ready, invoking unoconv");
+
+          const unoconvArgs = [
+            "--connection",
+            connection,
+            "-f",
+            "pdf",
+            "-o",
+            outPdf,
+            tmpDocx,
+          ];
+
+          const pythonBinary = fs.existsSync(path.join(programDir, "python"))
+            ? path.join(programDir, "python")
+            : null;
+
+          if (pythonBinary) {
+            console.log("🔁 Invoking unoconv via LibreOffice python runtime");
+            await execFileAsync(
+              pythonBinary,
+              [unoconv, ...unoconvArgs],
+              execOptions
+            );
+          } else {
+            console.log("🔁 Invoking unoconv directly");
+            await execFileAsync(unoconv, unoconvArgs, execOptions);
+          }
+
+          if (fs.existsSync(outPdf) && fs.statSync(outPdf).size > 0) {
+            converted = true;
+            console.log("✅ PDF generated via unoconv fallback:", outPdf);
+          } else {
+            console.warn("⚠️ unoconv completed but PDF missing");
+          }
+        } finally {
+          await terminateProcess(listener);
         }
       } catch (unoconvErr) {
         console.error("❌ unoconv fallback failed:", unoconvErr.message);
