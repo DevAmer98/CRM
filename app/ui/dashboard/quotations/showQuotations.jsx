@@ -1,3 +1,4 @@
+//app/ui/dashboard/quotations/showQuotations.jsx
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -24,6 +25,7 @@ const ShowQuotations = ({
    const [localQuotations, setLocalQuotations] = useState(quotations);
     const [selectedIds, setSelectedIds] = useState([]);
     const [companyFilter, setCompanyFilter] = useState(activeCompany);
+    const [isExportingAll, setIsExportingAll] = useState(false);
     const searchParams = useSearchParams();
     const { replace } = useRouter();
     const pathname = usePathname();
@@ -41,8 +43,46 @@ const ShowQuotations = ({
   const selectedQuotations = localQuotations.filter(quotation =>
     selectedIds.includes(quotation._id)
   );
+
+  if (!selectedQuotations.length) {
+    alert('Please select at least one quotation to export.');
+    return;
+  }
+
   exportExcel(selectedQuotations, 'selected_Quotations.xlsx');
 };
+
+  const handleExportAll = async () => {
+    try {
+      setIsExportingAll(true);
+      const params = new URLSearchParams();
+      const searchQuery = searchParams.get('q');
+
+      if (searchQuery) {
+        params.set('q', searchQuery);
+      }
+      if (companyFilter) {
+        params.set('company', companyFilter);
+      }
+
+      const queryString = params.toString();
+      const endpoint = queryString ? `/api/allQuotations?${queryString}` : '/api/allQuotations';
+
+      const response = await fetch(endpoint, { cache: 'no-store' });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch quotations for export.');
+      }
+
+      const allQuotations = await response.json();
+      exportExcel(allQuotations, 'all_quotations.xlsx');
+    } catch (error) {
+      console.error('Error exporting all quotations:', error);
+      alert('Failed to export all quotations. Please try again.');
+    } finally {
+      setIsExportingAll(false);
+    }
+  };
 
 
   const toggleSelect = (id) => {
@@ -51,11 +91,21 @@ const ShowQuotations = ({
     );
   };
 
+  const formatAmount = (value) => {
+    if (value === null || value === undefined || value === '') return 'N/A';
+    const numericValue = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(numericValue) ? numericValue.toFixed(2) : 'N/A';
+  };
+
   const exportExcel = (rows, filename = 'quotations_with_products.xlsx') => {
+    if (!rows?.length) {
+      alert('There are no quotations to export.');
+      return;
+    }
+
   const data = [
     [
       'Quotation ID',
-      'Revision No',
       'Client Name',
       'Client Contact',
       'Client Mobile',
@@ -63,56 +113,29 @@ const ShowQuotations = ({
       'Client Address',
       'Project Name',
       'Project Location Address',
-      'Payment Term',
-      'Delivery Term',
-      'Note',
-      'Validity Period',
-      'Excluding',
-      'Total Price',
+      'Total Price (Incl. VAT)',
       'Remaining Amount',
       'Payment Status',
       'Currency',
       'Created At',
       'Updated At',
-      'Product Code',
-      'Product Description',
-      'Unit',
-      'Quantity',
-      'Unit Price',
     ],
-    ...rows.flatMap((q) =>
-      (q.products?.length ? q.products : [{}]).map((product) => [
-        q.quotationId,
-        q.revisionNumber,
-        q.client?.name || 'N/A',
-        q.client?.contactName || 'N/A',
-        q.client?.contactMobile || 'N/A',
-        q.client?.email || 'N/A',
-        q.client?.address || 'N/A',
-        q.projectName || 'N/A',
-        q.projectLA || 'N/A',
-        q.paymentTerm || 'N/A',
-        q.paymentDelivery || 'N/A',
-        q.note || 'N/A',
-        q.validityPeriod || 'N/A',
-        q.excluding || 'N/A',
-        typeof q.totalPrice === 'number' ? q.totalPrice.toFixed(2) : 'N/A',
-        typeof q.remainingAmount === 'number'
-          ? q.remainingAmount.toFixed(2)
-          : 'N/A',
-        q.paymentStatus || 'N/A',
-        q.currency || 'N/A',
-        q.createdAt ? new Date(q.createdAt).toLocaleDateString() : 'N/A',
-        q.updatedAt ? new Date(q.updatedAt).toLocaleDateString() : 'N/A',
-        product.productCode || '—',
-        product.description || '—',
-        product.unit || '—',
-        product.qty || '—',
-        typeof product.unitPrice === 'number'
-          ? product.unitPrice.toFixed(2)
-          : '—',
-      ])
-    ),
+    ...rows.map((q) => [
+      q.quotationId,
+      q.client?.name || 'N/A',
+      q.client?.contactName || 'N/A',
+      q.client?.contactMobile || 'N/A',
+      q.client?.email || 'N/A',
+      q.client?.address || 'N/A',
+      q.projectName || 'N/A',
+      q.projectLA || 'N/A',
+      formatAmount(q.totalPrice),
+      formatAmount(q.remainingAmount),
+      q.paymentStatus || 'N/A',
+      q.currency || 'N/A',
+      q.createdAt ? new Date(q.createdAt).toLocaleDateString() : 'N/A',
+      q.updatedAt ? new Date(q.updatedAt).toLocaleDateString() : 'N/A',
+    ]),
   ];
 
   const worksheet = XLSX.utils.aoa_to_sheet(data);
@@ -150,10 +173,14 @@ const ShowQuotations = ({
           Export Selected
         </button>
         <button
-  onClick={() => exportExcel(localQuotations, 'all_quotations.xlsx')}
+  onClick={async () => {
+    if (isExportingAll) return;
+    await handleExportAll();
+  }}
   className={styles.exportButton}
+  disabled={isExportingAll}
 >
-  Export All
+  {isExportingAll ? 'Exporting...' : 'Export All'}
 </button>
 
       </div>

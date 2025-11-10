@@ -551,10 +551,37 @@ export const fetchLeave = async (id) => {
   
   };
 
-  export const fetchAllQuotations = async () => {
+  export const fetchAllQuotations = async (quotationId, companyProfile) => {
+    const filters = [];
+
+    if (quotationId) {
+      filters.push({ quotationId: { $regex: new RegExp(quotationId, "i") } });
+    }
+
+    if (companyProfile && ["SMART_VISION", "ARABIC_LINE"].includes(companyProfile)) {
+      if (companyProfile === "SMART_VISION") {
+        filters.push({
+          $or: [
+            { companyProfile: { $exists: false } },
+            { companyProfile: "SMART_VISION" },
+          ],
+        });
+      } else {
+        filters.push({ companyProfile });
+      }
+    }
+
+    const query = filters.length ? { $and: filters } : {};
+
     try {
       await connectToDB();
-      const quotations = await Quotation.find({});
+      const quotations = await Quotation.find(query)
+        .populate('sale')
+        .populate('client')
+        .populate({ path: 'user', select: 'username' })
+        .sort({ createdAt: -1 })
+        .lean();
+
       return quotations;
     } catch (err) {
       console.log("Error in fetchAllQuotations:", err);

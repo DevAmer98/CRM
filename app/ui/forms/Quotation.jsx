@@ -10,6 +10,8 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
 import 'react-quill/dist/quill.snow.css'
+import * as XLSX from 'xlsx';
+
 
 const COMPANY_OPTIONS = [
   { value: 'SMART_VISION', label: 'Smart Vision' },
@@ -103,6 +105,101 @@ const AddQuotation = () => {
   temp.innerHTML = html
   return temp.innerHTML // keeps bold/italic tags but decodes entities
 }
+
+
+/**
+ * Safely parse an Excel file into quotation product rows
+ * @param {File} file - The uploaded Excel file
+ * @param {Function} setRows - State setter for rows
+ * @param {Function} toast - Toast handler for messages
+ */
+const handleExcelUpload = (file, setRows, toast) => {
+  if (!file) return toast.error('Please select a file.');
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+      // Step 1️⃣ Find header row
+      const headerIndex = rows.findIndex((r) => {
+        const joined = r.join(' ').toLowerCase();
+        return (
+          joined.includes('description') &&
+          (joined.includes('qty') || joined.includes('quantity')) &&
+          (joined.includes('unit') || joined.includes('unit rate'))
+        );
+      });
+
+      if (headerIndex === -1) {
+        toast.error('Could not detect a valid product header row.');
+        return;
+      }
+
+      // Step 2️⃣ Extract columns indexes dynamically
+      const header = rows[headerIndex].map((h) => h.toString().toLowerCase().trim());
+      const colIndex = {
+        itemNo: header.findIndex((h) => h.includes('item')),
+        description: header.findIndex((h) => h.includes('description')),
+        unit: header.findIndex((h) => h === 'unit' || h.includes('unit')),
+        qty: header.findIndex((h) => h.startsWith('qty') || h.includes('quantity')),
+        unitRate: header.findIndex((h) => h.includes('rate') || h.includes('price')),
+        amount: header.findIndex((h) => h.includes('amount')),
+      };
+
+      // Step 3️⃣ Parse each data row after the header
+      const products = [];
+      for (let i = headerIndex + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+
+        const description = row[colIndex.description]?.toString().trim();
+        if (!description) continue;
+
+        // Skip non-product rows
+        const skipWords = ['included', 'notes', 'division', 'total'];
+        if (skipWords.some((w) => description.toLowerCase().includes(w))) continue;
+
+        // Convert safely
+        const qty = parseFloat(row[colIndex.qty]) || 0;
+        const unitPrice = parseFloat(row[colIndex.unitRate]) || 0;
+        const unit = row[colIndex.unit]?.toString().trim() || '';
+
+        // If both qty and unit price are 0, skip it
+        if (qty === 0 && unitPrice === 0) continue;
+
+        products.push({
+          number: products.length + 1,
+          productCode: row[colIndex.itemNo]?.toString().trim() || '',
+          description,
+          qty,
+          unit,
+          unitPrice,
+          discount: 0,
+        });
+      }
+
+      if (products.length === 0) {
+        toast.error('No valid products found in Excel.');
+        return;
+      }
+
+      setRows(products);
+      toast.success(`Loaded ${products.length} products successfully!`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to parse Excel file. Please check its format.');
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+};
+
+
 
 
 const cleanQuillHtml = (html) => {
@@ -475,6 +572,18 @@ const cleanQuillHtml = (html) => {
       ></textarea>
     </div>
   )}
+
+
+  <div className={styles.inputContainer}>
+  <label className={styles.label}>Upload Excel File:</label>
+  <input
+    type="file"
+    accept=".xlsx, .xls"
+    onChange={(e) => handleExcelUpload(e.target.files[0], setRows, toast)}
+    className={styles.input}
+  />
+</div>
+
 
   <button type="submit" className={styles.submitButton}>
     Submit
