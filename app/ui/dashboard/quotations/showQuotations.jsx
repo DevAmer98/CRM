@@ -92,9 +92,10 @@ const ShowQuotations = ({
   };
 
   const formatAmount = (value) => {
-    if (value === null || value === undefined || value === '') return 'N/A';
+    if (value === null || value === undefined || value === '') return '';
     const numericValue = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(numericValue) ? numericValue.toFixed(2) : 'N/A';
+    if (!Number.isFinite(numericValue)) return '';
+    return Number.parseFloat(numericValue.toFixed(2));
   };
 
   const exportExcel = (rows, filename = 'quotations_with_products.xlsx') => {
