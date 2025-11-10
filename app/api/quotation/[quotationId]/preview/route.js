@@ -116,6 +116,53 @@ function waitForPort(port, timeoutMs = 10000) {
   });
 }
 
+function waitForListenerPort(listener, port, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      listener.off("exit", onExit);
+      listener.off("error", onError);
+      if (err) reject(err);
+      else resolve();
+    };
+
+    const onExit = (code, signal) =>
+      cleanup(
+        new Error(
+          `Listener exited before port ${port} opened (code=${code}, signal=${signal})`
+        )
+      );
+    const onError = (err) =>
+      cleanup(
+        new Error(`Listener error before port ${port} opened: ${err.message}`)
+      );
+
+    listener.on("exit", onExit);
+    listener.on("error", onError);
+
+    const timer = setTimeout(() => {
+      cleanup(new Error(`Port ${port} not ready after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    const tryConnect = () => {
+      if (settled) return;
+      const socket = net.createConnection({ port, host: "127.0.0.1" }, () => {
+        socket.end();
+        cleanup();
+      });
+      socket.on("error", () => {
+        socket.destroy();
+        if (!settled) setTimeout(tryConnect, 200);
+      });
+    };
+
+    tryConnect();
+  });
+}
+
 function terminateProcess(child, signal = "SIGTERM", timeoutMs = 5000) {
   if (!child) return Promise.resolve();
   if (child.exitCode !== null || child.signalCode !== null) {
@@ -423,9 +470,17 @@ async function docxToPdfBytes(payload) {
         listener.stderr?.on("data", (d) =>
           console.warn("soffice(listener) stderr:", d.toString().trim())
         );
+        listener.once("exit", (code, signal) => {
+          console.warn(
+            `soffice(listener) exited with code=${code} signal=${signal}`
+          );
+        });
+        listener.once("error", (err) => {
+          console.error("soffice(listener) error:", err.message);
+        });
 
         try {
-          await waitForPort(port, 10000);
+          await waitForListenerPort(listener, port, 12000);
           console.log("✅ Listener ready, invoking unoconv");
 
           const unoconvArgs = [
