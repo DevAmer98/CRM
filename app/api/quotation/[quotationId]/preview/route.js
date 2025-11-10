@@ -238,12 +238,32 @@ async function docxToPdfBytes(payload) {
   };
 
   const convertCommands = [
-    ["--headless", "--invisible", "--norestore", "--nodefault",
-     "--nolockcheck", "--nofirststartwizard",
-     "--convert-to", "pdf:writer_pdf_Export", tmpDocx],
-    ["--headless", "--invisible", "--norestore", "--nodefault",
-     "--nolockcheck", "--nofirststartwizard",
-     "--convert-to", "pdf", tmpDocx],
+    [
+      "--headless",
+      "--invisible",
+      "--norestore",
+      "--nodefault",
+      "--nolockcheck",
+      "--nofirststartwizard",
+      "--convert-to",
+      "pdf:writer_pdf_Export",
+      "--outdir",
+      tmpDir,
+      tmpDocx,
+    ],
+    [
+      "--headless",
+      "--invisible",
+      "--norestore",
+      "--nodefault",
+      "--nolockcheck",
+      "--nofirststartwizard",
+      "--convert-to",
+      "pdf",
+      "--outdir",
+      tmpDir,
+      tmpDocx,
+    ],
   ];
 
   let converted = false;
@@ -269,6 +289,13 @@ async function docxToPdfBytes(payload) {
       if (err.code !== undefined) {
         console.warn("↳ exit code:", err.code);
       }
+    }
+
+    try {
+      const entries = fs.readdirSync(tmpDir);
+      console.log("📁 Temp dir contents:", entries);
+    } catch (dirErr) {
+      console.warn("⚠️ Could not read temp dir:", dirErr.message);
     }
   }
 
