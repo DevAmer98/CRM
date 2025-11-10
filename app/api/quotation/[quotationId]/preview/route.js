@@ -361,6 +361,7 @@ async function docxToPdfBytes(payload) {
   if (looksLikeProgramDir || process.platform === "linux") {
     envOverrides.UNO_PATH = programDir;
     envOverrides.PYTHONPATH = programDir;
+    envOverrides.PYTHONHOME = programDir;
     envOverrides.LD_LIBRARY_PATH = `${programDir}${path.delimiter}${
       process.env.LD_LIBRARY_PATH || ""
     }`;
