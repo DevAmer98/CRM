@@ -11,6 +11,7 @@ import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
 
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /* ---------- Detect LibreOffice ---------- */
 function getLibreOfficePath() {
@@ -285,11 +286,16 @@ async function docxToPdfBytes(payload) {
         console.warn("↳ stderr:", stderr.trim());
       }
 
-      if (fs.existsSync(outPdf) && fs.statSync(outPdf).size > 0) {
-        converted = true;
-        console.log("✅ PDF generated successfully:", outPdf);
-        break;
+      const waitSteps = [0, 150, 300, 600];
+      for (const delay of waitSteps) {
+        if (delay) await wait(delay);
+        if (fs.existsSync(outPdf) && fs.statSync(outPdf).size > 0) {
+          converted = true;
+          console.log("✅ PDF generated successfully:", outPdf);
+          break;
+        }
       }
+      if (converted) break;
     } catch (err) {
       console.warn("⚠️ Conversion failed:", err.message);
       if (err.stdout) {
@@ -303,12 +309,8 @@ async function docxToPdfBytes(payload) {
       }
     }
 
-    try {
-      const entries = fs.readdirSync(tmpDir);
-      console.log("📁 Temp dir contents:", entries);
-    } catch (dirErr) {
-      console.warn("⚠️ Could not read temp dir:", dirErr.message);
-    }
+    console.log("📁 Temp dir contents (detailed):");
+    logDirectoryTree(tmpDir);
   }
 
   if (!converted) {
@@ -553,4 +555,34 @@ function pdfHeaders(filename) {
     "Content-Security-Policy": "frame-ancestors 'self'",
     "Cross-Origin-Resource-Policy": "same-origin",
   };
+}
+function logDirectoryTree(dir, depth = 0) {
+  if (depth > 2) return;
+
+  try {
+    const entries = fs.readdirSync(dir).sort();
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry);
+      const stats = fs.statSync(fullPath);
+      const info = stats.isDirectory()
+        ? "dir"
+        : `${stats.size} bytes`;
+      console.log(`${"  ".repeat(depth)}- ${entry} (${info})`);
+
+      if (!stats.isDirectory() && entry.endsWith(".log")) {
+        try {
+          const content = fs.readFileSync(fullPath, "utf8");
+          console.log(`${"  ".repeat(depth)}  ↳ log preview:\n${content.slice(0, 500)}`);
+        } catch (logErr) {
+          console.warn("Unable to read log file:", logErr.message);
+        }
+      }
+
+      if (stats.isDirectory()) {
+        logDirectoryTree(fullPath, depth + 1);
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to walk directory tree:", err.message);
+  }
 }
