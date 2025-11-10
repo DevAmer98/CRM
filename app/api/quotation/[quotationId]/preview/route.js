@@ -189,9 +189,24 @@ async function docxToPdfBytes(payload) {
       "Could not find LibreOffice 'soffice' binary. Install LibreOffice or set LIBREOFFICE_PATH."
     );
   }
-  const sofficeDir = path.dirname(soffice);
+  let sofficeRealPath = soffice;
+  try {
+    sofficeRealPath = fs.realpathSync(soffice);
+  } catch {
+    // leave as provided path if realpath fails
+  }
+  const sofficeDir = path.dirname(sofficeRealPath);
+  const looksLikeProgramDir =
+    sofficeDir.toLowerCase().includes(`${path.sep}program`) ||
+    sofficeRealPath.toLowerCase().includes("/program/");
+  const programDir = looksLikeProgramDir
+    ? sofficeDir
+    : path.join(sofficeDir, "program");
+
+  console.log("🧠 Using LibreOffice binary:", sofficeRealPath);
+
   const envOverrides = {
-    PATH: `${sofficeDir}${path.delimiter}${process.env.PATH || ""}`,
+    PATH: `${path.dirname(soffice)}${path.delimiter}${process.env.PATH || ""}`,
     HOME: process.env.HOME || "/tmp",
     LANG: process.env.LANG || "en_US.UTF-8",
     LC_ALL: process.env.LC_ALL || "en_US.UTF-8",
@@ -202,10 +217,7 @@ async function docxToPdfBytes(payload) {
     SAL_DISABLE_OPENCL: "true",
   };
 
-  if (soffice.includes("/program/") || process.platform === "linux") {
-    const programDir = soffice.includes("/program/")
-      ? path.dirname(soffice)
-      : sofficeDir;
+  if (looksLikeProgramDir || process.platform === "linux") {
     envOverrides.UNO_PATH = programDir;
     envOverrides.PYTHONPATH = programDir;
     envOverrides.LD_LIBRARY_PATH = `${programDir}${path.delimiter}${
@@ -248,6 +260,15 @@ async function docxToPdfBytes(payload) {
       }
     } catch (err) {
       console.warn("⚠️ Conversion failed:", err.message);
+      if (err.stdout) {
+        console.warn("↳ stdout:", err.stdout.trim());
+      }
+      if (err.stderr) {
+        console.warn("↳ stderr:", err.stderr.trim());
+      }
+      if (err.code !== undefined) {
+        console.warn("↳ exit code:", err.code);
+      }
     }
   }
 
