@@ -256,10 +256,10 @@ const payload = {
   userName: (quotation.user?.username || "No User Name").toUpperCase(),
   ClientPhone: (quotation.client?.phone || "No Client Phone").toUpperCase(),
   UserPhone: (quotation.sale?.phone || "No Sales Representative Phone").toUpperCase(),
-  UserEmail: (quotation.sale?.email || "No Sales Representative Email").toUpperCase(),
+  UserEmail: (quotation.sale?.email || "No Sales Representative Email"),
   UserAddress: (quotation.sale?.address || "No Sales Representative Address").toUpperCase(),
   ClientContactMobile: (quotation.client?.contactMobile || "No Client Contact Mobile").toUpperCase(),
-  ClientEmail: (quotation.client?.email || "No Client Email").toUpperCase(),
+  ClientEmail: (quotation.client?.email || "No Client Email"),
   ClientAddress: (quotation.client?.address || "No Client Address").toUpperCase(),
 
   CompanyProfile: companyProfile,
