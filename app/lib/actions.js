@@ -1958,7 +1958,7 @@ export const addQuotation = async (formData) => {
 
     const year = new Date().getFullYear();
     const latestQuotation = await Quotation.findOne({
-      quotationId: { $regex: `SVSSQ-${year}-` }
+      quotationId: { $regex: `SVSQ-${year}-` }
     }).sort({ quotationId: -1 });
 
     let sequenceNumber = "001";

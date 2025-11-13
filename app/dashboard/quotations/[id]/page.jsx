@@ -239,6 +239,29 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       });
     });
 
+    const createdAt = new Date(quotation.createdAt || Date.now());
+
+const formattedDate = createdAt.toLocaleDateString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "2-digit"
+}).toUpperCase();
+
+console.log(formattedDate);  // "NOVEMBER 09, 2025"
+
+
+const formatReadableDate = (dateInput) => {
+  return new Date(dateInput || Date.now())
+    .toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "2-digit"
+    })
+    .toUpperCase();
+};
+
+
+
 const payload = {
   renderMode: mode,
   templateId,
@@ -246,9 +269,7 @@ const payload = {
   QuotationNumber: (formData.quotationId || "No Quotation ID").toUpperCase(),
   AdminName: (formData.userName || "No Admin Name").toUpperCase(),
   ClientName: (formData.clientName || "No Client Name").toUpperCase(),
-  CreatedAt: new Date(quotation.createdAt || Date.now())
-    .toISOString()
-    .split("T")[0],
+CreatedAt: formatReadableDate(quotation.createdAt),
   ProjectName: (formData.projectName || "No Project Name").toUpperCase(),
   ProjectLA: (formData.projectLA || "No Project Location Address").toUpperCase(),
   SaleName: (quotation.sale?.name || "No Sales Representative Name").toUpperCase(),
