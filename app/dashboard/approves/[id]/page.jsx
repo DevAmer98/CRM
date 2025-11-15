@@ -435,21 +435,20 @@ function wrapDesc(text, maxLen = 40) {
           <div className={styles.form1} style={{ marginTop: 12 }}>
             <div className={styles.inputContainer}>
               <label className={styles.label}>Admin Name:</label>
-              <select
-                value={formData.user}
-                onChange={(e) =>
-                  handleInputChange("user", e.target.value)
-                }
-              >
-                <option value="">Select An Admin</option>
-                {users
-                  ?.filter((u) => u.isAdmin)
-                  .map((u) => (
-                    <option key={u._id} value={u._id}>
-                      {u.username}
-                    </option>
-                  ))}
-              </select>
+             <select
+  value={formData.user}
+  onChange={(e) => handleInputChange("user", e.target.value)}
+>
+  <option value="">Select An Admin</option>
+  {users
+    ?.filter((u) => u.isAdmin || u.role === "admin")
+    .map((u) => (
+      <option key={u._id} value={u._id}>
+        {u.username}
+      </option>
+    ))}
+</select>
+
             </div>
             <div className={styles.inputContainer}>
               <label className={styles.label}>
