@@ -10,7 +10,7 @@ import { ROLES } from "@/app/lib/role";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
-const ADMIN_ROLES = new Set(
+const ADMIN = new Set(
   Object.values(ROLES).filter((role) => role.toLowerCase().includes("admin"))
 );
 
@@ -449,7 +449,7 @@ function wrapDesc(text, maxLen = 40) {
               >
                 <option value="">Select An Admin</option>
                 {users
-                  ?.filter((u) => ADMIN.has(u.role))
+                  ?.filter((u) => ADMIN_ROLES.has(u.role))
                   .map((u) => (
                     <option key={u._id} value={u._id}>
                       {u.username}
