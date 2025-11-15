@@ -1,4 +1,3 @@
-//app/dashboard/approves/[id]/page.jsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -6,7 +5,6 @@ import { FaPlus, FaTrash, FaTag, FaEdit } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { updateQuotationApprove } from "@/app/lib/actions";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
-import { isAdminRole } from "@/app/lib/isAdminRole";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
@@ -443,11 +441,9 @@ function wrapDesc(text, maxLen = 40) {
                   handleInputChange("user", e.target.value)
                 }
               >
-
-
                 <option value="">Select An Admin</option>
                 {users
-                  ?.filter((u) => isAdminRole(u?.role?.name || u?.role))
+                  ?.filter((u) => u.isAdmin)
                   .map((u) => (
                     <option key={u._id} value={u._id}>
                       {u.username}

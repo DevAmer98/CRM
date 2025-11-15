@@ -9,11 +9,9 @@ const ADMIN_ROLE_VALUES = [
 ].filter(Boolean);
 
 export const isAdminRole = (role) => {
-  if (!role) return false;
-
-  const r = typeof role === "string" ? role : role.name;
-  if (typeof r !== "string") return false;
-
-  return ADMIN_ROLE_VALUES.map(a => a.toLowerCase()).includes(r.toLowerCase());
+  if (typeof role !== "string") return false;
+  const normalized = role.toLowerCase();
+  return ADMIN_ROLE_VALUES.some(
+    (adminRole) => typeof adminRole === "string" && adminRole.toLowerCase() === normalized
+  );
 };
-
