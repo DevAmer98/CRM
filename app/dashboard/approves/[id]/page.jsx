@@ -443,9 +443,11 @@ function wrapDesc(text, maxLen = 40) {
                   handleInputChange("user", e.target.value)
                 }
               >
+
+
                 <option value="">Select An Admin</option>
                 {users
-                  ?.filter((u) => isAdminRole(u?.role))
+                  ?.filter((u) => isAdminRole(u?.role?.name || u?.role))
                   .map((u) => (
                     <option key={u._id} value={u._id}>
                       {u.username}
