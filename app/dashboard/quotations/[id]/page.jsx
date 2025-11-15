@@ -267,7 +267,7 @@ const payload = {
   templateId,
 
   QuotationNumber: (formData.quotationId || "").toUpperCase(),
-  AdminName: (formData.userName || "").toUpperCase(),
+  AdminName: (formData.employee.name || "").toUpperCase(),
   ClientName: (formData.clientName || "").toUpperCase(),
 CreatedAt: formatReadableDate(quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
