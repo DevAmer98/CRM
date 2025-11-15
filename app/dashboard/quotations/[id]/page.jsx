@@ -267,7 +267,8 @@ const payload = {
   templateId,
 
   QuotationNumber: (formData.quotationId || "").toUpperCase(),
-  AdminName: (formData.employee.name || "").toUpperCase(),
+AdminName: (quotation.user?.employee?.name || formData.userName || "").toUpperCase(),
+ // AdminName: (formData.userName || "").toUpperCase(),
   ClientName: (formData.clientName || "").toUpperCase(),
 CreatedAt: formatReadableDate(quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
@@ -368,7 +369,7 @@ return payload;
 
     setFormData({
       quotationId: quotation.quotationId,
-      userName: quotation.user?.username ?? "N/A",
+      userName: quotation.user?.employee?.name ?? "N/A",
       saleName: quotation.sale?.name ?? "N/A",
       clientName: quotation.client?.name ?? "N/A",
       projectName: quotation.projectName || "",

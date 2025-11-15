@@ -45,7 +45,7 @@ export const fetchUsers = async (q, page) => {
     }
   };
 
-  export const fetchAllUsers = async () => {
+  /*export const fetchAllUsers = async () => {
     try {
       await connectToDB();
       const users = await User.find({});
@@ -54,6 +54,20 @@ export const fetchUsers = async (q, page) => {
       console.log("Error in fetchAllUsers:", err);
       throw new Error('Failed to fetch users!');
     }
+};
+*/
+
+export const fetchAllUsers = async () => {
+  try {
+    await connectToDB();
+    const users = await User.find({})
+      .populate("employee");  // <-- ADD THIS
+
+    return users;
+  } catch (err) {
+    console.log("Error in fetchAllUsers:", err);
+    throw new Error("Failed to fetch users!");
+  }
 };
 
 
