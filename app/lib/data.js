@@ -763,10 +763,17 @@ export const fetchLeads = async (query = '', page = 1) => {
 export const fetchQuotation = async (id) => {
   try {
     await connectToDB();
-    const quotation = await Quotation.findById(id).populate('client').populate('sale').populate({
-      path: 'user',
-      select: 'username'
-    })
+    const quotation = await Quotation.findById(id)
+      .populate('client')
+      .populate('sale')
+      .populate({
+        path: 'user',
+        select: 'username employee',
+        populate: {
+          path: 'employee',
+          select: 'name',
+        },
+      });
     return quotation;
   } catch (err) {
     console.error(err);
