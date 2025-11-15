@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
 import {updateCocApproval } from '@/app/lib/actions';
+import { isAdminRole } from "@/app/lib/isAdminRole";
 
 
 
@@ -356,7 +357,8 @@ const SingleCocApprove = ({params}) => {
               value={formData.user}
               onChange={handleAdminChange}>
             <option value="" disabled selected >Select An Admin</option>
-            {users.filter(user => user.isAdmin).map(adminUser => (  
+            {Array.isArray(users) &&
+              users.filter((user) => isAdminRole(user?.role)).map(adminUser => (  
             <option key={adminUser._id} value={adminUser._id}>
             {adminUser.username}
           </option>

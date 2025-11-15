@@ -2,6 +2,7 @@
 import React, {useState, useEffect} from 'react'; 
 import styles from '@/app/ui/dashboard/jobOrder/jobOrder.module.css';
 import { addPoApprove } from '@/app/lib/actions';
+import { isAdminRole } from "@/app/lib/isAdminRole";
 
  
 
@@ -164,7 +165,7 @@ const AddApprovePo = () => {
       <form onSubmit={handleSubmit} className={styles.form}>
           <select name='userId'>
         <option value="" disabled selected>Select An Admin</option>
-        {users.filter(user => user.isAdmin).map(adminUser => (
+        {users.filter((user) => isAdminRole(user?.role)).map(adminUser => (
           <option key={adminUser._id} value={adminUser._id}>
             {adminUser.username}
           </option>
