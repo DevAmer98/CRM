@@ -1,3 +1,4 @@
+//app/dashboard/approves/[id]/page.jsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -5,8 +6,13 @@ import { FaPlus, FaTrash, FaTag, FaEdit } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { updateQuotationApprove } from "@/app/lib/actions";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
+import { ROLES } from "@/app/lib/role";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+
+const ADMIN_ROLES = new Set(
+  Object.values(ROLES).filter((role) => role.toLowerCase().includes("admin"))
+);
 
 const SingleApprovePage = ({ params }) => {
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
@@ -443,7 +449,7 @@ function wrapDesc(text, maxLen = 40) {
               >
                 <option value="">Select An Admin</option>
                 {users
-                  ?.filter((u) => u.isAdmin)
+                  ?.filter((u) => ADMIN_ROLES.has(u.role))
                   .map((u) => (
                     <option key={u._id} value={u._id}>
                       {u.username}
