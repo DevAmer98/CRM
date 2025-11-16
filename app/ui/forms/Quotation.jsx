@@ -10,7 +10,114 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
 import 'react-quill/dist/quill.snow.css'
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
+
+const handleExcelUpload = (file, setRows, toast) => {
+  if (!file) {
+    toast.error("Please select a file.");
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+      // 🔍 1️⃣ Find header row (match any combination of these)
+      const headerIndex = rows.findIndex((r) => {
+        const text = r.join(" ").toLowerCase();
+        return (
+          (text.includes("description") || text.includes("product")) &&
+          (text.includes("qty") || text.includes("quantity")) &&
+          (text.includes("sub-total") ||
+            text.includes("subtotal") ||
+            text.includes("rate") ||
+            text.includes("price") ||
+            text.includes("amount"))
+        );
+      });
+
+      if (headerIndex === -1) {
+        toast.error("Could not detect a valid product header row.");
+        console.warn("HEADER SEARCH FAILED", rows.slice(0, 10));
+        return;
+      }
+
+      // 🧭 2️⃣ Map header columns dynamically
+      const header = rows[headerIndex].map((h) => h.toString().toLowerCase().trim());
+
+      const colIndex = {
+        itemNo: header.findIndex((h) => h.includes("item")),
+        productCode: header.findIndex((h) => h.includes("product")),
+        description: header.findIndex((h) => h.includes("description")),
+        qty: header.findIndex((h) => h.startsWith("qty") || h.includes("quantity")),
+        unit: header.findIndex((h) => h === "unit" || h.includes("unit")),
+        subtotal: header.findIndex(
+          (h) =>
+            h.includes("sub-total") ||
+            h.includes("subtotal") ||
+            h.includes("rate") ||
+            h.includes("price") ||
+            h.includes("amount")
+        ),
+      };
+
+      // 🧩 3️⃣ Extract product rows after the header
+      const products = [];
+      for (let i = headerIndex + 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.every((v) => !v)) continue;
+
+        const desc = (r[colIndex.description] || "").toString().trim();
+        if (!desc) continue;
+
+        // skip irrelevant lines like "Included", "Notes", "Division"
+        const skipWords = ["included", "note", "division", "page"];
+        if (skipWords.some((w) => desc.toLowerCase().includes(w))) continue;
+
+        const qtyRaw = r[colIndex.qty]?.toString() || "";
+        const qty = parseFloat(qtyRaw.replace(/[^\d.]/g, "")) || 0;
+
+        const subtotalRaw = r[colIndex.subtotal]?.toString() || "";
+        const subtotal = parseFloat(subtotalRaw.replace(/[^\d.]/g, "")) || 0;
+
+        const unitText = r[colIndex.unit]?.toString() || qtyRaw.replace(/\d+/g, "").trim();
+
+        if (qty === 0 && subtotal === 0) continue;
+
+        // Compute unit price (if subtotal is per total quantity)
+        const unitPrice = qty > 0 ? subtotal / qty : subtotal;
+
+        products.push({
+          number: products.length + 1,
+          productCode: r[colIndex.productCode]?.toString().trim() || "",
+          description: desc,
+          qty,
+          unit: unitText || "",
+          unit: unitPrice || 0,
+          discount: 0,
+        });
+      }
+
+      if (!products.length) {
+        toast.error("No valid products found in Excel.");
+        return;
+      }
+
+      setRows(products);
+      toast.success(`Loaded ${products.length} products successfully!`);
+    } catch (err) {
+      console.error("EXCEL PARSE ERROR", err);
+      toast.error("Failed to parse Excel file. Please check format.");
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+};
 
 
 const COMPANY_OPTIONS = [
@@ -113,94 +220,6 @@ const AddQuotation = () => {
  * @param {Function} setRows - State setter for rows
  * @param {Function} toast - Toast handler for messages
  */
-const handleExcelUpload = (file, setRows, toast) => {
-  if (!file) return toast.error('Please select a file.');
-
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-      // Step 1️⃣ Find header row
-      const headerIndex = rows.findIndex((r) => {
-        const joined = r.join(' ').toLowerCase();
-        return (
-          joined.includes('description') &&
-          (joined.includes('qty') || joined.includes('quantity')) &&
-          (joined.includes('unit') || joined.includes('unit rate'))
-        );
-      });
-
-      if (headerIndex === -1) {
-        toast.error('Could not detect a valid product header row.');
-        return;
-      }
-
-      // Step 2️⃣ Extract columns indexes dynamically
-      const header = rows[headerIndex].map((h) => h.toString().toLowerCase().trim());
-      const colIndex = {
-        itemNo: header.findIndex((h) => h.includes('item')),
-        description: header.findIndex((h) => h.includes('description')),
-        unit: header.findIndex((h) => h === 'unit' || h.includes('unit')),
-        qty: header.findIndex((h) => h.startsWith('qty') || h.includes('quantity')),
-        unitRate: header.findIndex((h) => h.includes('rate') || h.includes('price')),
-        amount: header.findIndex((h) => h.includes('amount')),
-      };
-
-      // Step 3️⃣ Parse each data row after the header
-      const products = [];
-      for (let i = headerIndex + 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || row.length === 0) continue;
-
-        const description = row[colIndex.description]?.toString().trim();
-        if (!description) continue;
-
-        // Skip non-product rows
-        const skipWords = ['included', 'notes', 'division', 'total'];
-        if (skipWords.some((w) => description.toLowerCase().includes(w))) continue;
-
-        // Convert safely
-        const qty = parseFloat(row[colIndex.qty]) || 0;
-        const unitPrice = parseFloat(row[colIndex.unitRate]) || 0;
-        const unit = row[colIndex.unit]?.toString().trim() || '';
-
-        // If both qty and unit price are 0, skip it
-        if (qty === 0 && unitPrice === 0) continue;
-
-        products.push({
-          number: products.length + 1,
-          productCode: row[colIndex.itemNo]?.toString().trim() || '',
-          description,
-          qty,
-          unit,
-          unitPrice,
-          discount: 0,
-        });
-      }
-
-      if (products.length === 0) {
-        toast.error('No valid products found in Excel.');
-        return;
-      }
-
-      setRows(products);
-      toast.success(`Loaded ${products.length} products successfully!`);
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to parse Excel file. Please check its format.');
-    }
-  };
-
-  reader.readAsArrayBuffer(file);
-};
-
-
-
 
 const cleanQuillHtml = (html) => {
   if (!html) return ''
