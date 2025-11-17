@@ -1967,7 +1967,7 @@ export const addQuotation = async (formData) => {
       sequenceNumber = String(currentNumber + 1).padStart(3, "0");
     }
 
-    const customQuotationId = `SVSSQ-${year}-${sequenceNumber}`;
+    const customQuotationId = `SVSQ-${year}-${sequenceNumber}`;
 
     const normalizedProducts = normalizeSectionTitles(products);
 
