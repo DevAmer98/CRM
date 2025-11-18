@@ -794,7 +794,7 @@ export const fetchQuotation = async (id) => {
     const jobOrders = await JobOrder.find({ poNumber: { $regex: regex } })
       .populate({
         path: 'quotation',
-        select: 'quotationId projectName totalPrice paymentTerm paymentDelivery sale',
+        select: 'quotationId projectName totalPrice paymentTerm paymentDelivery sale products currency subtotal subtotalAfterTotalDiscount totalDiscount vatAmount',
         populate: {
       path: 'sale',
       select: 'name', 

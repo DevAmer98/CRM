@@ -719,7 +719,7 @@ const jobOrderSchema = new Schema({
   },
   poNumber: {
     type: String,
-    required: true
+    required: false
   },
   poDate: {
     type: String,

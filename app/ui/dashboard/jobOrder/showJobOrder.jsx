@@ -6,6 +6,17 @@ import Link from 'next/link';
 import Pagination from '@/app/ui/dashboard/pagination/pagination';
 import { deleteJobOrder } from '@/app/lib/actions';
 import * as XLSX from 'xlsx';
+import { Eye, X } from 'lucide-react';
+
+const defaultEditForm = {
+  poNumber: '',
+  poDate: '',
+  projectType: 'Supply',
+  projectStatus: 'OPEN',
+  value: '',
+  baseValue: '',
+  currency: 'USD',
+};
 
 const ShowJobOrders = ({ jobOrders, count }) => {
   const [localJobOrders, setLocalJobOrders] = useState(jobOrders);
@@ -17,6 +28,12 @@ const ShowJobOrders = ({ jobOrders, count }) => {
     jobOrderId: null,
   });
   const [partialAmount, setPartialAmount] = useState('');
+  const [viewDialog, setViewDialog] = useState({
+    isOpen: false,
+    jobOrderId: null,
+  });
+  const [editForm, setEditForm] = useState(defaultEditForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   const initialRemaining = jobOrders.reduce((acc, job) => {
     acc[job._id] = job.remainingAmount ?? job.value;
@@ -25,10 +42,23 @@ const ShowJobOrders = ({ jobOrders, count }) => {
   const [remainingAmounts, setRemainingAmounts] = useState(initialRemaining);
 
   const currentJobOrder = localJobOrders.find(j => j._id === dialog.jobOrderId);
+  const jobOrderForView = localJobOrders.find(j => j._id === viewDialog.jobOrderId);
+  const quotationDetails = jobOrderForView?.quotation;
+  const quotationProducts = quotationDetails?.products || [];
 
   useEffect(() => {
     setLocalJobOrders(jobOrders);
   }, [jobOrders]);
+
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined || Number.isNaN(Number(amount))) {
+      return 'N/A';
+    }
+    return Number(amount).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
 
   const openDialog = (jobOrderId, type) => {
     setDialog({ isOpen: true, type, jobOrderId });
@@ -95,6 +125,112 @@ const handleConfirm = async () => {
     setDialog({ isOpen: false, type: '', jobOrderId: null });
   };
 
+  const openJobDetails = (job) => {
+    setViewDialog({ isOpen: true, jobOrderId: job._id });
+    setEditForm({
+      poNumber: job.poNumber || '',
+      poDate: job.poDate || '',
+      projectType: job.projectType || 'Supply',
+      projectStatus: job.projectStatus || 'OPEN',
+      value:
+        job.value !== undefined && job.value !== null
+          ? job.value.toString()
+          : '',
+      baseValue: job.baseValue ? job.baseValue.toString() : '',
+      currency: job.currency || 'USD',
+    });
+  };
+
+  const closeJobDetails = () => {
+    setViewDialog({ isOpen: false, jobOrderId: null });
+    setEditForm({ ...defaultEditForm });
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === 'currency' && value !== 'SAR') {
+      setEditForm((prev) => ({
+        ...prev,
+        currency: value,
+        baseValue: '',
+      }));
+      return;
+    }
+
+    setEditForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSaveEdits = async (e) => {
+    e.preventDefault();
+    if (!viewDialog.jobOrderId) return;
+
+    const poNumber = editForm.poNumber.trim();
+    if (!poNumber) {
+      alert('PO Number is required.');
+      return;
+    }
+
+    if (!editForm.poDate) {
+      alert('PO Date is required.');
+      return;
+    }
+
+    const valueNumber = Number(editForm.value);
+    if (Number.isNaN(valueNumber) || valueNumber <= 0) {
+      alert('Please enter a valid PO amount.');
+      return;
+    }
+
+    let baseValueNumber = 0;
+    if (editForm.currency === 'SAR') {
+      baseValueNumber = Number(editForm.baseValue);
+      if (Number.isNaN(baseValueNumber) || baseValueNumber <= 0) {
+        alert('Please enter the base value without VAT.');
+        return;
+      }
+    }
+
+    const payload = {
+      poNumber,
+      poDate: editForm.poDate,
+      projectType: editForm.projectType,
+      projectStatus: editForm.projectStatus,
+      currency: editForm.currency,
+      value: valueNumber,
+      baseValue: editForm.currency === 'SAR' ? baseValueNumber : 0,
+    };
+
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/jobOrder/${viewDialog.jobOrderId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Failed to update job order');
+      }
+
+      setLocalJobOrders((prev) =>
+        prev.map((job) =>
+          job._id === viewDialog.jobOrderId ? { ...job, ...payload } : job
+        )
+      );
+      alert('Job order updated successfully.');
+      closeJobDetails();
+    } catch (error) {
+      console.error('Error updating job order:', error);
+      alert('Failed to update job order.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
 
   const updateJobField = async (id, field, value) => {
@@ -302,9 +438,32 @@ const exportExcel = (rows, filename = 'job_orders.xlsx') => {
               <td>
                       <div className={styles.paymentButtons}>
 
-                  <form action={deleteJobOrder}>
+                  <button
+                    type="button"
+                    className={styles.eyeButton}
+                    title="View Job Order"
+                    onClick={() => openJobDetails(job)}
+                  >
+                    <Eye size={18} />
+                  </button>
+                  <form
+                    action={deleteJobOrder}
+                    onSubmit={(e) => {
+                      const confirmed = window.confirm(
+                        'Are you sure you want to delete this job order? This action cannot be undone.'
+                      );
+                      if (!confirmed) {
+                        e.preventDefault();
+                      }
+                    }}
+                  >
                     <input type="hidden" name="id" value={job._id} />
-                    <button className={`${styles.button} ${styles.delete}`}>Delete</button>
+                    <button
+                      className={styles.iconDeleteButton}
+                      title="Delete Job Order"
+                    >
+                      <X size={16} />
+                    </button>
                   </form>
                 </div>
               </td>
@@ -342,6 +501,213 @@ const exportExcel = (rows, filename = 'job_orders.xlsx') => {
               <button onClick={handleConfirm} className={styles.confirm}>Confirm</button>
               <button onClick={handleCancel} className={styles.cancel}>Cancel</button>
             </div>
+          </div>
+        </div>
+      )}
+      {viewDialog.isOpen && jobOrderForView && (
+        <div className={styles.dialogOverlay}>
+          <div className={styles.dialog}>
+            <h3 className={styles.dialogTitle}>Job Order Details</h3>
+            <div className={styles.dialogSummary}>
+              <div>
+                <strong>Job Order</strong>
+                <span>{jobOrderForView.jobOrderId}</span>
+              </div>
+              <div>
+                <strong>Client</strong>
+                <span>{jobOrderForView.client?.name || 'N/A'}</span>
+              </div>
+              <div>
+                <strong>Quotation</strong>
+                <span>{jobOrderForView.quotation?.quotationId || 'N/A'}</span>
+              </div>
+            </div>
+            {quotationDetails && (
+              <div className={styles.quotationSection}>
+                <div className={styles.quotationHeader}>
+                  <div>
+                    <h4>Quotation Items</h4>
+                    <p>Linked quotation details</p>
+                  </div>
+                  <div className={styles.quotationMeta}>
+                    <span>
+                      <strong>Currency</strong>
+                      {quotationDetails.currency || jobOrderForView.currency || 'N/A'}
+                    </span>
+                    <span>
+                      <strong>Total</strong>
+                      {formatCurrency(quotationDetails.totalPrice ?? jobOrderForView.value)}
+                    </span>
+                  </div>
+                </div>
+                {quotationProducts.length > 0 ? (
+                  <div className={styles.quotationTableWrapper}>
+                    <table className={styles.quotationTable}>
+                      <thead>
+                        <tr>
+                          <th>Code</th>
+                          <th>Description</th>
+                          <th>Qty</th>
+                          <th>Unit</th>
+                          <th>Unit Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {quotationProducts.map((product, index) => (
+                          <tr key={`${product.productCode || 'product'}-${index}`}>
+                            <td>{product.productCode || '-'}</td>
+                            <td>{product.description || '-'}</td>
+                            <td>{product.qty ?? '-'}</td>
+                            <td>{product.unit ?? '-'}</td>
+                            <td>{formatCurrency(product.unitPrice)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className={styles.emptyQuotation}>No quotation items available.</p>
+                )}
+                <div className={styles.quotationFooter}>
+                  <div>
+                    <span>Subtotal</span>
+                    <strong>
+                      {formatCurrency(
+                        quotationDetails.subtotal ?? quotationDetails.totalPrice ?? jobOrderForView.value
+                      )}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Discount</span>
+                    <strong>
+                      {quotationDetails.totalDiscount
+                        ? `${quotationDetails.totalDiscount}%`
+                        : '—'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>VAT</span>
+                    <strong>{formatCurrency(quotationDetails.vatAmount)}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+            <form className={styles.dialogForm} onSubmit={handleSaveEdits}>
+              <div className={styles.dialogRow}>
+                <div className={styles.dialogFormGroup}>
+                  <label htmlFor="poNumber">PO Number</label>
+                  <input
+                    id="poNumber"
+                    name="poNumber"
+                    type="text"
+                    className={styles.dialogInput}
+                    value={editForm.poNumber}
+                    onChange={handleEditChange}
+                    disabled={isSaving}
+                  />
+                </div>
+                <div className={styles.dialogFormGroup}>
+                  <label htmlFor="poDate">PO Date</label>
+                  <input
+                    id="poDate"
+                    name="poDate"
+                    type="date"
+                    className={styles.dialogInput}
+                    value={editForm.poDate}
+                    onChange={handleEditChange}
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+              <div className={styles.dialogRow}>
+                <div className={styles.dialogFormGroup}>
+                  <label htmlFor="projectType">Project Type</label>
+                  <select
+                    id="projectType"
+                    name="projectType"
+                    className={styles.dialogSelect}
+                    value={editForm.projectType}
+                    onChange={handleEditChange}
+                    disabled={isSaving}
+                  >
+                    <option value="Supply">Supply</option>
+                    <option value="Pro-Service">Pro-Service</option>
+                    <option value="Supply & Pro-Service">Supply & Pro-Service</option>
+                  </select>
+                </div>
+                <div className={styles.dialogFormGroup}>
+                  <label htmlFor="projectStatus">Project Status</label>
+                  <select
+                    id="projectStatus"
+                    name="projectStatus"
+                    className={styles.dialogSelect}
+                    value={editForm.projectStatus}
+                    onChange={handleEditChange}
+                    disabled={isSaving}
+                  >
+                    <option value="OPEN">OPEN</option>
+                    <option value="CLOSE">CLOSE</option>
+                  </select>
+                </div>
+              </div>
+              <div className={styles.dialogRow}>
+                <div className={styles.dialogFormGroup}>
+                  <label htmlFor="currency">Currency</label>
+                  <select
+                    id="currency"
+                    name="currency"
+                    className={styles.dialogSelect}
+                    value={editForm.currency}
+                    onChange={handleEditChange}
+                    disabled={isSaving}
+                  >
+                    <option value="USD">USD</option>
+                    <option value="SAR">SAR</option>
+                  </select>
+                </div>
+                <div className={styles.dialogFormGroup}>
+                  <label htmlFor="value">PO Amount</label>
+                  <input
+                    id="value"
+                    name="value"
+                    type="number"
+                    step="0.01"
+                    className={styles.dialogInput}
+                    value={editForm.value}
+                    onChange={handleEditChange}
+                    disabled={isSaving}
+                  />
+                </div>
+              </div>
+              {editForm.currency === 'SAR' && (
+                <div className={styles.dialogFormGroup}>
+                  <label htmlFor="baseValue">Base Value (before VAT)</label>
+                  <input
+                    id="baseValue"
+                    name="baseValue"
+                    type="number"
+                    step="0.01"
+                    className={styles.dialogInput}
+                    value={editForm.baseValue}
+                    onChange={handleEditChange}
+                    disabled={isSaving}
+                  />
+                </div>
+              )}
+              <div className={styles.dialogButtons}>
+                <button type="submit" className={styles.confirm} disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  className={styles.cancel}
+                  onClick={closeJobDetails}
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
