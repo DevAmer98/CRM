@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from '@/app/ui/dashboard/jobOrder/jobOrder.module.css';
 import { useRouter } from 'next/navigation';
 
@@ -36,6 +36,72 @@ const AddJobOrderPage = () => {
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
   const router = useRouter();
 
+  const CustomSelect = ({
+    value,
+    onChange,
+    options,
+    placeholder,
+    disabled,
+  }) => {
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+      if (!open) return;
+      const handleClick = (event) => {
+        if (!containerRef.current?.contains(event.target)) {
+          setOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClick);
+      return () => document.removeEventListener('mousedown', handleClick);
+    }, [open]);
+
+    const selectedOption = options.find((option) => option.value === value);
+
+    const handleSelect = (optionValue) => {
+      onChange(optionValue);
+      setOpen(false);
+    };
+
+    return (
+      <div
+        className={`${styles.customSelect} ${disabled ? styles.customSelectDisabled : ''}`}
+        ref={containerRef}
+      >
+        <button
+          type="button"
+          className={styles.customSelectButton}
+          onClick={() => !disabled && setOpen((prev) => !prev)}
+          disabled={disabled}
+        >
+          <span>{selectedOption?.label || placeholder}</span>
+          <span className={styles.customSelectCaret} />
+        </button>
+        {open && (
+          <div className={styles.customSelectOptions}>
+            {options.length === 0 ? (
+              <div className={styles.customSelectEmpty}>No options available</div>
+            ) : (
+              options.map((option) => (
+                <button
+                  type="button"
+                  key={option.value}
+                  className={`${styles.customSelectOption} ${
+                    option.value === value ? styles.customSelectOptionActive : ''
+                  }`}
+                  onClick={() => handleSelect(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   useEffect(() => {
     const fetchClientsWithQuotations = async () => {
       try {
@@ -68,15 +134,15 @@ const AddJobOrderPage = () => {
   const selectedQuotationData = selectedClientData?.quotations.find(q => q._id === selectedQuotation);
   const quotationProducts = selectedQuotationData?.products || [];
 
-  const handleClientChange = (e) => {
-    setSelectedClient(e.target.value);
+  const handleClientChange = (selectedValue) => {
+    setSelectedClient(selectedValue);
     setSelectedQuotation('');
     setSelectedPO('');
     setSelectedPODate('');
   };
 
-  const handleQuotationChange = (e) => {
-    setSelectedQuotation(e.target.value);
+  const handleQuotationChange = (selectedValue) => {
+    setSelectedQuotation(selectedValue);
   };
 
   const handleManualToggle = (e) => {
@@ -219,31 +285,35 @@ const AddJobOrderPage = () => {
             <div className={styles.gridTwo}>
               <div className={styles.field}>
                 <label>Client</label>
-                <select value={selectedClient} onChange={handleClientChange}>
-                  <option value="">Select Client</option>
-                  {clientsWithInfo.map(client => (
-                    <option key={client._id} value={client._id}>{client.name}</option>
-                  ))}
-                </select>
+                <CustomSelect
+                  value={selectedClient}
+                  onChange={handleClientChange}
+                  options={clientsWithInfo.map((client) => ({
+                    value: client._id,
+                    label: client.name,
+                  }))}
+                  placeholder="Select Client"
+                  disabled={false}
+                />
               </div>
               <div className={styles.field}>
                 <label>Quotation (optional)</label>
-                <select
+                <CustomSelect
                   value={selectedQuotation}
                   onChange={handleQuotationChange}
                   disabled={!selectedClient}
-                >
-                  <option value="">Select Quotation</option>
-                  {selectedClientData?.quotations.map(quotation => (
-                    <option key={quotation._id} value={quotation._id}>
-                      {quotation.quotationId
+                  options={
+                    selectedClientData?.quotations.map((quotation) => ({
+                      value: quotation._id,
+                      label: quotation.quotationId
                         ? quotation.projectName
                           ? `${quotation.quotationId} (${quotation.projectName})`
                           : quotation.quotationId
-                        : quotation.projectName || "Unnamed Quotation"}
-                    </option>
-                  ))}
-                </select>
+                        : quotation.projectName || 'Unnamed Quotation',
+                    })) || []
+                  }
+                  placeholder="Select Quotation"
+                />
               </div>
             </div>
           </div>

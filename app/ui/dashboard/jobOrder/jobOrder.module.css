@@ -104,6 +104,84 @@
   box-shadow: 0 0 0 2px rgba(124, 140, 255, 0.2);
 }
 
+.customSelect {
+  position: relative;
+}
+
+.customSelectDisabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.customSelectButton {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.customSelectButton:focus-visible {
+  outline: none;
+  border-color: #7c8cff;
+  box-shadow: 0 0 0 2px rgba(124, 140, 255, 0.2);
+}
+
+.customSelectCaret {
+  width: 8px;
+  height: 8px;
+  border-left: 2px solid var(--textSoft);
+  border-bottom: 2px solid var(--textSoft);
+  transform: rotate(-45deg);
+  margin-left: 12px;
+}
+
+.customSelectOptions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--bgSoft);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.25);
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.customSelectOption {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.customSelectOption:hover {
+  background: rgba(124, 140, 255, 0.1);
+}
+
+.customSelectOptionActive {
+  background: rgba(124, 140, 255, 0.2);
+}
+
+.customSelectEmpty {
+  padding: 12px;
+  color: var(--textSoft);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
 .manualToggle {
   display: flex;
   align-items: center;
