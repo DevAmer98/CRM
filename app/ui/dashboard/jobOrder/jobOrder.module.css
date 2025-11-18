@@ -156,6 +156,25 @@
   z-index: 10;
 }
 
+.customSelectSearch {
+  padding: 8px 10px 0;
+}
+
+.customSelectSearch input {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+}
+
+.customSelectSearch input:focus {
+  outline: none;
+  border-color: #7c8cff;
+}
+
 .customSelectOption {
   width: 100%;
   text-align: left;

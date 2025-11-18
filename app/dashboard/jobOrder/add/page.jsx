@@ -42,9 +42,12 @@ const AddJobOrderPage = () => {
     options,
     placeholder,
     disabled,
+    searchable = false,
   }) => {
     const [open, setOpen] = useState(false);
     const containerRef = useRef(null);
+    const [search, setSearch] = useState('');
+    const inputRef = useRef(null);
 
     useEffect(() => {
       if (!open) return;
@@ -62,7 +65,20 @@ const AddJobOrderPage = () => {
     const handleSelect = (optionValue) => {
       onChange(optionValue);
       setOpen(false);
+      setSearch('');
     };
+
+    const filteredOptions = searchable
+      ? options.filter((option) =>
+          option.label.toLowerCase().includes(search.toLowerCase())
+        )
+      : options;
+
+    useEffect(() => {
+      if (open && searchable) {
+        inputRef.current?.focus();
+      }
+    }, [open, searchable]);
 
     return (
       <div
@@ -80,10 +96,21 @@ const AddJobOrderPage = () => {
         </button>
         {open && (
           <div className={styles.customSelectOptions}>
-            {options.length === 0 ? (
+            {searchable && (
+              <div className={styles.customSelectSearch}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search..."
+                />
+              </div>
+            )}
+            {filteredOptions.length === 0 ? (
               <div className={styles.customSelectEmpty}>No options available</div>
             ) : (
-              options.map((option) => (
+              filteredOptions.map((option) => (
                 <button
                   type="button"
                   key={option.value}
@@ -294,6 +321,7 @@ const AddJobOrderPage = () => {
                   }))}
                   placeholder="Select Client"
                   disabled={false}
+                  searchable
                 />
               </div>
               <div className={styles.field}>
