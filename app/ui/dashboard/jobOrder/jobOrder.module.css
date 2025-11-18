@@ -1,105 +1,294 @@
 .wrapper {
+  padding: 32px 16px 60px;
+}
+
+.pageHeader {
+  max-width: 1100px;
+  margin: 0 auto 24px;
+}
+
+.pageHeader h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.pageHeader p {
+  margin: 0;
+  color: var(--textSoft);
+  font-size: 1rem;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.form {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  background-color: var(--bgSoft);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.sectionHeader {
+  margin-bottom: 16px;
+}
+
+.sectionHeader h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.sectionHeader p {
+  margin: 4px 0 0;
+  color: var(--textSoft);
+  font-size: 0.95rem;
+}
+
+.gridTwo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.gridThree {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--textSoft);
+}
+
+.field select,
+.field input,
+.field textarea {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 0.95rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #7c8cff;
+  box-shadow: 0 0 0 2px rgba(124, 140, 255, 0.2);
+}
+
+.manualToggle {
+  display: flex;
   align-items: center;
-  min-height: 90vh; /* This assumes you want to center it in the viewport */
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.manualToggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.manualToggle span {
+  color: var(--textSoft);
+  font-size: 0.9rem;
+}
+
+.manualProductsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+
+.manualProductsTable th,
+.manualProductsTable td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px;
+  text-align: left;
+}
+
+.manualProductsTable th {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  color: var(--textSoft);
+}
+
+.manualProductsTable input,
+.manualProductsTable textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  padding: 10px;
+}
+
+.manualProductsTable textarea {
+  min-height: 60px;
+}
+
+.manualProductActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.manualProductsShell {
+  margin-top: 12px;
+}
+
+.addProductButton,
+.removeProductButton {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.addProductButton:hover,
+.removeProductButton:hover {
+  border-color: #7c8cff;
+  background: rgba(124, 140, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.manualSummary {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-weight: 500;
+}
+
+.manualSummary span {
+  color: var(--textSoft);
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.primaryButton {
+  padding: 14px 34px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(120deg, #7c8cff, #5dd1ff);
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px rgba(124, 140, 255, 0.35);
 }
 
 .tableContainer {
-  margin-top: 30px;
+  margin-top: 32px;
+}
+
+.tableContainer h3 {
+  margin: 0 0 12px;
 }
 
 .productTable {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
+  background: var(--bgSoft);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
 }
-
-.productTable td {
-  white-space: pre-wrap;     /* keeps line breaks and wraps text */
-  word-wrap: break-word;     /* ensures long words wrap too */
-  overflow-wrap: anywhere;   /* modern fallback for long strings */
-  vertical-align: top;       /* align content to top for readability */
-  max-width: 400px;          /* optional: limit column width */
-}
-
 
 .productTable th,
 .productTable td {
-  border: 1px solid #ccc;
-  padding: 8px 12px;
-  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: top;
 }
 
 .productTable th {
-  background-color: var(--bgSoft);
+  background: rgba(255, 255, 255, 0.02);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  color: var(--textSoft);
 }
 
+.productTable td {
+  color: var(--text);
+}
 
-.container {
-
-  background-color: var(--bgSoft);
-  padding: 20px;
+.vatBox {
+  margin-top: 8px;
+  padding: 14px;
   border-radius: 10px;
-  margin-top: 20px;
-  width: 50%; /* Adjust width as needed */
-  margin-left: auto;
-  margin-right: auto;
+  background: rgba(124, 140, 255, 0.08);
+  color: var(--text);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 18px;
   }
-  
-  .form {
-    display: flex;
-    flex-direction: column; 
-    flex-wrap: wrap;
-    justify-content: space-between;
+
+  .manualToggle {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
-  .form input,
-  .form textarea,
-  .form select {
-    width: 100%; /* Full width */
-    padding: 18px; /* Adjust padding as needed */
-    background-color: var(--bg);
-    color: var(--text);
-    border: 2px solid #2e374a;
-    border-radius: 5px;
-    margin-bottom: 20px;
+
+  .actions {
+    justify-content: stretch;
   }
-  
-  .form input, .form select {
+
+  .primaryButton {
     width: 100%;
   }
-  
-  
-  .form textarea{
-    width:50%;
-  }
-  
-  .form button{
-    padding: 20px 40px; 
-    background-color: #00B4D8; 
-    color: white; 
-    font-size: 1rem; 
-    font-weight: bold; 
-    border: none; 
-    border-radius: 10px; 
-    cursor: pointer; 
-    transition: background-color 0.3s ease; 
-    outline: none; 
-    margin-top: 10px; 
-    
-  }
-
-  .form button:hover {
-    background-color: #0096C7; 
-  }
-  
-  .form button:active {
-    transform: scale(0.98); /* Slight push effect when clicked */
-  }
-
-
-  @media (max-width: 768px) {
-    .container {
-      min-height: auto; /* Adjust the height on smaller screens */
-    }}
+}

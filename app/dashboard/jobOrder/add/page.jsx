@@ -3,6 +3,14 @@ import React, { useState, useEffect } from 'react';
 import styles from '@/app/ui/dashboard/jobOrder/jobOrder.module.css';
 import { useRouter } from 'next/navigation';
 
+const createManualProduct = () => ({
+  productCode: '',
+  description: '',
+  qty: '',
+  unit: '',
+  lineTotal: 0,
+});
+
 const AddJobOrderPage = () => {
   const [clientsWithInfo, setClientsWithInfo] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
@@ -11,10 +19,18 @@ const AddJobOrderPage = () => {
   const [selectedPODate, setSelectedPODate] = useState('');
   const [currency, setCurrency] = useState('USD');
   const [value, setValue] = useState('');
+  const [useManualProducts, setUseManualProducts] = useState(false);
+  const [manualProducts, setManualProducts] = useState([createManualProduct()]);
 
+  const manualProductsTotal = manualProducts.reduce(
+    (sum, product) => sum + (Number(product.lineTotal) || 0),
+    0
+  );
+
+  const numericValue = parseFloat(value);
   const valueWithVAT =
-    currency === 'SAR' && value
-      ? (parseFloat(value) * 1.15).toFixed(2)
+    currency === 'SAR' && !Number.isNaN(numericValue)
+      ? (numericValue * 1.15).toFixed(2)
       : value;
 
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -63,24 +79,105 @@ const AddJobOrderPage = () => {
     setSelectedQuotation(e.target.value);
   };
 
+  const handleManualToggle = (e) => {
+    const checked = e.target.checked;
+    setUseManualProducts(checked);
+    if (checked && manualProducts.length === 0) {
+      setManualProducts([createManualProduct()]);
+    }
+  };
+
+  const handleManualProductChange = (index, field, value) => {
+    setManualProducts((prev) =>
+      prev.map((product, idx) => {
+        if (idx !== index) return product;
+        const updated = { ...product, [field]: value };
+        if (field === 'qty' || field === 'unit') {
+          const qty = field === 'qty' ? value : updated.qty;
+          const unit = field === 'unit' ? value : updated.unit;
+          const qtyNum = parseFloat(qty) || 0;
+          const unitNum = parseFloat(unit) || 0;
+          updated.lineTotal = qtyNum * unitNum;
+        }
+        return updated;
+      })
+    );
+  };
+
+  const addManualProductRow = () => {
+    setManualProducts((prev) => [...prev, createManualProduct()]);
+  };
+
+  const removeManualProductRow = (index) => {
+    setManualProducts((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  useEffect(() => {
+    if (useManualProducts) {
+      setValue(manualProductsTotal ? manualProductsTotal.toFixed(2) : '');
+    }
+  }, [manualProductsTotal, useManualProducts]);
+
   const handleUploadPO = async (e) => {
     e.preventDefault();
 
-    if (!selectedClient || !selectedQuotation || !selectedPO || !selectedPODate || !value) {
-      alert('Please fill in all fields.');
+    if (!selectedClient || !value) {
+      alert('Client and value are required.');
       return;
     }
 
     const baseValue = parseFloat(value);
+    if (Number.isNaN(baseValue) || baseValue <= 0) {
+      alert('Please enter a valid value.');
+      return;
+    }
+
+    const sanitizedManualProducts = useManualProducts
+      ? manualProducts
+          .map((product) => {
+            const qtyValue =
+              product.qty === '' || product.qty === null
+                ? null
+                : Number(product.qty);
+            const unitValue =
+              product.unit === '' || product.unit === null
+                ? null
+                : Number(product.unit);
+            const lineTotalValue =
+              qtyValue !== null && unitValue !== null ? qtyValue * unitValue : null;
+
+            return {
+              productCode: product.productCode?.trim() || '',
+              description: product.description?.trim() || '',
+              qty: Number.isNaN(qtyValue) ? null : qtyValue,
+              unit: Number.isNaN(unitValue) ? null : unitValue,
+              unitPrice: Number.isNaN(lineTotalValue) ? null : lineTotalValue,
+            };
+          })
+          .filter(
+            (product) =>
+              product.productCode ||
+              product.description ||
+              product.qty !== null ||
+              product.unit !== null ||
+              product.unitPrice !== null
+          )
+      : [];
+
+    if (!selectedQuotation && sanitizedManualProducts.length === 0) {
+      alert('Select a quotation or enter at least one product manually.');
+      return;
+    }
 
     const formData = {
-      poNumber: selectedPO,
-      poDate: selectedPODate,
+      poNumber: selectedPO || null,
+      poDate: selectedPODate || null,
       clientId: selectedClient,
-      quotationId: selectedQuotation,
+      quotationId: selectedQuotation || null,
       value,
       baseValue,
-      currency
+      currency,
+      manualProducts: sanitizedManualProducts,
     };
 
     try {
@@ -108,93 +205,217 @@ const AddJobOrderPage = () => {
 
   return (
     <div className={styles.wrapper}>
+      <div className={styles.pageHeader}>
+        <h1>Create Job Order</h1>
+        <p>Capture PO information, optionally link a quotation, and keep products in sync.</p>
+      </div>
       <div className={styles.container}>
         <form onSubmit={handleUploadPO} className={styles.form}>
-
-          <div className={styles.formRow}>
-            <div>
-              <label>Client</label>
-              <select value={selectedClient} onChange={handleClientChange}>
-                <option value="">Select Client</option>
-                {clientsWithInfo.map(client => (
-                  <option key={client._id} value={client._id}>{client.name}</option>
-                ))}
-              </select>
+          <div className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h3>Client & Quotation</h3>
+              <p>Select the client and link a quotation when available.</p>
             </div>
-
-            <div>
-              <label>Quotation</label>
-             <select
-  value={selectedQuotation}
-  onChange={handleQuotationChange}
-  disabled={!selectedClient}
->
-  <option value="">Select Quotation</option>
-  {selectedClientData?.quotations.map(quotation => (
-    <option key={quotation._id} value={quotation._id}>
-      {quotation.quotationId
-        ? quotation.projectName
-          ? `${quotation.quotationId} (${quotation.projectName})`
-          : quotation.quotationId
-        : quotation.projectName || "Unnamed Quotation"}
-    </option>
-  ))}
-</select>
-
-            </div>
-          </div>
-
-          <div className={styles.formRow}>
-            <div>
-              <label>PO Number</label>
-              <input
-                type="text"
-                value={selectedPO}
-                onChange={(e) => setSelectedPO(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label>PO Date</label>
-              <input
-                type="date"
-                value={selectedPODate}
-                onChange={(e) => setSelectedPODate(e.target.value)}
-              />
+            <div className={styles.gridTwo}>
+              <div className={styles.field}>
+                <label>Client</label>
+                <select value={selectedClient} onChange={handleClientChange}>
+                  <option value="">Select Client</option>
+                  {clientsWithInfo.map(client => (
+                    <option key={client._id} value={client._id}>{client.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label>Quotation (optional)</label>
+                <select
+                  value={selectedQuotation}
+                  onChange={handleQuotationChange}
+                  disabled={!selectedClient}
+                >
+                  <option value="">Select Quotation</option>
+                  {selectedClientData?.quotations.map(quotation => (
+                    <option key={quotation._id} value={quotation._id}>
+                      {quotation.quotationId
+                        ? quotation.projectName
+                          ? `${quotation.quotationId} (${quotation.projectName})`
+                          : quotation.quotationId
+                        : quotation.projectName || "Unnamed Quotation"}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className={styles.formRow}>
-            <div>
-              <label>Currency</label>
-              <select
-                className={styles.currencySelect}
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-              >
-                <option value="USD">USD</option>
-                <option value="SAR">SAR</option>
-              </select>
+          <div className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h3>Products</h3>
+              <p>Use manual products when a quotation is not available.</p>
+            </div>
+            <div className={styles.manualToggle}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={useManualProducts}
+                  onChange={handleManualToggle}
+                />
+                Enter products manually
+              </label>
+              <span>Syncs the value field automatically.</span>
             </div>
 
-            <div>
-              <label>Value (without VAT)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-              />
+            {useManualProducts && (
+              <div className={styles.manualProductsShell}>
+                <table className={styles.manualProductsTable}>
+                  <thead>
+                    <tr>
+                      <th>Product</th>
+                      <th>Description</th>
+                      <th>Qty</th>
+                      <th>Unit Price</th>
+                      <th>Line Total</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {manualProducts.map((product, index) => (
+                      <tr key={index}>
+                        <td>
+                          <input
+                            type="text"
+                            value={product.productCode}
+                            onChange={(e) =>
+                              handleManualProductChange(index, 'productCode', e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <textarea
+                            value={product.description}
+                            onChange={(e) =>
+                              handleManualProductChange(index, 'description', e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            value={product.qty}
+                            onChange={(e) =>
+                              handleManualProductChange(index, 'qty', e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={product.unit}
+                            onChange={(e) =>
+                              handleManualProductChange(index, 'unit', e.target.value)
+                            }
+                          />
+                        </td>
+                        <td>{Number(product.lineTotal || 0).toFixed(2)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className={styles.removeProductButton}
+                            onClick={() => removeManualProductRow(index)}
+                            disabled={manualProducts.length === 1}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className={styles.manualProductActions}>
+                  <button
+                    type="button"
+                    className={styles.addProductButton}
+                    onClick={addManualProductRow}
+                  >
+                    Add Product
+                  </button>
+                </div>
+                <div className={styles.manualSummary}>
+                  <strong>
+                    Manual subtotal: {manualProductsTotal.toFixed(2)} {currency}
+                  </strong>
+                  <span>The value field updates based on your manual products.</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h3>PO Details</h3>
+              <p>Provide the PO reference shared by the client.</p>
+            </div>
+            <div className={styles.gridTwo}>
+              <div className={styles.field}>
+                <label>PO Number (optional)</label>
+                <input
+                  type="text"
+                  value={selectedPO}
+                  onChange={(e) => setSelectedPO(e.target.value)}
+                />
+              </div>
+              <div className={styles.field}>
+                <label>PO Date (optional)</label>
+                <input
+                  type="date"
+                  value={selectedPODate}
+                  onChange={(e) => setSelectedPODate(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
-          {currency === 'SAR' && value && (
-            <div className={styles.vatBox}>
-              Value with VAT (15%): SAR {valueWithVAT}
+          <div className={styles.card}>
+            <div className={styles.sectionHeader}>
+              <h3>Financials</h3>
+              <p>Specify currency and the PO value.</p>
             </div>
-          )}
+            <div className={styles.gridTwo}>
+              <div className={styles.field}>
+                <label>Currency</label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  <option value="USD">USD</option>
+                  <option value="SAR">SAR</option>
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label>Value (without VAT)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                />
+              </div>
+            </div>
+            {currency === 'SAR' && value && (
+              <div className={styles.vatBox}>
+                Value with VAT (15%): SAR {valueWithVAT}
+              </div>
+            )}
+          </div>
 
-          <button type="submit">Upload PO</button>
+          <div className={styles.actions}>
+            <button type="submit" className={styles.primaryButton}>
+              Create Job Order
+            </button>
+          </div>
         </form>
 
         {quotationProducts.length > 0 && (
@@ -212,7 +433,7 @@ const AddJobOrderPage = () => {
                 {quotationProducts.map((product, index) => (
                   <tr key={index}>
                     <td>{product.productCode || '-'}</td>
-<td dangerouslySetInnerHTML={{ __html: product.description || '-' }} />
+                    <td dangerouslySetInnerHTML={{ __html: product.description || '-' }} />
                     <td>{product.qty || 0}</td>
                   </tr>
                 ))}

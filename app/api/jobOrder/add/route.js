@@ -2,6 +2,45 @@ import { Client, JobOrder, Quotation } from "@/app/lib/models";
 import { connectToDB } from "@/app/lib/utils";
 import { NextResponse } from "next/server";
 
+const sanitizeManualProducts = (products = []) => {
+  if (!Array.isArray(products)) return [];
+  return products
+    .map((product) => {
+      const qtyValue =
+        product?.qty === '' || product?.qty === null || product?.qty === undefined
+          ? null
+          : Number(product.qty);
+      const unitValue =
+        product?.unit === '' || product?.unit === null || product?.unit === undefined
+          ? null
+          : Number(product.unit);
+      const unitPriceValue =
+        product?.unitPrice === '' || product?.unitPrice === null || product?.unitPrice === undefined
+          ? null
+          : Number(product.unitPrice);
+
+      return {
+        productCode: product?.productCode || '',
+        description: product?.description || '',
+        qty: Number.isFinite(qtyValue) ? qtyValue : null,
+        unit: Number.isFinite(unitValue) ? unitValue : null,
+        unitPrice: Number.isFinite(unitPriceValue)
+          ? unitPriceValue
+          : qtyValue !== null && unitValue !== null
+          ? qtyValue * unitValue
+          : null,
+      };
+    })
+    .filter(
+      (product) =>
+        product.productCode ||
+        product.description ||
+        product.qty !== null ||
+        product.unit !== null ||
+        product.unitPrice !== null
+    );
+};
+
 export async function POST(req) {
   try {
     const {
@@ -9,13 +48,21 @@ export async function POST(req) {
       poDate,
       clientId,
       quotationId,
-      value, // ✅ coming from the form (user input)
+      value,
       currency = 'USD',
       projectType = 'Supply',
       projectStatus = 'OPEN',
+      manualProducts = [],
     } = await req.json();
 
-    if (!value || isNaN(value)) {
+    if (!clientId) {
+      return NextResponse.json({ error: 'Client is required' }, { status: 400 });
+    }
+
+    const sanitizedPoNumber = typeof poNumber === 'string' ? poNumber.trim() : '';
+
+    const baseValue = parseFloat(value);
+    if (!value || Number.isNaN(baseValue)) {
       return NextResponse.json({ error: 'Invalid value' }, { status: 400 });
     }
 
@@ -26,9 +73,12 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
-    const quotation = await Quotation.findById(quotationId).lean();
-    if (!quotation || quotation.client.toString() !== client._id.toString()) {
-      return NextResponse.json({ error: 'Quotation not found or does not belong to client' }, { status: 400 });
+    let quotation = null;
+    if (quotationId) {
+      quotation = await Quotation.findById(quotationId).lean();
+      if (!quotation || quotation.client.toString() !== client._id.toString()) {
+        return NextResponse.json({ error: 'Quotation not found or does not belong to client' }, { status: 400 });
+      }
     }
 
     const year = new Date().getFullYear();
@@ -44,23 +94,31 @@ export async function POST(req) {
 
     const customJobOrderId = `SVSJO-${year}-${sequenceNumber}`;
 
-    const baseValue = parseFloat(value);
     const valueWithVAT = currency === 'SAR'
       ? parseFloat((baseValue * 1.15).toFixed(2))
       : baseValue;
+    const products = sanitizeManualProducts(manualProducts);
+
+    if (!quotation && products.length === 0) {
+      return NextResponse.json(
+        { error: 'Provide at least one manual product or select a quotation' },
+        { status: 400 }
+      );
+    }
 
     const jobOrder = new JobOrder({
       jobOrderId: customJobOrderId,
-      poNumber,
-      poDate,
+      poNumber: sanitizedPoNumber,
+      poDate: poDate || null,
       client: client._id,
-      quotation: quotation._id,
+      quotation: quotation ? quotation._id : null,
       projectType,
       projectStatus,
       baseValue: currency === 'SAR' ? baseValue : 0,
       value: valueWithVAT,
       currency,
       remainingAmount: valueWithVAT,
+      products,
     });
 
     await jobOrder.save();

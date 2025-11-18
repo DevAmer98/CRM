@@ -313,10 +313,12 @@ const handleSelectProduct = (product) => {
   const jobOrder = jobOrders.find((jo) => jo._id === selectedId);
   console.log("Selected Job Order:", jobOrder); // <-- DEBUG here
 
-  if (jobOrder?.quotation?.products) {
+  if (jobOrder?.quotation?.products?.length) {
     setJobOrderProducts(jobOrder.quotation.products);
+  } else if (jobOrder?.products?.length) {
+    setJobOrderProducts(jobOrder.products);
   } else {
-    console.warn("No quotation products found for job order");
+    console.warn("No products found for job order");
     setJobOrderProducts([]);
   }
 }

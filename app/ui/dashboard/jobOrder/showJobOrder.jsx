@@ -44,7 +44,10 @@ const ShowJobOrders = ({ jobOrders, count }) => {
   const currentJobOrder = localJobOrders.find(j => j._id === dialog.jobOrderId);
   const jobOrderForView = localJobOrders.find(j => j._id === viewDialog.jobOrderId);
   const quotationDetails = jobOrderForView?.quotation;
-  const quotationProducts = quotationDetails?.products || [];
+  const jobProducts = jobOrderForView?.products || [];
+  const displayProducts =
+    quotationDetails?.products?.length ? quotationDetails.products : jobProducts;
+  const showProductsSection = quotationDetails || displayProducts.length > 0;
 
   useEffect(() => {
     setLocalJobOrders(jobOrders);
@@ -174,11 +177,6 @@ const handleConfirm = async () => {
       return;
     }
 
-    if (!editForm.poDate) {
-      alert('PO Date is required.');
-      return;
-    }
-
     const valueNumber = Number(editForm.value);
     if (Number.isNaN(valueNumber) || valueNumber <= 0) {
       alert('Please enter a valid PO amount.');
@@ -196,7 +194,7 @@ const handleConfirm = async () => {
 
     const payload = {
       poNumber,
-      poDate: editForm.poDate,
+      poDate: editForm.poDate || null,
       projectType: editForm.projectType,
       projectStatus: editForm.projectStatus,
       currency: editForm.currency,
@@ -522,25 +520,29 @@ const exportExcel = (rows, filename = 'job_orders.xlsx') => {
                 <span>{jobOrderForView.quotation?.quotationId || 'N/A'}</span>
               </div>
             </div>
-            {quotationDetails && (
+            {showProductsSection && jobOrderForView && (
               <div className={styles.quotationSection}>
                 <div className={styles.quotationHeader}>
                   <div>
-                    <h4>Quotation Items</h4>
-                    <p>Linked quotation details</p>
+                    <h4>{quotationDetails ? 'Quotation Items' : 'Job Order Products'}</h4>
+                    <p>
+                      {quotationDetails
+                        ? 'Linked quotation details'
+                        : 'Products captured for this job order'}
+                    </p>
                   </div>
                   <div className={styles.quotationMeta}>
                     <span>
                       <strong>Currency</strong>
-                      {quotationDetails.currency || jobOrderForView.currency || 'N/A'}
+                      {quotationDetails?.currency || jobOrderForView.currency || 'N/A'}
                     </span>
                     <span>
                       <strong>Total</strong>
-                      {formatCurrency(quotationDetails.totalPrice ?? jobOrderForView.value)}
+                      {formatCurrency(quotationDetails?.totalPrice ?? jobOrderForView.value)}
                     </span>
                   </div>
                 </div>
-                {quotationProducts.length > 0 ? (
+                {displayProducts.length > 0 ? (
                   <div className={styles.quotationTableWrapper}>
                     <table className={styles.quotationTable}>
                       <thead>
@@ -553,7 +555,7 @@ const exportExcel = (rows, filename = 'job_orders.xlsx') => {
                         </tr>
                       </thead>
                       <tbody>
-                        {quotationProducts.map((product, index) => (
+                        {displayProducts.map((product, index) => (
                           <tr key={`${product.productCode || 'product'}-${index}`}>
                             <td>{product.productCode || '-'}</td>
                             <td>{product.description || '-'}</td>
@@ -566,28 +568,40 @@ const exportExcel = (rows, filename = 'job_orders.xlsx') => {
                     </table>
                   </div>
                 ) : (
-                  <p className={styles.emptyQuotation}>No quotation items available.</p>
+                  <p className={styles.emptyQuotation}>No products available.</p>
                 )}
                 <div className={styles.quotationFooter}>
                   <div>
                     <span>Subtotal</span>
                     <strong>
                       {formatCurrency(
-                        quotationDetails.subtotal ?? quotationDetails.totalPrice ?? jobOrderForView.value
+                        quotationDetails
+                          ? quotationDetails.subtotal ??
+                            quotationDetails.totalPrice ??
+                            jobOrderForView.value
+                          : jobOrderForView.currency === 'SAR' && jobOrderForView.baseValue
+                          ? jobOrderForView.baseValue
+                          : jobOrderForView.value
                       )}
                     </strong>
                   </div>
                   <div>
                     <span>Discount</span>
                     <strong>
-                      {quotationDetails.totalDiscount
+                      {quotationDetails?.totalDiscount
                         ? `${quotationDetails.totalDiscount}%`
                         : '—'}
                     </strong>
                   </div>
                   <div>
                     <span>VAT</span>
-                    <strong>{formatCurrency(quotationDetails.vatAmount)}</strong>
+                    <strong>
+                      {quotationDetails
+                        ? formatCurrency(quotationDetails.vatAmount)
+                        : jobOrderForView.currency === 'SAR' && jobOrderForView.baseValue
+                        ? formatCurrency(jobOrderForView.value - jobOrderForView.baseValue)
+                        : '—'}
+                    </strong>
                   </div>
                 </div>
               </div>

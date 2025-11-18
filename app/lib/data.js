@@ -783,15 +783,18 @@ export const fetchQuotation = async (id) => {
 
 
   export const fetchJobOrders = async (q, page) => {
-  const regex = new RegExp(q, "i");
+  const hasQuery = typeof q === 'string' && q.trim() !== '';
+  const regex = hasQuery ? new RegExp(q, "i") : null;
   const ITEM_PER_PAGE = 10;
 
   try {
     await connectToDB();
 
-    const count = await JobOrder.countDocuments({ poNumber: { $regex: regex } });
+    const baseQuery = regex ? { poNumber: { $regex: regex } } : {};
 
-    const jobOrders = await JobOrder.find({ poNumber: { $regex: regex } })
+    const count = await JobOrder.countDocuments(baseQuery);
+
+    const jobOrders = await JobOrder.find(baseQuery)
       .populate({
         path: 'quotation',
         select: 'quotationId projectName totalPrice paymentTerm paymentDelivery sale products currency subtotal subtotalAfterTotalDiscount totalDiscount vatAmount',

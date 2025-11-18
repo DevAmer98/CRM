@@ -723,7 +723,7 @@ const jobOrderSchema = new Schema({
   },
   poDate: {
     type: String,
-    required: true,
+    required: false,
   },
   projectType: {
     type: String,
@@ -742,8 +742,17 @@ const jobOrderSchema = new Schema({
   quotation: {
     type: Schema.Types.ObjectId,
     ref: 'Quotation',
-    required: true,
+    required: false,
   },
+  products: [
+    {
+      productCode: { type: String },
+      description: { type: String },
+      qty: { type: Number },
+      unit: { type: Number },
+      unitPrice: { type: Number },
+    },
+  ],
   value: { // 💰 value including VAT (if SAR)
     type: Number,
     required: true,
@@ -938,4 +947,3 @@ export const Department = mongoose.models.Department || mongoose.model("Departme
 
 
  
-
