@@ -782,7 +782,7 @@ export const fetchQuotation = async (id) => {
 };
 
 
-  export const fetchJobOrders = async (q, page) => {
+export const fetchJobOrders = async (q, page) => {
   const hasQuery = typeof q === 'string' && q.trim() !== '';
   const regex = hasQuery ? new RegExp(q, "i") : null;
   const ITEM_PER_PAGE = 10;
@@ -815,6 +815,31 @@ export const fetchQuotation = async (id) => {
   } catch (err) {
     console.log(err);
     throw new Error('Failed to fetch jobs!');
+  }
+};
+
+export const fetchJobOrderById = async (id) => {
+  try {
+    await connectToDB();
+    const jobOrder = await JobOrder.findById(id)
+      .populate({
+        path: 'quotation',
+        select:
+          'quotationId projectName totalPrice paymentTerm paymentDelivery sale products currency subtotal subtotalAfterTotalDiscount totalDiscount vatAmount',
+        populate: {
+          path: 'sale',
+          select: 'name',
+        },
+      })
+      .populate({
+        path: 'client',
+        select: 'name',
+      })
+      .lean();
+    return jobOrder;
+  } catch (err) {
+    console.error('Error fetching job order by id:', err);
+    throw new Error('Failed to fetch job order');
   }
 };
 
