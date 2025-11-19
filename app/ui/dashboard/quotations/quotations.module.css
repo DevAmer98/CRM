@@ -565,3 +565,55 @@
   font-size: 0.7rem;
   color: var(--textSoft);
 }
+
+@media (max-width: 768px) {
+  .dialog {
+    max-width: 95vw;
+    padding: 1.25rem;
+  }
+
+  .dialogSummary {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .dialogRow {
+    flex-direction: column;
+  }
+
+  .dialogFormGroup {
+    min-width: 100%;
+  }
+
+  .quotationSection {
+    padding: 0.75rem;
+  }
+
+  .quotationHeader {
+    flex-direction: column;
+  }
+
+  .quotationMeta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .quotationTableWrapper {
+    max-height: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dialog {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .dialogTitle {
+    font-size: 1rem;
+  }
+
+  .quotationTable thead,
+  .quotationTable tbody {
+    font-size: 0.8rem;
+  }
+}
