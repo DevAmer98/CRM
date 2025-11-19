@@ -558,7 +558,11 @@ const exportExcel = (rows, filename = 'job_orders.xlsx') => {
                         {displayProducts.map((product, index) => (
                           <tr key={`${product.productCode || 'product'}-${index}`}>
                             <td>{product.productCode || '-'}</td>
-                            <td>{product.description || '-'}</td>
+                            <td
+                              dangerouslySetInnerHTML={{
+                                __html: product.description || '-',
+                              }}
+                            ></td>
                             <td>{product.qty ?? '-'}</td>
                             <td>{product.unit ?? '-'}</td>
                             <td>{formatCurrency(product.unitPrice)}</td>
