@@ -16,6 +16,7 @@ const navItems = [
   { label: "Clients", href: "/dashboard/navPages/clients" },
   { label: "HR", href: "/dashboard/navPages/HR_page" },
   { label: "Tickets", href: "/dashboard/navPages/tickets" },
+  { label: "Tasks", href: "/dashboard/navPages/tasks" },
   { label: "Finance", href: "/dashboard/navPages/finance" },
 ];
 
@@ -78,6 +79,17 @@ export default function HeaderNavigation() {
           className="flex items-center gap-2 px-6 py-4 rounded-2xl font-medium text-sm transition-all duration-500 transform hover:scale-105 text-cyan-400 shadow-lg shadow-cyan-400/20"
         >
           Tickets 
+        </Link>
+      </NavigationMenuLink>
+    </NavigationMenuItem>
+
+     <NavigationMenuItem className="h-full">
+      <NavigationMenuLink asChild>
+        <Link 
+          href='/dashboard/navPages/tasks'
+          className="flex items-center gap-2 px-6 py-4 rounded-2xl font-medium text-sm transition-all duration-500 transform hover:scale-105 text-cyan-400 shadow-lg shadow-cyan-400/20"
+        >
+          Tasks 
         </Link>
       </NavigationMenuLink>
     </NavigationMenuItem>

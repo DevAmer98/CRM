@@ -559,6 +559,242 @@
   box-shadow: var(--shadow-sm);
 }
 
+.refreshButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition-speed) ease;
+}
+
+.refreshButton:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.controlsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.segmentedControl {
+  display: inline-flex;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  padding: 4px;
+  gap: 4px;
+}
+
+.segmentedButton {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+}
+
+.segmentedButtonActive {
+  background: var(--primary);
+  color: #fff;
+}
+
+.searchWrapper {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+}
+
+.searchInput {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.statusFilterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.statusChip {
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  transition: all var(--transition-speed) ease;
+}
+
+.statusChipActive {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(99,102,241,0.12);
+}
+
+.taskFlowAvatar {
+  height: 36px;
+  width: 36px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.taskMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.taskDeadline {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.emptyState,
+.errorState {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-light);
+  border-radius: var(--border-radius);
+  width: 100%;
+}
+
+.errorState {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.statusSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.statusSummaryItem {
+  padding: 12px;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.statusSummaryItem strong {
+  font-size: 1.4rem;
+  color: var(--text);
+}
+
+.statusSummaryItem small {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.timelineList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.timelineItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.timelineItem:last-child {
+  border-bottom: none;
+}
+
+.timelineTitle {
+  font-size: 14px;
+  color: var(--text);
+  margin: 0 0 4px 0;
+}
+
+.timelineMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.timelineTime {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.taskFlowTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.taskFlowTable th,
+.taskFlowTable td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+}
+
+.taskFlowTable th {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.taskFlowTable tbody tr:hover {
+  background: var(--bg-secondary);
+}
+
 .chartPlaceholderSmall {
   height: 160px;
   background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);

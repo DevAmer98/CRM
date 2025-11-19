@@ -2776,6 +2776,54 @@ export const getTasks = async () => {
   }));
 };
 
+export const getAllTasksDetailed = async () => {
+  await connectToDB();
+
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const tasks = await Task.find({})
+    .populate('createdBy', 'username email')
+    .populate('assignedTo', 'username email')
+    .select('title description status deadline comment createdBy assignedTo createdAt updatedAt')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const mapUser = (user, fallback) => {
+    if (!user) return null;
+    const id = user._id
+      ? user._id.toString()
+      : typeof user === 'string'
+        ? user
+        : '';
+
+    return {
+      id,
+      name: user.username || user.email || fallback,
+      email: user.email || '',
+    };
+  };
+
+  return {
+    currentUserId: session.user.id,
+    tasks: tasks.map(task => ({
+      id: task._id.toString(),
+      title: task.title,
+      description: task.description || '',
+      comment: task.comment || '',
+      status: task.status,
+      deadline: task.deadline?.toISOString().split('T')[0] || '—',
+      deadlineRaw: task.deadline?.toISOString() || null,
+      createdAt: task.createdAt?.toISOString() || null,
+      updatedAt: task.updatedAt?.toISOString() || null,
+      createdBy: mapUser(task.createdBy, 'Unknown'),
+      assignedTo: mapUser(task.assignedTo, 'Unassigned'),
+    })),
+  };
+};
+
 
 export const getLeaveRequests = async () => {
   await connectToDB();
