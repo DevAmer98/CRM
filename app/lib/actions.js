@@ -2954,6 +2954,58 @@ export const getAssignedTickets = async () => {
 };
 
 
+export const getAllTicketsDetailed = async () => {
+  await connectToDB();
+
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const userId = session.user.id;
+
+  const tickets = await Ticket.find({
+    $or: [{ assignedTo: userId }, { createdBy: userId }],
+  })
+    .populate('createdBy', 'username email')
+    .populate('assignedTo', 'username email')
+    .select('title description status deadline createdBy assignedTo createdAt updatedAt')
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const mapUser = (user, fallback) => {
+    if (!user) return null;
+    const id = user._id
+      ? user._id.toString()
+      : typeof user === 'string'
+        ? user
+        : '';
+
+    return {
+      id,
+      name: user.username || user.email || fallback,
+      email: user.email || '',
+    };
+  };
+
+  return {
+    currentUserId: userId,
+    tickets: tickets.map(ticket => ({
+      id: ticket._id.toString(),
+      title: ticket.title,
+      description: ticket.description || '',
+      status: ticket.status,
+      deadline: ticket.deadline?.toISOString().split('T')[0] || '—',
+      deadlineRaw: ticket.deadline?.toISOString() || null,
+      createdAt: ticket.createdAt?.toISOString() || null,
+      updatedAt: ticket.updatedAt?.toISOString() || null,
+      createdBy: mapUser(ticket.createdBy, 'Unknown'),
+      assignedTo: mapUser(ticket.assignedTo, 'Unassigned'),
+    })),
+  };
+};
+
+
 
 export const getTickets = async () => {
   await connectToDB();

@@ -1,9 +1,11 @@
 import React from 'react'
+import Tickets from '@/app/ui/dashboard/navComponents/tickets'
 
-const Tickets = () => {
+
+const TicketsPage = () => {
   return (
-<Project />
+<Tickets />
   )
 }
 
-export default Tickets
+export default TicketsPage
