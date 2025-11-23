@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { FaPlus, FaTrash, FaTag,FaEdit } from "react-icons/fa";
+import { FaPlus, FaTrash, FaTag, FaEdit, FaGripLines } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { editQuotation, updateQuotation } from "@/app/lib/actions";
 import ReactQuill from "react-quill";
@@ -43,6 +43,7 @@ const [richDescValue, setRichDescValue] = useState("");
   // table rows + title toggles
   const [rows, setRows] = useState([]);
   const [showTitles, setShowTitles] = useState([]);
+  const [draggingIndex, setDraggingIndex] = useState(null);
 
   const currencyFields = (selectedCurrency) => {
     const isSAR = selectedCurrency === "SAR";
@@ -465,6 +466,48 @@ return payload;
     setShowTitles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const moveRow = (fromIndex, toIndex) => {
+    if (fromIndex === toIndex) return;
+    setRows((prevRows) => {
+      const updated = [...prevRows];
+      const [movedRow] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, movedRow);
+      return updated.map((row, idx) => ({ ...row, id: idx + 1, number: idx + 1 }));
+    });
+    setShowTitles((prevShow) => {
+      const updated = [...prevShow];
+      const [movedFlag] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, movedFlag);
+      return updated;
+    });
+  };
+
+  const handleDragStartRow = (event, index) => {
+    setDraggingIndex(index);
+    if (event?.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(index));
+    }
+  };
+
+  const handleDropOnRow = (event, index) => {
+    event.preventDefault();
+    const fromIndexRaw =
+      draggingIndex !== null
+        ? draggingIndex
+        : Number(event?.dataTransfer?.getData("text/plain"));
+    if (!Number.isFinite(fromIndexRaw) || fromIndexRaw === index) {
+      setDraggingIndex(null);
+      return;
+    }
+    moveRow(fromIndexRaw, index);
+    setDraggingIndex(null);
+  };
+
+  const handleDragEndRow = () => {
+    setDraggingIndex(null);
+  };
+
   const toggleTitleForRow = (index) => {
     setShowTitles((prev) => prev.map((v, i) => (i === index ? !v : v)));
   };
@@ -807,7 +850,13 @@ return payload;
                     )}
 
                     {/* Product row */}
-                    <tr className={styles.row}>
+                    <tr
+                      className={`${styles.row} ${
+                        draggingIndex === index ? styles.draggingRow : ""
+                      }`}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => handleDropOnRow(event, index)}
+                    >
                       <td>
                         <input
                           className={`${styles.input} ${styles.numberInput}`}
@@ -869,10 +918,12 @@ return payload;
                       </td>
                       <td>{formatCurrency(Number(row.unitPrice) || 0)}</td>
                       <td className={styles.actionsCell}>
-                        {/* Title toggle */}
+                        {/* Section title toggle */}
                         <button
                           type="button"
-                          className={`${styles.titleButton} ${showTitles[index] ? styles.titleButtonActive : ""}`}
+                          className={`${styles.titleButton} ${
+                            showTitles[index] ? styles.titleButtonActive : ""
+                          }`}
                           onClick={() => toggleTitleForRow(index)}
                           title={showTitles[index] ? "Hide title" : "Add title above row"}
                         >
@@ -880,22 +931,37 @@ return payload;
                           {showTitles[index] ? "Title" : "Title"}
                         </button>
 
-                        {/* Add/Delete */}
-                        {index === rows.length - 1 ? (
+                        {/* Drag handle */}
+                        <button
+                          type="button"
+                          className={`${styles.iconButton} ${styles.dragButton}`}
+                          draggable
+                          onDragStart={(event) => handleDragStartRow(event, index)}
+                          onDragEnd={handleDragEndRow}
+                          title="Drag to reorder"
+                        >
+                          <FaGripLines />
+                        </button>
+
+                        {/* Delete is now always available */}
+                        <button
+                          type="button"
+                          className={`${styles.iconButton} ${styles.deleteButton}`}
+                          onClick={() => deleteRow(index)}
+                          title="Delete this product"
+                        >
+                          <FaTrash />
+                        </button>
+
+                        {/* Only the last row shows the add button */}
+                        {index === rows.length - 1 && (
                           <button
                             type="button"
                             className={`${styles.iconButton} ${styles.addButton}`}
                             onClick={addRow}
+                            title="Add new product"
                           >
                             <FaPlus />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className={`${styles.iconButton} ${styles.deleteButton}`}
-                            onClick={() => deleteRow(index)}
-                          >
-                            <FaTrash />
                           </button>
                         )}
                       </td>
