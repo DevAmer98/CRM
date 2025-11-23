@@ -1,3 +1,4 @@
+//app/dashboard/purchaseOrder/%5Bid%5D/page.jsx
 "use client"
 import React, { useState, useEffect } from 'react';
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
@@ -10,6 +11,10 @@ const SinglePurchasePage =({params}) => {
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   const [formData, setFormData] = useState({
     userProName:'',
@@ -25,6 +30,74 @@ const SinglePurchasePage =({params}) => {
   });  
   const [rows, setRows] = useState([]);
 
+  const buildDocumentData = () => {
+    if (!purchaseOrder) {
+      throw new Error('Purchase order is not loaded yet.');
+    }
+
+    if (!rows || rows.length === 0) {
+      throw new Error('Purchase order is missing product rows.');
+    }
+
+    const totalUnitPrice = rows.reduce(
+      (total, row) => total + (Number(row.unitPrice) || 0),
+      0
+    );
+    const vatRate = selectedCurrency === 'USD' ? 0 : 0.15;
+    const vatAmount = totalUnitPrice * vatRate;
+    const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+
+    const formatDate = (value) => {
+      if (!value) return '';
+      try {
+        return new Date(value).toDateString().slice(4, 16);
+      } catch {
+        return '';
+      }
+    };
+
+    return {
+      PurchaseId: purchaseOrder.purchaseId,
+      username: purchaseOrder.userPro?.username || 'N/A',
+      phone: purchaseOrder.userPro?.phone || 'No phone',
+      email: purchaseOrder.userPro?.email || 'No email',
+      address: purchaseOrder.userPro?.address || 'No address',
+      JobOrderNumber: purchaseOrder.jobOrder?.jobOrderId,
+      SupplierId: purchaseOrder.supplier?.supplierId,
+      QuotationDate: formatDate(purchaseOrder.jobOrder?.createdAt),
+      SupplierName: purchaseOrder.supplier?.name,
+      SupplierPhone: purchaseOrder.supplier?.phone || 'No address provided',
+      SupplierContactName: purchaseOrder.supplier?.contactName,
+      SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
+      SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
+      SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
+      SaleName: purchaseOrder.userPro?.username || 'No address provided',
+      UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
+      UserEmail: purchaseOrder.userPro?.email || 'No contact info',
+      UserAddress: purchaseOrder.userPro?.address || 'No address info',
+      Products: rows.map((row, index) => ({
+        Number: (index + 1).toString().padStart(3, '0'),
+        ProductCode: row.productCode || '',
+        UnitPrice: Number(row.unitPrice || 0).toFixed(2),
+        Unit: Number(row.unit || 0).toFixed(2),
+        Qty: row.qty || '',
+        Description: row.description || '',
+      })),
+      CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
+      TotalPrice: totalUnitPrice.toFixed(2),
+      VatRate: vatRate.toFixed(2),
+      VatPrice: vatAmount.toFixed(2),
+      NetPrice: totalUnitPriceWithVAT.toFixed(2),
+      PaymentTerm: formData.paymentTerm,
+      PaymentDelivery: formData.deliveryTerm,
+      SellingPolicy: formData.sellingPolicy,
+      DeliveryLocation: formData.deliveryLocation,
+      ValidityPeriod: formData.validityPeriod,
+      DelayPenalties: formData.delayPenalties,
+      deliveryTerm: formData.deliveryTerm,
+      CreatedAt: formatDate(purchaseOrder.createdAt),
+    };
+  };
 
 
     const calculateTotalPrice = () => {
@@ -65,52 +138,8 @@ const SinglePurchasePage =({params}) => {
 
       const downloadPurchaseWordDocument = async () => {
         try {
-          const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
-          const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-          const vatAmount = totalUnitPrice * vatRate;
-          const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-          const documentData = {
-            PurchaseId: purchaseOrder.purchaseId, 
-             username: purchaseOrder.userPro?.username || 'N/A',
-          phone: purchaseOrder.userPro?.phone || 'No phone',
-         email: purchaseOrder.userPro?.email || 'No email',
-         address: purchaseOrder.userPro?.address || 'No address',
-            JobOrderNumber: purchaseOrder.jobOrder?.jobOrderId,
-            SupplierId: purchaseOrder.supplier?.supplierId,
-            QuotationDate: purchaseOrder.jobOrder ? new Date(purchaseOrder.jobOrder.createdAt).toDateString().slice(4, 16) : '',
-            SupplierName: purchaseOrder.supplier?.name, 
-            SupplierPhone: purchaseOrder.supplier?.phone || 'No address provided',
-            SupplierContactName: purchaseOrder.supplier?.contactName, 
-            SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
-            SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
-            SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
-            SaleName: purchaseOrder.userPro?.username || 'No address provided',
-            UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
-            UserEmail: purchaseOrder.userPro?.email || 'No contact info',
-            UserAddress: purchaseOrder.userPro?.address || 'No address info',
-            Products: formData.products.map((product, index) => ({
-              Number: (index + 1).toString().padStart(3, '0'),
-              ProductCode: product.productCode, 
-            UnitPrice: Number(product.unitPrice).toFixed(2),
-              Unit: Number(product.unit).toFixed(2),
-              Qty: product.qty,
-              Description: product.description,
-            })),
-            CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR', // Adjust this based on your requirements
-            TotalPrice: totalUnitPrice.toFixed(2),
-            VatRate: vatRate.toFixed(2),
-            VatPrice: vatAmount.toFixed(2),
-            NetPrice: totalUnitPriceWithVAT.toFixed(2),
-            PaymentTerm: formData.paymentTerm,
-            PaymentDelivery: formData.deliveryTerm,
-            SellingPolicy: formData.sellingPolicy,
-            DeliveryLocation: formData.deliveryLocation,
-            ValidityPeriod: formData.validityPeriod,
-            DelayPenalties: formData.delayPenalties,
-            CreatedAt: purchaseOrder.createdAt ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16) : '',
-          };
+          const documentData = buildDocumentData();
     
-          // Send data to the server to create the document
           const response = await fetch(`${domain}/api/loadPoFile`, {
             method: 'POST',
             headers: {
@@ -120,9 +149,7 @@ const SinglePurchasePage =({params}) => {
           });
     
           if (response.ok) {
-            // Create a Blob from the PDF Stream
             const fileBlob = await response.blob();
-            // Create a link element, use it to download the blob, and then remove it
             const link = document.createElement('a');
             link.href = URL.createObjectURL(fileBlob);
             link.download = `PO_${documentData.PurchaseId}.docx`;
@@ -130,10 +157,12 @@ const SinglePurchasePage =({params}) => {
             link.click();
             document.body.removeChild(link);
           } else {
-            throw new Error(`Server responded with status: ${response.status}`);}
-             } catch (error) {
-              console.error('Error downloading the document:', error);
+            throw new Error(`Server responded with status: ${response.status}`);
           }
+        } catch (error) {
+          console.error('Error downloading the document:', error);
+          alert(error.message || 'Failed to download purchase order.');
+        }
       };
 
 
@@ -173,9 +202,17 @@ totalPrice: calculateTotalPrice()
             qty: product.qty,
             description: product.description,
           }));
-          setRows(newRows);
-        }
-      }, [purchaseOrder]);
+      setRows(newRows);
+    }
+  }, [purchaseOrder]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl && typeof pdfUrl === 'string' && pdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -286,57 +323,7 @@ totalPrice: calculateTotalPrice()
 
   const uploadPurchaseDocument = async () => {
     try {
-          const totalUnitPrice = rows.reduce((total, row) => total + Number(row.unitPrice || 0), 0);
-          const vatRate = selectedCurrency === 'USD' ? 0 : 0.15; // 0% VAT for USD, 15% for SAR
-          const vatAmount = totalUnitPrice * vatRate;
-          const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
-          const documentData = {
-            PurchaseId: purchaseOrder.purchaseId, 
-             username: purchaseOrder.userPro?.username || 'N/A',
-          phone: purchaseOrder.userPro?.phone || 'No phone',
-         email: purchaseOrder.userPro?.email || 'No email',
-         address: purchaseOrder.userPro?.address || 'No address',
-            JobOrderNumber: purchaseOrder.jobOrder?.jobOrderId,
-            SupplierId: purchaseOrder.supplier?.supplierId,
-            QuotationDate: purchaseOrder.jobOrder ? new Date(purchaseOrder.jobOrder.createdAt).toDateString().slice(4, 16) : '',
-            SupplierName: purchaseOrder.supplier?.name, 
-            SupplierPhone: purchaseOrder.supplier?.phone || 'No address provided',
-            SupplierContactName: purchaseOrder.supplier?.contactName, 
-            SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
-            SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
-            SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
-            SaleName: purchaseOrder.userPro?.username || 'No address provided',
-            UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
-            UserEmail: purchaseOrder.userPro?.email || 'No contact info',
-            UserAddress: purchaseOrder.userPro?.address || 'No address info',
-            Products: formData.products.map((product, index) => ({
-              Number: (index + 1).toString().padStart(3, '0'),
-              ProductCode: product.productCode, 
-            UnitPrice: Number(product.unitPrice).toFixed(2),
-              Unit: Number(product.unit).toFixed(2),
-              Qty: product.qty,
-              Description: product.description,
-          })),
-          TotalPrice: totalUnitPrice.toFixed(2),
-          CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
-      VatRate: vatRate.toFixed(2),
-VatPrice: vatAmount.toFixed(2),
-NetPrice: totalUnitPriceWithVAT.toFixed(2),
-PaymentTerm: formData.paymentTerm,
-deliveryTerm: formData.deliveryTerm,
-SellingPolicy: formData.sellingPolicy,
-DeliveryLocation: formData.deliveryLocation,
-ValidityPeriod: formData.validityPeriod,
-DelayPenalties: formData.delayPenalties,
-CreatedAt: purchaseOrder.createdAt
-  ? new Date(purchaseOrder.createdAt).toDateString().slice(4, 16)
-  : ''
-};  // ✅ Proper closing of documentData
-  
-      // Log document data for debugging
-      console.log('Document Data for upload:', documentData);
-  
-      // Make POST request to upload PDF to Synology
+      const documentData = buildDocumentData();
       const response = await fetch(`${domain}/api/loadPoToSynology`, {
         method: 'POST',
         headers: {
@@ -359,6 +346,53 @@ CreatedAt: purchaseOrder.createdAt
     }
   };
 
+  const previewPurchaseOrderDocument = async () => {
+    if (!isPreviewOpen) {
+      setIsPreviewOpen(true);
+    }
+    setIsPreviewLoading(true);
+    setPreviewError(null);
+
+    if (pdfUrl && typeof pdfUrl === 'string' && pdfUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pdfUrl);
+    }
+    setPdfUrl(null);
+
+    try {
+      const documentData = buildDocumentData();
+      const response = await fetch(`${domain}/api/loadPoPdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(documentData),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Preview failed with status: ${response.status}`);
+      }
+
+      const fileBlob = await response.blob();
+      const blobUrl = URL.createObjectURL(fileBlob);
+      setPdfUrl(blobUrl);
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      setPreviewError(error.message || 'Failed to load preview.');
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    setIsPreviewOpen(false);
+    setPreviewError(null);
+    setIsPreviewLoading(false);
+    if (pdfUrl && typeof pdfUrl === 'string' && pdfUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(pdfUrl);
+    }
+    setPdfUrl(null);
+  };
+
 
   const calculateTotalUnitPrice = () => {
     const totalUnitPrice = rows.reduce((total, row) => total + (Number(row.unitPrice) || 0), 0);
@@ -375,6 +409,9 @@ CreatedAt: purchaseOrder.createdAt
     };
   };
 
+  const canGenerateDocument =
+    rows.length > 0 && formData.userName && formData.userName.trim() !== 'N/A';
+
   return (
     <div >
          <form onSubmit={handleSubmit}>
@@ -383,27 +420,32 @@ CreatedAt: purchaseOrder.createdAt
         <div className={styles.container}>
       Purchase Order ID: {formData.purchaseId}
       </div> 
-            <button
-  type="button"
-  className={`${styles.DownloadButton}`} 
-  onClick={handleEdit}>
-  Edit without Rev.
-</button>
-      <button
-  type="button"
-  className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
-  onClick={uploadPurchaseDocument}
-  disabled={!formData.userName || formData.userName.trim() === 'N/A'}
->
-  Upload To Synology
-</button>
-        <button type="button"
-        className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
-         onClick={downloadPurchaseWordDocument}
-         disabled={!formData.userName || formData.userName.trim() === 'N/A'}
-         >
-           Download Purchase Order
-           </button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+        <button
+          type="button"
+          className={styles.DownloadButton}
+          onClick={handleEdit}
+        >
+          Edit without Rev.
+        </button>
+        <button
+          type="button"
+          className={`${styles.DownloadButton} ${canGenerateDocument ? '' : styles.DisabledButton}`}
+          onClick={previewPurchaseOrderDocument}
+          disabled={!canGenerateDocument}
+        >
+          Preview
+        </button>
+        <button
+          type="button"
+          className={`${styles.DownloadButton} ${canGenerateDocument ? '' : styles.DisabledButton}`}
+          onClick={uploadPurchaseDocument}
+          disabled={!canGenerateDocument}
+        >
+          Upload To Synology
+        </button>
+       
+      </div>
           <div className={styles.form1}>
             <input type="hidden" name="id" value={params.id} />
             <div className={styles.inputContainer}>
@@ -636,6 +678,65 @@ onChange={(e) => handleInputChange('deliveryTerm', e.target.value)}
           
         </div>
       </form>
+      {isPreviewOpen && (
+        <div className={styles.previewBackdrop} onClick={closePreview}>
+          <div className={styles.previewModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.previewHeader}>
+              <span>Purchase Order Preview</span>
+              <button type="button" onClick={closePreview}>
+                ✖
+              </button>
+            </div>
+            {previewError ? (
+              <div className={styles.previewError}>{previewError}</div>
+            ) : isPreviewLoading ? (
+              <div className={styles.previewLoading}>Generating preview…</div>
+            ) : pdfUrl ? (
+              <iframe
+                title="Purchase Order Preview"
+                src={pdfUrl}
+                className={styles.previewFrame}
+              />
+            ) : (
+              <div className={styles.previewLoading}>Preparing preview…</div>
+            )}
+            <div className={styles.previewFooter}>
+              <button
+                type="button"
+                className={`${styles.DownloadButton} ${
+                  pdfUrl && !previewError ? '' : styles.DisabledButton
+                }`}
+                onClick={() => {
+                  if (!pdfUrl || previewError) return;
+                  const link = document.createElement('a');
+                  const poNumber = formData.purchaseId || purchaseOrder?.purchaseId || 'Preview';
+                  link.href = pdfUrl;
+                  link.download = `PO_${poNumber}.pdf`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                disabled={!pdfUrl || !!previewError}
+              >
+                Download this PDF
+              </button>
+              <button
+                type="button"
+                className={`${styles.DownloadButton} ${
+                  pdfUrl && !previewError ? '' : styles.DisabledButton
+                }`}
+                onClick={() => {
+                  if (!pdfUrl || previewError) return;
+                  window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+                }}
+                disabled={!pdfUrl || !!previewError}
+              >
+                Open in new tab
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
         </div>
     
   );
