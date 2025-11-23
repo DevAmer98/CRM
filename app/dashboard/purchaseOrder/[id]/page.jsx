@@ -31,6 +31,22 @@ const SinglePurchasePage =({params}) => {
   });  
   const [rows, setRows] = useState([]);
 
+  const getPreparedByDisplayName = (targetOrder = null) => {
+    const po = targetOrder || purchaseOrder;
+    if (!po) return 'N/A';
+    const sources = [
+      po.userPro?.employee?.name,
+      po.userPro?.name,
+      po.userPro?.username,
+    ];
+    const raw = sources.find((value) => {
+      if (value === null || value === undefined) return false;
+      const str = String(value).trim();
+      return !!str;
+    });
+    return raw ? String(raw).trim().toUpperCase() : 'N/A';
+  };
+
   const buildDocumentData = () => {
     if (!purchaseOrder) {
       throw new Error('Purchase order is not loaded yet.');
@@ -59,25 +75,26 @@ const SinglePurchasePage =({params}) => {
       }
     };
 
+    const preparedByName = getPreparedByDisplayName(purchaseOrder);
     const payload = {
       PurchaseId: purchaseOrder.purchaseId,
-      username: purchaseOrder.userPro?.username || 'N/A',
-      phone: purchaseOrder.userPro?.phone || 'No phone',
-      email: purchaseOrder.userPro?.email || 'No email',
-      address: purchaseOrder.userPro?.address || 'No address',
+      username: preparedByName,
+      phone: purchaseOrder.userPro?.phone || '',
+      email: purchaseOrder.userPro?.email || '',
+      address: purchaseOrder.userPro?.address || '',
       JobOrderNumber: purchaseOrder.jobOrder?.jobOrderId,
       SupplierId: purchaseOrder.supplier?.supplierId,
       QuotationDate: formatDate(purchaseOrder.jobOrder?.createdAt),
       SupplierName: purchaseOrder.supplier?.name,
-      SupplierPhone: purchaseOrder.supplier?.phone || 'No address provided',
+      SupplierPhone: purchaseOrder.supplier?.phone || '',
       SupplierContactName: purchaseOrder.supplier?.contactName,
-      SupplierEmail: purchaseOrder.supplier?.email || 'No contact info',
-      SupplierAddress: purchaseOrder.supplier?.address || 'No address info',
-      SupplierContactMobile: purchaseOrder.supplier?.contactMobile || 'No contact info',
-      SaleName: purchaseOrder.userPro?.username || 'No address provided',
-      UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
-      UserEmail: purchaseOrder.userPro?.email || 'No contact info',
-      UserAddress: purchaseOrder.userPro?.address || 'No address info',
+      SupplierEmail: purchaseOrder.supplier?.email || '',
+      SupplierAddress: purchaseOrder.supplier?.address || '',
+      SupplierContactMobile: purchaseOrder.supplier?.contactMobile || '',
+      SaleName: preparedByName,
+      UserPhone: purchaseOrder.userPro?.phone || '',
+      UserEmail: purchaseOrder.userPro?.email || '',
+      UserAddress: purchaseOrder.userPro?.address || '',
       Products: productsPayload,
       Sections: sections,
       CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
@@ -172,10 +189,11 @@ const SinglePurchasePage =({params}) => {
 
       useEffect(() => {
         if (purchaseOrder) {
+          const preparedByName = getPreparedByDisplayName(purchaseOrder);
           setFormData({
             purchaseId: purchaseOrder.purchaseId,
             userName: purchaseOrder.user && purchaseOrder.user.username ? purchaseOrder.user.username : 'N/A', 
-            userProName: purchaseOrder.userPro && purchaseOrder.userPro.username ? purchaseOrder.userPro.username : 'N/A', 
+            userProName: preparedByName,
             supplierName: purchaseOrder.supplier? purchaseOrder.supplier.name:'',
             jobOrderNumber: purchaseOrder.jobOrder? purchaseOrder.jobOrder.jobOrderId:'',
             products: purchaseOrder.products,
