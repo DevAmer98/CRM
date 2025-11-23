@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from 'react';
 import Link from 'next/link';
 import styles from '@/app/ui/dashboard/quotations/quotations.module.css';
@@ -157,10 +156,6 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
     e.preventDefault();
 
     const poNumber = editForm.poNumber.trim();
-    if (!poNumber) {
-      alert('PO Number is required.');
-      return;
-    }
 
     const valueNumber = Number(editForm.value);
     if (Number.isNaN(valueNumber) || valueNumber <= 0) {
