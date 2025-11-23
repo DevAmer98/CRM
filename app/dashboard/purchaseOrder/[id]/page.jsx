@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
 import {  editPurchaseOrder, updatePurchaseOrder } from '@/app/lib/actions';
 import { FaPlus, FaTrash } from 'react-icons/fa';
+import { buildPurchaseSectionsFromRows, flattenPurchaseSections } from '@/app/lib/purchaseDocSections';
 
 const SinglePurchasePage =({params}) => { 
   const [selectedCurrency, setSelectedCurrency] = useState('USD'); 
@@ -46,6 +47,8 @@ const SinglePurchasePage =({params}) => {
     const vatRate = selectedCurrency === 'USD' ? 0 : 0.15;
     const vatAmount = totalUnitPrice * vatRate;
     const totalUnitPriceWithVAT = totalUnitPrice + vatAmount;
+    const sections = buildPurchaseSectionsFromRows(rows);
+    const productsPayload = flattenPurchaseSections(sections);
 
     const formatDate = (value) => {
       if (!value) return '';
@@ -75,14 +78,8 @@ const SinglePurchasePage =({params}) => {
       UserPhone: purchaseOrder.userPro?.phone || 'No address provided',
       UserEmail: purchaseOrder.userPro?.email || 'No contact info',
       UserAddress: purchaseOrder.userPro?.address || 'No address info',
-      Products: rows.map((row, index) => ({
-        Number: (index + 1).toString().padStart(3, '0'),
-        ProductCode: row.productCode || '',
-        UnitPrice: Number(row.unitPrice || 0).toFixed(2),
-        Unit: Number(row.unit || 0).toFixed(2),
-        Qty: row.qty || '',
-        Description: row.description || '',
-      })),
+      Products: productsPayload,
+      Sections: sections,
       CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
       TotalPrice: totalUnitPrice.toFixed(2),
       VatRate: vatRate.toFixed(2),

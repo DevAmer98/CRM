@@ -5,6 +5,7 @@ import Docxtemplater from 'docxtemplater';
 import { exec } from 'child_process';
 import { NextResponse } from 'next/server';
 import { Client } from 'basic-ftp';
+import { ensurePurchaseDocSections } from '@/app/lib/purchaseDocSections';
 
 // Additional function for uploading to Synology NAS
 async function uploadToSynology(localFilePath, remoteFilePath) {
@@ -84,19 +85,20 @@ export async function POST(req) {
             chunks.push(chunk);
         }
         const data = JSON.parse(Buffer.concat(chunks).toString());
+        const payload = ensurePurchaseDocSections({ ...data });
 
         const fileName = 'SVS_PO_NEW.docx';
         const docxBuffer = await fetchDocxTemplate(fileName);
         const zip = new PizZip(docxBuffer);
         const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-        doc.render(data);
+        doc.render(payload);
 
         const tempDocxFilePath = await writeBufferToTempFile(doc.getZip().generate({ type: 'nodebuffer' }), 'temp.docx');
         const pdfPath = tempDocxFilePath.replace('.docx', '.pdf');
         await convertDocxToPdf(tempDocxFilePath, pdfPath);
 
         // Upload the generated PDF to Synology NAS
-        const remoteFilePath = `/CRM_Test/PO/${data.PurchaseId || 'Document'}.pdf`;
+        const remoteFilePath = `/CRM_Test/PO/${payload.PurchaseId || payload.PONumber || 'Document'}.pdf`;
         await uploadToSynology(pdfPath, remoteFilePath);
 
         const pdfBuffer = fs.readFileSync(pdfPath);

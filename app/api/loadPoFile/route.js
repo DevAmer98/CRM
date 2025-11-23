@@ -3,6 +3,7 @@ import path from 'path';
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { NextResponse } from 'next/server';
+import { ensurePurchaseDocSections } from '@/app/lib/purchaseDocSections';
 
 export async function POST(req) {
   try {
@@ -13,6 +14,7 @@ export async function POST(req) {
     }
     const data = JSON.parse(Buffer.concat(chunks).toString());
     console.log("Received data for document generation:", data);
+    const payload = ensurePurchaseDocSections({ ...data });
 
     // Path to the local DOCX template
     const templatePath = path.join(process.cwd(), 'templates', 'SVS_PO_NEW.docx');
@@ -29,7 +31,7 @@ export async function POST(req) {
     console.log("Docxtemplater instantiated.");
 
     // Render the document using the data
-    doc.render(data);
+    doc.render(payload);
     console.log("Template rendered with data.");
 
     // Generate the document as a nodebuffer
@@ -37,7 +39,7 @@ export async function POST(req) {
     console.log(`Buffer generated. Buffer length: ${buffer.length}`);
 
     const responseHeaders = {
-      'Content-Disposition': 'attachment; filename=SVS_PO.docx',
+      'Content-Disposition': `attachment; filename=PO_${payload.PurchaseId || payload.PONumber || 'Document'}.docx`,
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',

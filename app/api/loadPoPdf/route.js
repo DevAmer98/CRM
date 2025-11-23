@@ -4,6 +4,7 @@ import path from 'path';
 import Docxtemplater from 'docxtemplater';
 import { exec } from 'child_process';
 import { NextResponse } from 'next/server';
+import { ensurePurchaseDocSections } from '@/app/lib/purchaseDocSections';
 
 // Function to write buffer to a temporary file
 function writeBufferToTempFile(buffer, fileName) {
@@ -121,6 +122,7 @@ export async function POST(req) {
     }
     const data = JSON.parse(Buffer.concat(chunks).toString());
     console.log('Step 2: Parsed request data:', data);
+    const payload = ensurePurchaseDocSections({ ...data });
 
     const fileName = 'SVS_PO_NEW.docx'; // Use the specified file name for the template
     const docxBuffer = await fetchDocxTemplate(fileName);
@@ -128,7 +130,7 @@ export async function POST(req) {
 
     const zip = new PizZip(docxBuffer);
     const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
-    doc.render(data);
+    doc.render(payload);
     console.log('Step 4: DOCX template rendered successfully');
 
     const tempDocxFilePath = await writeBufferToTempFile(doc.getZip().generate({ type: 'nodebuffer' }), 'temp.docx');
@@ -145,7 +147,7 @@ export async function POST(req) {
     const response = new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
-        'Content-Disposition': `attachment; filename="PO_${data.PONumber || 'Document'}.pdf"`,
+        'Content-Disposition': `attachment; filename="PO_${payload.PurchaseId || payload.PONumber || 'Document'}.pdf"`,
         'Content-Type': 'application/pdf',
       },
     });
