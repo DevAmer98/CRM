@@ -35,11 +35,50 @@ async function fetchDocxTemplate(fileName) {
   return fs.readFileSync(filePath); // Return the file buffer
 }
 
+function resolveLibreOfficePath() {
+  const explicit = process.env.LIBREOFFICE_PATH && process.env.LIBREOFFICE_PATH.trim();
+  const candidates = [
+    explicit,
+    process.platform === 'win32' ? 'C:\\\\Program Files\\\\LibreOffice\\\\program\\\\soffice.exe' : null,
+    process.platform === 'win32' ? 'C:\\\\Program Files (x86)\\\\LibreOffice\\\\program\\\\soffice.exe' : null,
+    '/usr/bin/soffice',
+    '/usr/local/bin/soffice',
+    '/usr/lib/libreoffice/program/soffice',
+    '/opt/libreoffice/program/soffice',
+    '/snap/bin/libreoffice',
+    '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch (err) {
+      // try next candidate
+    }
+  }
+
+  throw new Error(
+    `LibreOffice executable not found. Set LIBREOFFICE_PATH or install soffice. Candidates tried: ${candidates.join(', ')}`
+  );
+}
+
+function quoteArg(value = '') {
+  return `"${value.replace(/"/g, '\\"')}"`;
+}
+
 // Function to convert DOCX to PDF using LibreOffice
 async function convertDocxToPdf(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
-    const libreOfficePath = `"C:\\Program Files\\LibreOffice\\program\\soffice.exe"`; // Path to LibreOffice
-    const command = `${libreOfficePath} --headless --convert-to pdf --outdir ${path.dirname(outputPath)} ${inputPath}`;
+    let libreOfficePath;
+    try {
+      libreOfficePath = resolveLibreOfficePath();
+    } catch (err) {
+      return reject(err);
+    }
+    const command = `${quoteArg(libreOfficePath)} --headless --convert-to pdf --outdir ${quoteArg(
+      path.dirname(outputPath)
+    )} ${quoteArg(inputPath)}`;
     
     console.log('Running command:', command);
 
@@ -49,7 +88,7 @@ async function convertDocxToPdf(inputPath, outputPath) {
 
       if (error) {
         console.error('Error during conversion:', error);
-        reject(stderr);
+        reject(stderr || error);
       } else {
         console.log('Conversion successful:', stdout);
         resolve(outputPath);
