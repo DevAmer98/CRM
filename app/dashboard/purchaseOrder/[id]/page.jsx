@@ -30,6 +30,14 @@ const SinglePurchasePage =({params}) => {
       delayPenalties: '',
   });  
   const [rows, setRows] = useState([]);
+  const formatMoney = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '0.00';
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  };
 
   const getPreparedByDisplayName = (targetOrder = null) => {
     const po = targetOrder || purchaseOrder;
@@ -98,10 +106,10 @@ const SinglePurchasePage =({params}) => {
       Products: productsPayload,
       Sections: sections,
       CurrencySymbol: selectedCurrency === 'USD' ? '$' : 'SAR',
-      TotalPrice: totalUnitPrice.toFixed(2),
-      VatRate: vatRate.toFixed(2),
-      VatPrice: vatAmount.toFixed(2),
-      NetPrice: totalUnitPriceWithVAT.toFixed(2),
+      TotalPrice: formatMoney(totalUnitPrice),
+      VatRate: selectedCurrency === 'USD' ? '0%' : '15%',
+      VatPrice: formatMoney(vatAmount),
+      NetPrice: formatMoney(totalUnitPriceWithVAT),
       PaymentTerm: formData.paymentTerm,
       PaymentDelivery: formData.deliveryTerm,
       SellingPolicy: formData.sellingPolicy,

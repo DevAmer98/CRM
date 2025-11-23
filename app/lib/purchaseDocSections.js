@@ -13,10 +13,14 @@ function hasValue(value) {
   return value !== null && value !== undefined && value !== "";
 }
 
-function formatDecimal(value) {
+function formatDecimal(value, decimals = 2) {
   if (!hasValue(value)) return "";
   const num = Number(value);
-  return Number.isFinite(num) ? num.toFixed(2) : String(value);
+  if (!Number.isFinite(num)) return String(value);
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(num);
 }
 
 export function wrapPurchaseDescription(text = "", maxLen = 55) {
