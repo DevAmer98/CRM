@@ -1,4 +1,13 @@
 const DEFAULT_PLACEHOLDER = "—";
+const BULLET_PREFIX = /^[•●▪·‣⁃*\-–—]+\s*/;
+const CLAUSE_FIELDS = [
+  { key: "PaymentTerm", aliases: ["paymentTerm"] },
+  { key: "PaymentDelivery", aliases: ["paymentDelivery", "deliveryTerm"] },
+  { key: "ValidityPeriod", aliases: ["validityPeriod"] },
+  { key: "DelayPenalties", aliases: ["delayPenalties"] },
+  { key: "SellingPolicy", aliases: ["sellingPolicy"] },
+  { key: "DeliveryLocation", aliases: ["deliveryLocation"] },
+];
 
 function hasValue(value) {
   return value !== null && value !== undefined && value !== "";
@@ -37,6 +46,59 @@ export function wrapPurchaseDescription(text = "", maxLen = 55) {
   });
 
   return lines.length ? lines : [DEFAULT_PLACEHOLDER];
+}
+
+function splitClauseLines(value) {
+  if (!hasValue(value)) return [];
+  const normalized = String(value)
+    .replace(/\r\n?/g, "\n")
+    .replace(/\t/g, " ")
+    .trim();
+  if (!normalized) return [];
+
+  const rawLines = normalized
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const lines = [];
+  rawLines.forEach((line) => {
+    const cleaned = line.replace(BULLET_PREFIX, "").trim();
+    if (cleaned) {
+      lines.push(cleaned);
+    }
+  });
+
+  return lines.length ? lines : [normalized];
+}
+
+function formatClauseFromLines(lines = []) {
+  if (!lines || lines.length === 0) return "";
+  const useBullets = lines.length > 1;
+  return lines
+    .map((line) => (useBullets ? `• ${line}` : line))
+    .join("\n");
+}
+
+function applyClauseFormatting(payload) {
+  CLAUSE_FIELDS.forEach(({ key, aliases = [] }) => {
+    const lookupKeys = [key, ...aliases];
+    const sourceKey = lookupKeys.find((name) => hasValue(payload[name]));
+    if (!sourceKey) return;
+
+    const lines = splitClauseLines(payload[sourceKey]);
+    if (!lines.length) return;
+
+    const formatted = formatClauseFromLines(lines);
+    payload[key] = formatted;
+    payload[`${key}Lines`] = lines;
+
+    aliases.forEach((alias) => {
+      if (alias in payload) {
+        payload[alias] = formatted;
+      }
+    });
+  });
 }
 
 export function normalizePurchaseItem(row = {}, index = 0) {
@@ -116,16 +178,17 @@ export function ensurePurchaseDocSections(payload = {}) {
         Items: rawItems.map((item, idx) => normalizePurchaseItem(item, idx)),
       };
     });
-    return payload;
+  } else {
+    const rows =
+      (Array.isArray(payload.Products) && payload.Products.length
+        ? payload.Products
+        : Array.isArray(payload.products)
+        ? payload.products
+        : []) || [];
+
+    payload.Sections = buildPurchaseSectionsFromRows(rows);
   }
 
-  const rows =
-    (Array.isArray(payload.Products) && payload.Products.length
-      ? payload.Products
-      : Array.isArray(payload.products)
-      ? payload.products
-      : []) || [];
-
-  payload.Sections = buildPurchaseSectionsFromRows(rows);
+  applyClauseFormatting(payload);
   return payload;
 }

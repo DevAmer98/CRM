@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
 import {  editPurchaseOrder, updatePurchaseOrder } from '@/app/lib/actions';
 import { FaPlus, FaTrash } from 'react-icons/fa';
-import { buildPurchaseSectionsFromRows, flattenPurchaseSections } from '@/app/lib/purchaseDocSections';
+import { buildPurchaseSectionsFromRows, flattenPurchaseSections, ensurePurchaseDocSections } from '@/app/lib/purchaseDocSections';
 
 const SinglePurchasePage =({params}) => { 
   const [selectedCurrency, setSelectedCurrency] = useState('USD'); 
@@ -59,7 +59,7 @@ const SinglePurchasePage =({params}) => {
       }
     };
 
-    return {
+    const payload = {
       PurchaseId: purchaseOrder.purchaseId,
       username: purchaseOrder.userPro?.username || 'N/A',
       phone: purchaseOrder.userPro?.phone || 'No phone',
@@ -94,6 +94,9 @@ const SinglePurchasePage =({params}) => {
       deliveryTerm: formData.deliveryTerm,
       CreatedAt: formatDate(purchaseOrder.createdAt),
     };
+    const normalized = ensurePurchaseDocSections(payload);
+    normalized.Products = flattenPurchaseSections(normalized.Sections);
+    return normalized;
   };
 
 
