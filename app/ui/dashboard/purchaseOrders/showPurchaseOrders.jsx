@@ -88,6 +88,7 @@ const ShowPurchaseOrder = ({ purchaseOrders, count }) => {
         <table className={styles.table}>
           <thead>
             <tr>
+              <td></td>
               <td>Supplier Name</td>
               <td>Purchase Order Number</td>
               <td>Job Order Number</td>
@@ -108,7 +109,7 @@ const ShowPurchaseOrder = ({ purchaseOrders, count }) => {
                 />
               </td>
               <td>{purchaseOrder.supplier?.name || 'No supplier name'}</td>
-              <td>{purchaseOrder.purchaseId || 'No Quotation Number'}</td>
+              <td>{purchaseOrder.purchaseId || 'No P Number'}</td>
               <td>{purchaseOrder.jobOrder?.jobOrderId || 'No Job Order Number'}</td>
               <td>{purchaseOrder.createdAt?.toString().slice(4,16)}</td>
               <td> 

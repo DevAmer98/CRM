@@ -14,6 +14,27 @@ const defaultEditForm = {
   currency: 'USD',
 };
 
+const VAT_RATE = 0.15;
+
+const parseNumber = (value) => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const deriveBaseValueFromGross = (value) => {
+  const numeric = parseNumber(value);
+  if (numeric === null) return null;
+  return Number((numeric / (1 + VAT_RATE)).toFixed(2));
+};
+
+const deriveGrossFromBaseValue = (value) => {
+  const numeric = parseNumber(value);
+  if (numeric === null) return null;
+  return Number((numeric * (1 + VAT_RATE)).toFixed(2));
+};
+
 const formatCurrency = (amount) => {
   if (amount === null || amount === undefined || Number.isNaN(Number(amount))) {
     return 'N/A';
@@ -26,6 +47,12 @@ const formatCurrency = (amount) => {
 
 const JobOrderDetailsPage = ({ initialJobOrder }) => {
   const [jobOrder, setJobOrder] = useState(initialJobOrder);
+  const derivedInitialBaseValue =
+    jobOrder.currency === 'SAR'
+      ? jobOrder.baseValue && Number(jobOrder.baseValue) > 0
+        ? jobOrder.baseValue.toString()
+        : (deriveBaseValueFromGross(jobOrder.value) ?? '').toString()
+      : '';
   const [editForm, setEditForm] = useState({
     ...defaultEditForm,
     poNumber: jobOrder.poNumber || '',
@@ -36,7 +63,10 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
       jobOrder.value !== undefined && jobOrder.value !== null
         ? jobOrder.value.toString()
         : '',
-    baseValue: jobOrder.baseValue ? jobOrder.baseValue.toString() : '',
+    baseValue:
+      derivedInitialBaseValue && derivedInitialBaseValue !== 'null'
+        ? derivedInitialBaseValue
+        : '',
     currency: jobOrder.currency || 'USD',
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -46,6 +76,19 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
   const displayProducts =
     quotationDetails?.products?.length ? quotationDetails.products : jobProducts;
   const showProductsSection = quotationDetails || displayProducts.length > 0;
+  const calculatedJobOrderBaseValue =
+    jobOrder.currency === 'SAR'
+      ? jobOrder.baseValue && Number(jobOrder.baseValue) > 0
+        ? jobOrder.baseValue
+        : deriveBaseValueFromGross(jobOrder.value)
+      : jobOrder.value;
+  const hasCalculatedBase =
+    calculatedJobOrderBaseValue !== null &&
+    calculatedJobOrderBaseValue !== undefined;
+  const calculatedVatAmount =
+    jobOrder.currency === 'SAR' && hasCalculatedBase && jobOrder.value !== undefined
+      ? jobOrder.value - calculatedJobOrderBaseValue
+      : null;
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
@@ -55,6 +98,51 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
         ...prev,
         currency: value,
         baseValue: '',
+      }));
+      return;
+    }
+
+    if (name === 'currency' && value === 'SAR') {
+      const parsedExistingBase = parseNumber(editForm.baseValue);
+      const baseFromExisting =
+        parsedExistingBase !== null
+          ? parsedExistingBase
+          : deriveBaseValueFromGross(editForm.value);
+      setEditForm((prev) => ({
+        ...prev,
+        currency: value,
+        baseValue:
+          baseFromExisting !== null ? baseFromExisting.toFixed(2) : prev.baseValue,
+        value:
+          baseFromExisting !== null
+            ? deriveGrossFromBaseValue(baseFromExisting).toFixed(2)
+            : prev.value,
+      }));
+      return;
+    }
+
+    if (name === 'value') {
+      if (editForm.currency === 'SAR') {
+        const derivedBase = deriveBaseValueFromGross(value);
+        setEditForm((prev) => ({
+          ...prev,
+          value,
+          baseValue:
+            derivedBase !== null ? derivedBase.toFixed(2) : prev.baseValue,
+        }));
+        return;
+      }
+    }
+
+    if (name === 'baseValue') {
+      const derivedGross = deriveGrossFromBaseValue(value);
+      setEditForm((prev) => ({
+        ...prev,
+        baseValue: value,
+        value:
+          prev.currency === 'SAR' && derivedGross !== null
+            ? derivedGross.toFixed(2)
+            : prev.value,
       }));
       return;
     }
@@ -82,8 +170,12 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
 
     let baseValueNumber = 0;
     if (editForm.currency === 'SAR') {
-      baseValueNumber = Number(editForm.baseValue);
-      if (Number.isNaN(baseValueNumber) || baseValueNumber <= 0) {
+      const parsedBase = Number(editForm.baseValue);
+      baseValueNumber =
+        !Number.isNaN(parsedBase) && parsedBase > 0
+          ? parsedBase
+          : deriveBaseValueFromGross(valueNumber);
+      if (baseValueNumber === null || baseValueNumber === undefined || baseValueNumber <= 0) {
         alert('Please enter the base value without VAT.');
         return;
       }
@@ -95,8 +187,11 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
       projectType: editForm.projectType,
       projectStatus: editForm.projectStatus,
       currency: editForm.currency,
-      value: valueNumber,
-      baseValue: editForm.currency === 'SAR' ? baseValueNumber : 0,
+      value: Number(valueNumber.toFixed(2)),
+      baseValue:
+        editForm.currency === 'SAR' && baseValueNumber
+          ? Number(baseValueNumber.toFixed(2))
+          : 0,
     };
 
     setIsSaving(true);
@@ -212,9 +307,7 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
                     ? quotationDetails.subtotal ??
                         quotationDetails.totalPrice ??
                         jobOrder.value
-                    : jobOrder.currency === 'SAR' && jobOrder.baseValue
-                    ? jobOrder.baseValue
-                    : jobOrder.value
+                    : calculatedJobOrderBaseValue ?? jobOrder.value
                 )}
               </strong>
             </div>
@@ -231,8 +324,8 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
               <strong>
                 {quotationDetails
                   ? formatCurrency(quotationDetails.vatAmount)
-                  : jobOrder.currency === 'SAR' && jobOrder.baseValue
-                  ? formatCurrency(jobOrder.value - jobOrder.baseValue)
+                  : jobOrder.currency === 'SAR' && calculatedVatAmount !== null
+                  ? formatCurrency(calculatedVatAmount)
                   : '—'}
               </strong>
             </div>

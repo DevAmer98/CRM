@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import styles from '@/app/ui/dashboard/jobOrder/jobOrder.module.css';
 import { useRouter } from 'next/navigation';
 
+const VAT_RATE = 0.15;
+
 const createManualProduct = () => ({
   productCode: '',
   description: '',
@@ -10,6 +12,38 @@ const createManualProduct = () => ({
   unit: '',
   lineTotal: 0,
 });
+
+const numberOrNull = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const deriveQuotationBaseValue = (quotation) => {
+  if (!quotation) return null;
+
+  const subtotalAfterDiscount = numberOrNull(
+    quotation.subtotalAfterTotalDiscount
+  );
+  if (subtotalAfterDiscount !== null && subtotalAfterDiscount > 0) {
+    return Number(subtotalAfterDiscount.toFixed(2));
+  }
+
+  const subtotal = numberOrNull(quotation.subtotal);
+  if (subtotal !== null && subtotal > 0) {
+    return Number(subtotal.toFixed(2));
+  }
+
+  const totalPrice = numberOrNull(quotation.totalPrice);
+  if (totalPrice === null || totalPrice <= 0) {
+    return null;
+  }
+
+  if (quotation.currency === 'SAR') {
+    return Number((totalPrice / (1 + VAT_RATE)).toFixed(2));
+  }
+
+  return Number(totalPrice.toFixed(2));
+};
 
 const AddJobOrderPage = () => {
   const [clientsWithInfo, setClientsWithInfo] = useState([]);
@@ -30,7 +64,7 @@ const AddJobOrderPage = () => {
   const numericValue = parseFloat(value);
   const valueWithVAT =
     currency === 'SAR' && !Number.isNaN(numericValue)
-      ? (numericValue * 1.15).toFixed(2)
+      ? (numericValue * (1 + VAT_RATE)).toFixed(2)
       : value;
 
   const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -160,6 +194,21 @@ const AddJobOrderPage = () => {
   const selectedClientData = clientsWithInfo.find(c => c._id === selectedClient);
   const selectedQuotationData = selectedClientData?.quotations.find(q => q._id === selectedQuotation);
   const quotationProducts = selectedQuotationData?.products || [];
+
+  useEffect(() => {
+    if (!selectedQuotationData || useManualProducts) {
+      return;
+    }
+
+    if (selectedQuotationData.currency) {
+      setCurrency(selectedQuotationData.currency);
+    }
+
+    const derivedBase = deriveQuotationBaseValue(selectedQuotationData);
+    if (derivedBase !== null) {
+      setValue(derivedBase.toFixed(2));
+    }
+  }, [selectedQuotationData, useManualProducts]);
 
   const handleClientChange = (selectedValue) => {
     setSelectedClient(selectedValue);
