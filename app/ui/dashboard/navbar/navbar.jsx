@@ -1,17 +1,19 @@
 "use client";
 import { usePathname } from "next/navigation";
 import styles from "./navbar.module.css";
-import { Bell, CirclePlus, MessageSquare, Power, Search } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Bell, CirclePlus, MessageSquare, Power, Search, UserRound } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import TaskForm from "../../forms/task/task";
 import TicketForm from "../../forms/ticket/ticket";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getTaskById, getTasks } from "@/app/lib/actions";
 import DialogCss from "../dialog/dialog";
 import { signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 
 
 const Navbar = () => {
+  const { data: session } = useSession();
   const pathname = usePathname();
   const [showDropdown, setShowDropdown] = useState(false);
   const [tasks, setTasks] = useState([]);
@@ -19,12 +21,143 @@ const Navbar = () => {
   const [showDialog, setShowDialog] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [accountData, setAccountData] = useState(null);
+  const [accountForm, setAccountForm] = useState({
+    username: "",
+    email: "",
+    phone: "",
+    address: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [accountLoading, setAccountLoading] = useState(false);
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountMessage, setAccountMessage] = useState("");
+  const [accountError, setAccountError] = useState("");
 
   useEffect(() => {
     getTasks().then(data => {
       setTasks(data || []);
     });
   }, []);
+
+  const fetchAccountDetails = useCallback(async () => {
+    setAccountLoading(true);
+    setAccountError("");
+    try {
+      const response = await fetch("/api/account", { cache: "no-store" });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to load account details.");
+      }
+
+      setAccountData(payload.user);
+      setAccountForm(prev => ({
+        ...prev,
+        username: payload.user?.username || "",
+        email: payload.user?.email || "",
+        phone: payload.user?.phone || "",
+        address: payload.user?.address || "",
+        newPassword: "",
+        confirmPassword: "",
+      }));
+    } catch (error) {
+      setAccountError(error?.message || "Unable to load your account.");
+    } finally {
+      setAccountLoading(false);
+    }
+  }, []);
+
+  const handleAccountOpenChange = useCallback(
+    open => {
+      setShowAccountDialog(open);
+      if (open) {
+        fetchAccountDetails();
+      } else {
+        setAccountMessage("");
+        setAccountError("");
+        setAccountForm(prev => ({
+          ...prev,
+          newPassword: "",
+          confirmPassword: "",
+        }));
+      }
+    },
+    [fetchAccountDetails]
+  );
+
+  const handleAccountFieldChange = (field, value) => {
+    setAccountForm(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+    if (accountError) setAccountError("");
+    if (accountMessage) setAccountMessage("");
+  };
+
+  const handleAccountSubmit = async event => {
+    event.preventDefault();
+    setAccountError("");
+    setAccountMessage("");
+
+    if (!accountForm.username.trim()) {
+      setAccountError("Username is required.");
+      return;
+    }
+
+    if (!accountForm.email.trim()) {
+      setAccountError("Email is required.");
+      return;
+    }
+
+    if (accountForm.newPassword && accountForm.newPassword !== accountForm.confirmPassword) {
+      setAccountError("New passwords do not match.");
+      return;
+    }
+
+    const payload = {
+      username: accountForm.username.trim(),
+      email: accountForm.email.trim(),
+      phone: accountForm.phone || "",
+      address: accountForm.address || "",
+    };
+
+    if (accountForm.newPassword) {
+      payload.password = accountForm.newPassword;
+    }
+
+    setAccountSaving(true);
+    try {
+      const response = await fetch("/api/account", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to update account.");
+      }
+
+      setAccountData(data.user);
+      setAccountMessage("Account updated successfully.");
+      setAccountForm(prev => ({
+        ...prev,
+        username: data.user?.username || prev.username,
+        email: data.user?.email || prev.email,
+        phone: data.user?.phone || "",
+        address: data.user?.address || "",
+        newPassword: "",
+        confirmPassword: "",
+      }));
+    } catch (error) {
+      setAccountError(error?.message || "Unable to update account.");
+    } finally {
+      setAccountSaving(false);
+    }
+  };
 
   const openDialog = async (taskOrId) => {
     setDialogLoading(true);
@@ -202,17 +335,161 @@ const Navbar = () => {
               )}
             </div>
 
-<button
-  onClick={() => signOut({ callbackUrl: "/login" })}
-  className="text-[var(--textSoft)] hover:text-[var(--primary)] transition-colors relative -translate-y-1"
-  title="Logout"
->
-  <Power />
-</button>
+            <button
+              onClick={() => handleAccountOpenChange(true)}
+              className="text-[var(--textSoft)] hover:text-[var(--primary)] transition-colors relative -translate-y-1"
+              title="Account"
+            >
+              <UserRound />
+            </button>
+
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="text-[var(--textSoft)] hover:text-[var(--primary)] transition-colors relative -translate-y-1"
+              title="Logout"
+            >
+              <Power />
+            </button>
 
           </div>
         </div>
       </div>
+
+      <Dialog open={showAccountDialog} onOpenChange={handleAccountOpenChange}>
+        <DialogContent className={styles.accountDialogContent}>
+          <div className={styles.accountDialog}>
+            <div className={styles.accountHeader}>
+              <div className={styles.accountHeaderTop}>
+                <div className={styles.accountHeaderInfo}>
+                  <DialogTitle className={styles.accountTitle}>Account Settings</DialogTitle>
+                  {session?.user?.role && (
+                    <p className={styles.accountRole}>Role · {session.user.role}</p>
+                  )}
+                </div>
+                {accountData?.email && <span className={styles.accountBadge}>{accountData.email}</span>}
+              </div>
+              {accountData?.updatedAt && (
+                <p className={styles.accountMeta}>
+                  Last updated{" "}
+                  {new Date(accountData.updatedAt).toLocaleDateString(undefined, {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+            </div>
+
+            <div className={styles.accountBody}>
+              {accountError && <p className={`${styles.accountAlert} ${styles.accountAlertError}`}>{accountError}</p>}
+              {accountMessage && (
+                <p className={`${styles.accountAlert} ${styles.accountAlertSuccess}`}>{accountMessage}</p>
+              )}
+
+              {accountLoading ? (
+                <div className={styles.accountLoading}>Loading your account…</div>
+              ) : accountData ? (
+                <form onSubmit={handleAccountSubmit} className={styles.accountForm}>
+                  <div className={styles.accountGrid}>
+                    <section className={`${styles.accountCard} ${styles.accountCardProfile}`}>
+                      <div className={styles.accountCardHeading}>
+                        <p className={styles.accountCardTitle}>Profile</p>
+                        <p className={styles.accountCardSubtitle}>Basic account information</p>
+                      </div>
+                      <div className={styles.accountFields}>
+                        <div className={styles.accountTwoColumn}>
+                          {[
+                            { label: "Username", type: "text", field: "username" },
+                            { label: "Email", type: "email", field: "email" },
+                          ].map(item => (
+                            <label key={item.field} className={styles.accountLabel}>
+                              <span>{item.label}</span>
+                              <input
+                                type={item.type}
+                                value={accountForm[item.field]}
+                                onChange={e => handleAccountFieldChange(item.field, e.target.value)}
+                                className={styles.accountInput}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                        <label className={styles.accountLabel}>
+                          <span>Phone</span>
+                          <input
+                            type="tel"
+                            value={accountForm.phone}
+                            onChange={e => handleAccountFieldChange("phone", e.target.value)}
+                            className={styles.accountInput}
+                          />
+                        </label>
+                        <label className={`${styles.accountLabel} ${styles.accountLabelTextarea}`}>
+                          <span>Address</span>
+                          <textarea
+                            value={accountForm.address}
+                            onChange={e => handleAccountFieldChange("address", e.target.value)}
+                            rows={3}
+                            className={`${styles.accountInput} ${styles.accountTextarea}`}
+                          />
+                        </label>
+                      </div>
+                    </section>
+
+                    <section className={`${styles.accountCard} ${styles.accountCardSecurity}`}>
+                      <div className={styles.accountCardHeading}>
+                        <p className={styles.accountCardTitle}>Security</p>
+                        <p className={styles.accountCardSubtitle}>Update your password</p>
+                      </div>
+                      <div className={styles.accountFieldsColumn}>
+                        <div className={styles.accountTwoColumn}>
+                          {[
+                            { label: "New Password", field: "newPassword" },
+                            { label: "Confirm Password", field: "confirmPassword" },
+                          ].map(item => (
+                            <label key={item.field} className={styles.accountLabel}>
+                              <span>{item.label}</span>
+                              <input
+                                type="password"
+                                value={accountForm[item.field]}
+                                onChange={e => handleAccountFieldChange(item.field, e.target.value)}
+                                className={styles.accountInput}
+                              />
+                            </label>
+                          ))}
+                        </div>
+                        <p className={styles.accountNote}>
+                          Leave both password fields empty if you do not want to update your password.
+                        </p>
+                      </div>
+                    </section>
+                  </div>
+
+                  <div className={styles.accountFooter}>
+                    <button
+                      type="button"
+                      onClick={() => handleAccountOpenChange(false)}
+                      className={`${styles.accountButton} ${styles.accountButtonGhost}`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className={`${styles.accountButton} ${styles.accountButtonPrimary}`}
+                      disabled={accountSaving}
+                    >
+                      {accountSaving ? "Saving changes…" : "Save changes"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className={styles.accountLoadError}>
+                  <p>We couldn't load your account details.</p>
+                  <button onClick={fetchAccountDetails}>Try again</button>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <DialogCss
         showDialog={showDialog}
