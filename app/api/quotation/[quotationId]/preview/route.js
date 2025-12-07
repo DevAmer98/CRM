@@ -7,8 +7,8 @@ import { execFile, spawn } from "child_process";
 import net from "net";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
-import JSZip from "jszip";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
+import { normalizeDocx } from "@/app/api/_lib/normalizeDocx";
 
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
@@ -215,51 +215,6 @@ async function renderDocxBuffer(templateBuffer, data) {
     console.error("❌ DOCX render error details:", err.properties || err);
     throw err;
   }
-}
-
-/* ---------- Normalize DOCX XML ---------- */
-async function normalizeDocx(buffer) {
-  const zip = await JSZip.loadAsync(buffer);
-  const files = Object.keys(zip.files).filter((f) =>
-    f.match(/^word\/(document|header\d*|footer\d*)\.xml$/)
-  );
-
-  for (const f of files) {
-    let xml = await zip.file(f).async("string");
-
-    // ✅ 1. Table normalization
-    xml = xml
-      .replace(/<w:cantSplit[^>]*>/g, '<w:cantSplit w:val="0"/>')
-      .replace(/<w:trHeight[^>]*>/g, '<w:trHeight w:hRule="auto"/>')
-      .replace(/<w:tblpPr[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
-      .replace(/<w:tblLook [^>]*\/>/g, '<w:tblLook w:noHBand="0" w:noVBand="0"/>')
-      .replace(/<\/w:tblPr>/g, '<w:tblOverlap w:val="never"/></w:tblPr>');
-
-    // ✅ 2. Remove "keep-with-next" only before tables
-    xml = xml.replace(
-      /(<w:p[^>]*>[\s\S]*?<w:keepNext\/>[\s\S]*?<\/w:p>)(\s*<w:tbl)/g,
-      (match, para, tbl) => para.replace(/<w:keepNext\/>/g, "") + tbl
-    );
-
-    // ✅ 3. Remove empty paragraphs that create margin
-    xml = xml.replace(/<w:p>\s*<\/w:p>/g, "");
-
-    // ✅ 4. Remove unwanted page-break / keep-together before tables
-    xml = xml.replace(
-      /<w:pPr>[\s\S]*?(<w:keepNext\/>|<w:pageBreakBefore\/>)[\s\S]*?<\/w:pPr>(\s*<w:tbl)/g,
-      (match, pPr, tbl) =>
-        pPr
-          .replace(/<w:keepNext\/>/g, "")
-          .replace(/<w:pageBreakBefore\/>/g, "") + tbl
-    );
-
-    // ✅ 5. Allow tables to split normally across pages
-    xml = xml.replace(/<w:cantSplit w:val="1"\/>/g, '<w:cantSplit w:val="0"/>');
-
-    zip.file(f, xml);
-  }
-
-  return zip.generateAsync({ type: "nodebuffer" });
 }
 
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */

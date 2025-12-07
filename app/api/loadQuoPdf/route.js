@@ -7,6 +7,7 @@ import { execFile } from "child_process";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
+import { normalizeDocx } from "@/app/api/_lib/normalizeDocx";
 
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
@@ -178,6 +179,7 @@ async function docxToPdfBytes(payload) {
   // Render DOCX
   const templateBuffer = fs.readFileSync(templatePath);
   const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
+  const normalizedBuffer = await normalizeDocx(renderedBuffer);
 
   // Convert DOCX → PDF
   const tmpDir =
@@ -187,7 +189,7 @@ async function docxToPdfBytes(payload) {
   fs.mkdirSync(tmpDir, { recursive: true });
 
   const tmpDocx = path.join(tmpDir, `quotation-${Date.now()}.docx`);
-  fs.writeFileSync(tmpDocx, renderedBuffer);
+  fs.writeFileSync(tmpDocx, normalizedBuffer);
 
   const soffice = getLibreOfficePath();
   const outPdf = tmpDocx.replace(/\.docx$/i, ".pdf");

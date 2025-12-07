@@ -3,6 +3,30 @@ import { User, Client, Supplier, Quotation, PurchaseOrder, JobOrder, Sale, Coc, 
 import { connectToDB } from './utils';
 import { ROLES } from './role';
 
+const sanitizeBson = (value) => {
+  if (value === null || value === undefined) return value;
+
+  if (Array.isArray(value)) {
+    return value.map(sanitizeBson);
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'object') {
+    if (value._bsontype === 'ObjectID' || value._bsontype === 'ObjectId') {
+      return value.toString();
+    }
+
+    return Object.entries(value).reduce((acc, [key, val]) => {
+      acc[key] = sanitizeBson(val);
+      return acc;
+    }, {});
+  }
+
+  return value;
+};
 
 export const fetchUsers = async (q, page) => {
 
@@ -726,8 +750,7 @@ export const fetchQuotations = async (quotationId, page = 1, companyProfile) => 
       .limit(ITEM_PER_PAGE)
       .skip((page - 1) * ITEM_PER_PAGE);
 
-    // ✅ This is the fix — convert to plain objects
-    const quotationsPlain = quotations.map((q) => q.toObject());
+    const quotationsPlain = quotations.map((q) => sanitizeBson(q.toObject()));
 
     return { count, quotations: quotationsPlain };
   } catch (err) {
@@ -1134,7 +1157,7 @@ export async function fetchClientsWithQuotations(q = '', page = 1) {
       }
     : {};
 
-  const clients = await Client.aggregate([
+  const rawClients = await Client.aggregate([
     { $match: matchStage },
     { $sort: { createdAt: -1 } },
     { $skip: skip },
@@ -1165,6 +1188,7 @@ export async function fetchClientsWithQuotations(q = '', page = 1) {
     },
   ]);
 
+  const clients = rawClients.map((client) => sanitizeBson(client));
   const count = await Client.countDocuments(matchStage);
 
   return { clients, count };
@@ -1399,7 +1423,7 @@ const fetchJobOrdersForClient = async (clientId) => {
 
     // ✅ Convert to plain JS objects
     const purchaseOrders = purchaseOrdersDocs.map((doc) =>
-      doc.toObject({ virtuals: true })
+      sanitizeBson(doc.toObject({ virtuals: true }))
     );
 
     return { count, purchaseOrders };

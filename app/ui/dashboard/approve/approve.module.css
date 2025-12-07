@@ -599,6 +599,126 @@
   background: #2d3648;
 }
 
+.selectionCheckbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.sharedPriceBadge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+}
+
+.sharedPriceControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  background: #0f172a;
+  border: 1px dashed #334155;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.sharedPriceInfo {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.sharedPriceInput {
+  flex: 1;
+  min-width: 180px;
+  padding: 10px 12px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #f8fafc;
+}
+
+.sharedPriceButton,
+.sharedPriceButtonSecondary {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.sharedPriceButton {
+  background: #0ea5e9;
+  color: #fff;
+  min-width: 150px;
+}
+
+.sharedPriceButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sharedPriceButtonSecondary {
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5f5;
+}
+
+.unlinkButton {
+  background: #f97316;
+}
+
+.unlinkButton:hover {
+  background: #ea580c;
+}
+
+.sharedRow {
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.sharedTag {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sharedLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.sharedLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sharedLegendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 
 /* Dark description popup tweaks */
 .quillDark .ql-toolbar {
@@ -640,5 +760,3 @@
 .previewFrame { width:100%; height:75vh; border:0; }
 .previewFooter { display:flex; justify-content:flex-end; gap:8px; padding:10px 14px; border-top:1px solid #eee; }
 .previewLoading, .previewError { padding:16px; }
-
-

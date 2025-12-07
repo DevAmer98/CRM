@@ -2,7 +2,7 @@
 'use client'
 import styles from '@/app/ui/dashboard/approve/approve.module.css'
 import { addQuotation } from '@/app/lib/actions'
-import { FaPlus, FaTrash, FaTag, FaEdit } from 'react-icons/fa'
+import { FaPlus, FaTrash, FaTag, FaEdit, FaUnlink } from 'react-icons/fa'
 import React, { useEffect, useState } from 'react'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
@@ -11,6 +11,17 @@ import dynamic from 'next/dynamic'
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
 import 'react-quill/dist/quill.snow.css'
 import * as XLSX from "xlsx";
+
+const buildRow = (overrides = {}) => ({
+  productCode: '',
+  qty: 0,
+  unit: 0,
+  discount: 0,
+  description: '',
+  sharedGroupId: null,
+  sharedGroupPrice: null,
+  ...overrides,
+});
 
 const handleExcelUpload = (file, setRows, toast) => {
   if (!file) {
@@ -85,22 +96,20 @@ const handleExcelUpload = (file, setRows, toast) => {
         const subtotalRaw = r[colIndex.subtotal]?.toString() || "";
         const subtotal = parseFloat(subtotalRaw.replace(/[^\d.]/g, "")) || 0;
 
-        const unitText = r[colIndex.unit]?.toString() || qtyRaw.replace(/\d+/g, "").trim();
-
         if (qty === 0 && subtotal === 0) continue;
 
         // Compute unit price (if subtotal is per total quantity)
         const unitPrice = qty > 0 ? subtotal / qty : subtotal;
 
-        products.push({
-          number: products.length + 1,
-          productCode: r[colIndex.productCode]?.toString().trim() || "",
-          description: desc,
-          qty,
-          unit: unitText || "",
-          unit: unitPrice || 0,
-          discount: 0,
-        });
+        products.push(
+          buildRow({
+            productCode: r[colIndex.productCode]?.toString().trim() || "",
+            description: desc,
+            qty,
+            unit: unitPrice || 0,
+            discount: 0,
+          })
+        );
       }
 
       if (!products.length) {
@@ -134,6 +143,8 @@ const productSchema = z.object({
   description: z.string().optional(),
   titleAbove: z.string().optional(),
   discount: z.number().min(0).max(100).optional(),
+  sharedGroupId: z.string().nullable().optional(),
+  sharedGroupPrice: z.number().nullable().optional(),
 })
 
 const quotationSchema = z.object({
@@ -161,9 +172,7 @@ const AddQuotation = () => {
 
   const [clients, setClients] = useState([])
   const [sales, setSales] = useState([])
-  const [rows, setRows] = useState([
-    { number: 1, productCode: '', qty: 0, unit: 0, discount: 0, description: '' },
-  ])
+  const [rows, setRows] = useState([buildRow()])
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [showTitles, setShowTitles] = useState([false])
   const [isDescPopupOpen, setIsDescPopupOpen] = useState(false)
@@ -174,10 +183,29 @@ const AddQuotation = () => {
   const [showWarranty, setShowWarranty] = useState(false);
   const [showExcluding, setShowExcluding] = useState(false);
   const [companyProfile, setCompanyProfile] = useState('SMART_VISION');
+  const [selectedRows, setSelectedRows] = useState([])
+  const [sharedPriceValue, setSharedPriceValue] = useState('')
 
 
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, '').trim()
   const clampPct = (n) => Math.min(Math.max(Number(n) || 0, 0), 100)
+
+  const getRowLineTotal = (row) => {
+    if (
+      row.sharedGroupId &&
+      row.sharedGroupPrice !== null &&
+      row.sharedGroupPrice !== undefined
+    ) {
+      const discountPct = clampPct(row.discount)
+      const base = Number(row.sharedGroupPrice) || 0
+      return base * (1 - discountPct / 100)
+    }
+    const qty = Number(row.qty) || 0
+    const unit = Number(row.unit) || 0
+    const discountPct = clampPct(row.discount)
+    const base = qty * unit
+    return base * (1 - discountPct / 100)
+  }
 
   /* ---------- Fetch data ---------- */
   useEffect(() => {
@@ -201,6 +229,48 @@ const AddQuotation = () => {
   /* ---------- Handlers ---------- */
   const handleRowInputChange = (index, field, value) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)))
+  }
+
+  const toggleRowSelection = (index) => {
+    setSelectedRows((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    )
+  }
+
+  const clearRowSelection = () => setSelectedRows([])
+
+  const removeSharedPriceFromRow = (index) => {
+    setRows((prev) =>
+      prev.map((row, i) =>
+        i === index ? { ...row, sharedGroupId: null, sharedGroupPrice: null } : row
+      )
+    )
+  }
+
+  const applySharedPriceToSelection = () => {
+    const uniqueIndexes = Array.from(new Set(selectedRows))
+    if (uniqueIndexes.length < 2) {
+      toast.error('Select at least two products to apply a shared price')
+      return
+    }
+    const numericPrice = Number(sharedPriceValue)
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      toast.error('Enter a valid shared price greater than 0')
+      return
+    }
+    const normalizedPrice = Number(numericPrice.toFixed(2))
+    const groupId = `grp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const indexSet = new Set(uniqueIndexes)
+    setRows((prev) =>
+      prev.map((row, idx) =>
+        indexSet.has(idx)
+          ? { ...row, sharedGroupId: groupId, sharedGroupPrice: normalizedPrice }
+          : row
+      )
+    )
+    setSharedPriceValue('')
+    setSelectedRows([])
+    toast.success(`Shared price applied to ${uniqueIndexes.length} products`)
   }
 
 
@@ -233,19 +303,16 @@ const cleanQuillHtml = (html) => {
 
 
   const addRow = () => {
-    setRows((prev) => [
-      ...prev,
-      { number: prev.length + 1, productCode: '', qty: 0, unit: 0, discount: 0, description: '' },
-    ])
+    setRows((prev) => [...prev, buildRow()])
     setShowTitles((prev) => [...prev, false])
+    setSelectedRows([])
   }
 
   const deleteRow = (index) => {
-    const updated = rows
-      .filter((_, i) => i !== index)
-      .map((r, i) => ({ ...r, number: i + 1 }))
+    const updated = rows.filter((_, i) => i !== index)
     setRows(updated)
     setShowTitles((prev) => prev.filter((_, i) => i !== index))
+    setSelectedRows([])
   }
 
   const toggleTitleForRow = (index) => {
@@ -254,14 +321,10 @@ const cleanQuillHtml = (html) => {
 
   /* ---------- Calculations ---------- */
   const calculateTotalUnitPrice = () => {
-    let subtotalAfterLineDiscounts = 0
-    rows.forEach((r) => {
-      const qty = Number(r.qty) || 0
-      const unit = Number(r.unit) || 0
-      const discountPct = clampPct(r.discount)
-      const base = qty * unit
-      subtotalAfterLineDiscounts += base * (1 - discountPct / 100)
-    })
+    const subtotalAfterLineDiscounts = rows.reduce(
+      (sum, row) => sum + getRowLineTotal(row),
+      0
+    )
 
     const subtotalAfterTotalDiscount = subtotalAfterLineDiscounts * (1 - totalDiscount / 100)
     const vatRate = selectedCurrency === 'USD' ? 0 : 0.15
@@ -291,7 +354,7 @@ const cleanQuillHtml = (html) => {
         const cleaned = raw.trim()
         currentSectionTitle = cleaned || undefined
       }
-      const lineTotal = (row.qty || 0) * (row.unit || 0) * (1 - (row.discount || 0) / 100)
+      const lineTotal = getRowLineTotal(row)
       products.push({
         number: i + 1,
         productCode: row.productCode,
@@ -301,6 +364,11 @@ const cleanQuillHtml = (html) => {
         description: row.description || '',
         titleAbove: currentSectionTitle,
         discount: row.discount || undefined,
+        sharedGroupId: row.sharedGroupId || undefined,
+        sharedGroupPrice:
+          row.sharedGroupPrice !== null && row.sharedGroupPrice !== undefined
+            ? Number(row.sharedGroupPrice)
+            : undefined,
       })
     })
 
@@ -403,18 +471,33 @@ const cleanQuillHtml = (html) => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <td>#</td><td>Code</td><td>Description</td><td>Qty</td>
-                <td>Unit</td><td>Discount %</td><td>Total</td><td>Actions</td>
+                <td>Select</td>
+                <td>#</td>
+                <td>Code</td>
+                <td>Description</td>
+                <td>Qty</td>
+                <td>Unit</td>
+                <td>Discount %</td>
+                <td>Total</td>
+                <td>Actions</td>
               </tr>
             </thead>
             <tbody>
             {rows.map((r, i) => (
   <React.Fragment key={i}>
     {showTitles[i] && (
-      <tr><td colSpan={8}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" /></td></tr>
+      <tr><td colSpan={9}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" /></td></tr>
     )}
     <tr>
-      <td>{r.number.toString().padStart(3, '0')}</td>
+      <td>
+        <input
+          type="checkbox"
+          className={styles.selectionCheckbox}
+          checked={selectedRows.includes(i)}
+          onChange={() => toggleRowSelection(i)}
+        />
+      </td>
+      <td>{String(i + 1).padStart(3, '0')}</td>
       <td><input className={styles.input1} value={r.productCode} onChange={(e) => handleRowInputChange(i, 'productCode', e.target.value)} /></td>
       <td>
       <button
@@ -451,7 +534,12 @@ const cleanQuillHtml = (html) => {
       <td><input type="number" className={styles.input1} value={r.qty} onChange={(e) => handleRowInputChange(i, 'qty', e.target.value)} /></td>
       <td><input type="number" className={styles.input1} value={r.unit} onChange={(e) => handleRowInputChange(i, 'unit', e.target.value)} /></td>
       <td><input type="number" className={styles.input1} value={r.discount} onChange={(e) => handleRowInputChange(i, 'discount', e.target.value)} /></td>
-      <td>{(r.qty * r.unit * (1 - r.discount / 100)).toFixed(2)}</td>
+      <td>
+        {getRowLineTotal(r).toFixed(2)}
+        {r.sharedGroupId && (
+          <span className={styles.sharedPriceBadge}>Shared</span>
+        )}
+      </td>
       <td className={styles.actionsCell}>
   {/* Toggle Title Above Row */}
   <button
@@ -483,6 +571,16 @@ const cleanQuillHtml = (html) => {
       <FaTrash />
     </button>
   )}
+  {r.sharedGroupId && (
+    <button
+      type="button"
+      className={`${styles.iconButton} ${styles.unlinkButton}`}
+      title="Remove shared price from this product"
+      onClick={() => removeSharedPriceFromRow(i)}
+    >
+      <FaUnlink />
+    </button>
+  )}
 </td>
 
     </tr>
@@ -491,6 +589,37 @@ const cleanQuillHtml = (html) => {
 
             </tbody>
           </table>
+
+          <div className={styles.sharedPriceControls}>
+            <div className={styles.sharedPriceInfo}>
+              {selectedRows.length > 0
+                ? `${selectedRows.length} product${selectedRows.length > 1 ? 's' : ''} selected`
+                : 'Select two or more products to share a price'}
+            </div>
+            <input
+              type="number"
+              min="0"
+              placeholder="Shared price per product"
+              value={sharedPriceValue}
+              onChange={(e) => setSharedPriceValue(e.target.value)}
+              className={styles.sharedPriceInput}
+            />
+            <button
+              type="button"
+              className={styles.sharedPriceButton}
+              onClick={applySharedPriceToSelection}
+              disabled={selectedRows.length < 2 || !sharedPriceValue}
+            >
+              Apply Shared Price
+            </button>
+            <button
+              type="button"
+              className={styles.sharedPriceButtonSecondary}
+              onClick={clearRowSelection}
+            >
+              Clear Selection
+            </button>
+          </div>
 
           <div className={styles.inputContainer}>
             <label className={styles.label}>Total Discount %</label>
@@ -598,7 +727,18 @@ const cleanQuillHtml = (html) => {
   <input
     type="file"
     accept=".xlsx, .xls"
-    onChange={(e) => handleExcelUpload(e.target.files[0], setRows, toast)}
+    onChange={(e) =>
+      handleExcelUpload(
+        e.target.files[0],
+        (importedRows) => {
+          if (!Array.isArray(importedRows)) return
+          setRows(importedRows)
+          setShowTitles(new Array(importedRows.length).fill(false))
+          setSelectedRows([])
+        },
+        toast
+      )
+    }
     className={styles.input}
   />
 </div>

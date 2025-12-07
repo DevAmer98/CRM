@@ -421,6 +421,8 @@ const quotationSchema = new Schema(
         description: { type: String },
         titleAbove: { type: String },
         discount: { type: Number, min: 0, max: 100 }, // NEW: per-line discount %
+        sharedGroupId: { type: String },
+        sharedGroupPrice: { type: Number },
       },
     ],
 

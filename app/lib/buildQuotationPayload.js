@@ -1,3 +1,5 @@
+import { UNIT_MERGE_CONT_TOKEN, UNIT_MERGE_START_TOKEN } from "./sharedPriceTokens"
+
 export function buildQuotationPayload(q) {
   if (!q) throw new Error("No quotation found");
 
@@ -46,8 +48,10 @@ export function buildQuotationPayload(q) {
 
   // Build Sections/Items
   const Sections = [];
+  const sharedGroupTracker = new Map();
   let current = null;
   let lastTitle = "";
+  let globalRowCounter = 0;
 
   (q.products || []).forEach((p) => {
     const title = (p.titleAbove || "").trim();
@@ -66,6 +70,7 @@ export function buildQuotationPayload(q) {
     }
 
     current.__counter += 1;
+    globalRowCounter += 1;
 
     const qty = Number(p.qty || 0);
     const unit = Number(p.unit || 0);
@@ -73,8 +78,32 @@ export function buildQuotationPayload(q) {
 
     const lines = wrapDesc(p.description);
 
+    const sharedGroupId = (p.sharedGroupId || "").trim();
+    const sharedGroupPrice =
+      p.sharedGroupPrice != null ? Number(p.sharedGroupPrice) : undefined;
+    const hasSharedPrice =
+      !!sharedGroupId && Number.isFinite(sharedGroupPrice);
+    const seenCount = hasSharedPrice
+      ? sharedGroupTracker.get(sharedGroupId) || 0
+      : 0;
+    const isFirstSharedRow = hasSharedPrice && seenCount === 0;
+    if (hasSharedPrice) {
+      sharedGroupTracker.set(sharedGroupId, seenCount + 1);
+    }
+
+    const unitDisplay = hasSharedPrice
+      ? isFirstSharedRow
+        ? `${fmt(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
+        : UNIT_MERGE_CONT_TOKEN
+      : fmt(unit);
+    const subtotalDisplay = hasSharedPrice
+      ? isFirstSharedRow
+        ? `${fmt(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
+        : UNIT_MERGE_CONT_TOKEN
+      : fmt(rowSubtotal);
+
     current.Items.push({
-      Number: String(current.__counter).padStart(3, "0"),
+      Number: String(globalRowCounter).padStart(3, "0"),
       ProductCode: (p.productCode || "—").toUpperCase(),
 
       // Use this token in the DOCX description cell
@@ -85,8 +114,8 @@ export function buildQuotationPayload(q) {
       Description: (p.description || "—").toUpperCase(),
 
       Qty: qty,
-      Unit: fmt(unit),
-      UnitPrice: fmt(rowSubtotal),
+      Unit: unitDisplay,
+      UnitPrice: subtotalDisplay,
     });
   });
 

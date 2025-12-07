@@ -7,6 +7,10 @@ import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { editQuotation, updateQuotation } from "@/app/lib/actions";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import {
+  UNIT_MERGE_CONT_TOKEN,
+  UNIT_MERGE_START_TOKEN,
+} from "@/app/lib/sharedPriceTokens";
 
 const COMPANY_OPTIONS = [
   { value: "SMART_VISION", label: "Smart Vision" },
@@ -74,18 +78,57 @@ const [richDescValue, setRichDescValue] = useState("");
 
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, "").trim();
 
+  const sharedGroupMeta = useMemo(() => {
+    const palette = ["#0ea5e9", "#f97316", "#a855f7", "#22c55e", "#ec4899", "#facc15"];
+    const meta = {};
+    let colorIndex = 0;
+    rows.forEach((row) => {
+      if (!row.sharedGroupId) return;
+      if (!meta[row.sharedGroupId]) {
+        meta[row.sharedGroupId] = {
+          count: 0,
+          price:
+            row.sharedGroupPrice !== null && row.sharedGroupPrice !== undefined
+              ? Number(row.sharedGroupPrice)
+              : undefined,
+          color: palette[colorIndex % palette.length],
+          label: `Group ${String.fromCharCode(65 + (colorIndex % 26))}`,
+        };
+        colorIndex += 1;
+      }
+      meta[row.sharedGroupId].count += 1;
+      if (
+        row.sharedGroupPrice !== null &&
+        row.sharedGroupPrice !== undefined &&
+        Number.isFinite(Number(row.sharedGroupPrice))
+      ) {
+        meta[row.sharedGroupId].price = Number(row.sharedGroupPrice);
+      }
+    });
+    return meta;
+  }, [rows]);
+
+  const getRowLineTotal = (row) => {
+    const discountPct = clampPct(row.discount);
+    if (
+      row.sharedGroupId &&
+      row.sharedGroupPrice !== null &&
+      row.sharedGroupPrice !== undefined
+    ) {
+      const base = Number(row.sharedGroupPrice) || 0;
+      return base * (1 - discountPct / 100);
+    }
+    const qty = Number(row.qty || 0);
+    const unit = Number(row.unit || 0);
+    const base = qty * unit;
+    return base * (1 - discountPct / 100);
+  };
+
 
   // CHANGED: totals now include line discount and total discount
   const totals = useMemo(() => {
     // subtotal after per-line discounts
-    const subtotal = rows.reduce((acc, r) => {
-      const qty = Number(r.qty || 0);
-      const unit = Number(r.unit || 0);
-      const disc = clampPct(r.discount); // NEW
-      const base = qty * unit;
-      const lineTotal = base * (1 - disc / 100);
-      return acc + lineTotal;
-    }, 0);
+    const subtotal = rows.reduce((acc, r) => acc + getRowLineTotal(r), 0);
 
     const totalDiscPct = clampPct(formData.totalDiscount); // NEW
     const subtotalAfterTotalDiscount = subtotal * (1 - totalDiscPct / 100); // NEW
@@ -199,8 +242,10 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
 
     // Build Sections -> Items (title row printed only when Title exists)
     const Sections = [];
+    const sharedGroupTracker = new Map();
     let currentSection = null;
     let lastTitle = "";
+    let globalRowCounter = 0;
 
     rows.forEach((r, globalIdx) => {
       // section boundary
@@ -221,23 +266,48 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
 
       // per-section numbering 001, 002, ...
       currentSection.__counter += 1;
+      globalRowCounter += 1;
 
       // line totals with discount
       const qty = Number(r.qty || 0);
       const unit = Number(r.unit || 0);
-      const disc = clampPct(r.discount);
-      const base = qty * unit;
-      const rowSubtotal = base * (1 - disc / 100);
+      const rowSubtotal = getRowLineTotal(r);
+
+      const sharedGroupId = (r.sharedGroupId || "").trim();
+      const sharedGroupPrice =
+        r.sharedGroupPrice !== null && r.sharedGroupPrice !== undefined
+          ? Number(r.sharedGroupPrice)
+          : undefined;
+      const hasSharedPrice =
+        !!sharedGroupId && Number.isFinite(sharedGroupPrice);
+      const seenCount = hasSharedPrice
+        ? sharedGroupTracker.get(sharedGroupId) || 0
+        : 0;
+      const isFirstSharedRow = hasSharedPrice && seenCount === 0;
+      if (hasSharedPrice) {
+        sharedGroupTracker.set(sharedGroupId, seenCount + 1);
+      }
+
+      const unitDisplay = hasSharedPrice
+        ? isFirstSharedRow
+          ? `${formatCurrency(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
+          : UNIT_MERGE_CONT_TOKEN
+        : formatCurrency(unit);
+      const subtotalDisplay = hasSharedPrice
+        ? isFirstSharedRow
+          ? `${formatCurrency(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
+          : UNIT_MERGE_CONT_TOKEN
+        : formatCurrency(rowSubtotal);
 
       currentSection.Items.push({
-        Number: String(currentSection.__counter).padStart(3, "0"),
+        Number: String(globalRowCounter).padStart(3, "0"),
         ProductCode: (r.productCode || "—").toUpperCase(),
         DescriptionRich: wrapDesc(r.description),
 
 
         Qty: qty,
-        Unit: formatCurrency(unit),
-        UnitPrice: formatCurrency(rowSubtotal),
+        Unit: unitDisplay,
+        UnitPrice: subtotalDisplay,
       });
     });
 
@@ -417,6 +487,12 @@ return payload;
         description: product.description || "",
         titleAbove: isBoundary ? norm : "", // only keep value where a section starts
         discount: Number(product.discount || 0), // NEW
+        sharedGroupId: product.sharedGroupId || null,
+        sharedGroupPrice:
+          product.sharedGroupPrice !== undefined &&
+          product.sharedGroupPrice !== null
+            ? Number(product.sharedGroupPrice)
+            : null,
       });
 
       initialShow.push(isBoundary);
@@ -454,6 +530,8 @@ return payload;
       discount: 0, // NEW
       unitPrice: 0,
       titleAbove: "",
+      sharedGroupId: null,
+      sharedGroupPrice: null,
     };
     setRows((prev) => [...prev, newRow]);
     setShowTitles((prev) => [...prev, false]);
@@ -595,6 +673,11 @@ return payload;
         description: row.description,
         titleAbove: emitTitle,        // ONLY first row of section carries the title
         discount: Number(row.discount || 0), // NEW
+        sharedGroupId: row.sharedGroupId || undefined,
+        sharedGroupPrice:
+          row.sharedGroupPrice !== null && row.sharedGroupPrice !== undefined
+            ? Number(row.sharedGroupPrice)
+            : undefined,
       });
     });
 
@@ -832,7 +915,12 @@ return payload;
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, index) => (
+                {rows.map((row, index) => {
+                  const sharedInfo = row.sharedGroupId
+                    ? sharedGroupMeta[row.sharedGroupId]
+                    : null;
+                  const isSharedRow = !!(sharedInfo && sharedInfo.count > 1);
+                  return (
                   <React.Fragment key={row.id}>
                     {/* Title input row (togglable) */}
                     {showTitles[index] && (
@@ -853,7 +941,7 @@ return payload;
                     <tr
                       className={`${styles.row} ${
                         draggingIndex === index ? styles.draggingRow : ""
-                      }`}
+                      } ${isSharedRow ? styles.sharedRow : ""}`}
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={(event) => handleDropOnRow(event, index)}
                     >
@@ -907,6 +995,18 @@ return payload;
                           value={row.unit}
                           onChange={(e) => handleRowInputChange(index, "unit", e.target.value)}
                         />
+                        {isSharedRow && (
+                          <div
+                            className={styles.sharedTag}
+                            style={{ borderColor: sharedInfo.color, color: sharedInfo.color }}
+                          >
+                            {sharedInfo.label} · {sharedInfo.count} products share
+                            {" "}
+                            {sharedInfo.price != null
+                              ? `a total of ${formatCurrency(sharedInfo.price)}`
+                              : "this set price"}
+                          </div>
+                        )}
                       </td>
                       <td> {/* NEW: per-line discount */}
                         <input
@@ -967,9 +1067,31 @@ return payload;
                       </td>
                     </tr>
                   </React.Fragment>
-                ))}
+                )})}
               </tbody>
             </table>
+
+            {Object.keys(sharedGroupMeta).length > 0 && (
+              <div className={styles.sharedLegend}>
+                {Object.entries(sharedGroupMeta).map(([id, info]) => (
+                  <div
+                    key={id}
+                    className={styles.sharedLegendItem}
+                    style={{ borderColor: info.color, color: info.color }}
+                  >
+                    <span
+                      className={styles.sharedLegendDot}
+                      style={{ background: info.color }}
+                    />
+                    <strong>{info.label}</strong>
+                    <span>· {info.count} products</span>
+                    {info.price != null && (
+                      <span>· Shared total {formatCurrency(info.price)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* NEW: Total Discount % on subtotal */}
             <div className={styles.inputContainer} style={{ marginTop: 12 }}>

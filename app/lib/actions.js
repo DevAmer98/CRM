@@ -1758,6 +1758,9 @@ function normalizeSectionTitles(products = []) {
       qty: p?.qty != null ? Number(p.qty) : p?.qty,
       unit: p?.unit != null ? Number(p.unit) : p?.unit,
       unitPrice: p?.unitPrice != null ? Number(p.unitPrice) : p?.unitPrice,
+      sharedGroupId: p?.sharedGroupId ? String(p.sharedGroupId) : undefined,
+      sharedGroupPrice:
+        p?.sharedGroupPrice != null ? Number(p.sharedGroupPrice) : undefined,
       titleAbove: title,
     });
     if (title) last = title;

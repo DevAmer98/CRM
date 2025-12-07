@@ -11,9 +11,11 @@ import ColorfullPieChart from "../charts/colorfull";
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, NavigationMenuTrigger } from "@/components/ui/navigation-menu";
 import Link from "next/link";
 import HeaderNavigation from "@/components/ui/HeaderNavigation";
+import { useSession } from "next-auth/react";
  
 
 const Main = () => {
+  const { data: session, status } = useSession();
 
   const [counts, setCounts] = useState({
       userCount: null,
@@ -24,6 +26,7 @@ const Main = () => {
     const [error, setError] = useState(null);
     const [roleStats, setRoleStats] = useState([]);
     const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+    const [showMasterCongrats, setShowMasterCongrats] = useState(false);
 
 
 
@@ -78,6 +81,22 @@ const Main = () => {
     
       fetchCounts();
     }, []);
+
+    useEffect(() => {
+      if (status !== "authenticated") return;
+      const username = (session?.user?.username || "").toLowerCase();
+      const celebratedUsers = ["masteradmin", "lama.zahrani"];
+      if (!celebratedUsers.includes(username)) return;
+
+      if (typeof window !== "undefined") {
+        const storageKey = `congratsShown:${username}`;
+        const alreadyShown = sessionStorage.getItem(storageKey);
+        if (!alreadyShown) {
+          setShowMasterCongrats(true);
+          sessionStorage.setItem(storageKey, "true");
+        }
+      }
+    }, [session, status]);
   
 
     
@@ -170,6 +189,25 @@ const formatRoleName = (role) => {
 
   return (
     <div className={styles.container}>
+      {showMasterCongrats && (
+        <div className={styles.congratsOverlay}>
+          <div className={styles.congratsCard}>
+            <h2 className={styles.congratsTitle}>
+              Great work, {(session?.user?.username || "Leader").split("@")[0]}!
+            </h2>
+            <p className={styles.congratsText}>
+              Thanks for pushing the team forward every day. Keep up the amazing momentum!
+            </p>
+            <button
+              type="button"
+              className={styles.congratsButton}
+              onClick={() => setShowMasterCongrats(false)}
+            >
+              Let&apos;s get back to it
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className={styles.header}>
         

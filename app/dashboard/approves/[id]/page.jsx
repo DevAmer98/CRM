@@ -1,3 +1,4 @@
+//app/dashboard/approves/[id]/page.jsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -48,6 +49,52 @@ const SingleApprovePage = ({ params }) => {
       Number(v || 0)
     );
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, "").trim();
+
+  const sharedGroupMeta = useMemo(() => {
+    const palette = ["#0ea5e9", "#f97316", "#a855f7", "#22c55e", "#ec4899", "#facc15"];
+    const meta = {};
+    let colorIndex = 0;
+    rows.forEach((row) => {
+      if (!row.sharedGroupId) return;
+      if (!meta[row.sharedGroupId]) {
+        meta[row.sharedGroupId] = {
+          count: 0,
+          price:
+            row.sharedGroupPrice !== null && row.sharedGroupPrice !== undefined
+              ? Number(row.sharedGroupPrice)
+              : undefined,
+          color: palette[colorIndex % palette.length],
+          label: `Group ${String.fromCharCode(65 + (colorIndex % 26))}`,
+        };
+        colorIndex += 1;
+      }
+      meta[row.sharedGroupId].count += 1;
+      if (
+        row.sharedGroupPrice !== null &&
+        row.sharedGroupPrice !== undefined &&
+        Number.isFinite(Number(row.sharedGroupPrice))
+      ) {
+        meta[row.sharedGroupId].price = Number(row.sharedGroupPrice);
+      }
+    });
+    return meta;
+  }, [rows]);
+
+  const getRowLineTotal = (row) => {
+    const disc = clampPct(row.discount);
+    if (
+      row.sharedGroupId &&
+      row.sharedGroupPrice !== null &&
+      row.sharedGroupPrice !== undefined
+    ) {
+      const base = Number(row.sharedGroupPrice) || 0;
+      return base * (1 - disc / 100);
+    }
+    const qty = Number(row.qty || 0);
+    const unit = Number(row.unit || 0);
+    const base = qty * unit;
+    return base * (1 - disc / 100);
+  };
 
   // ---------- Clean HTML ----------
 function cleanHTML(input = "") {
@@ -166,13 +213,7 @@ function wrapDesc(text, maxLen = 40) {
 
   // ---------- totals ----------
   const totals = useMemo(() => {
-    const subtotal = rows.reduce((acc, r) => {
-      const qty = Number(r.qty || 0);
-      const unit = Number(r.unit || 0);
-      const disc = clampPct(r.discount);
-      const base = qty * unit;
-      return acc + base * (1 - disc / 100);
-    }, 0);
+    const subtotal = rows.reduce((acc, r) => acc + getRowLineTotal(r), 0);
     const totalDiscPct = clampPct(formData.totalDiscount);
     const subtotalAfterTotalDiscount = subtotal * (1 - totalDiscPct / 100);
     const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
@@ -253,6 +294,11 @@ function wrapDesc(text, maxLen = 40) {
         unitPrice: Number(p.unitPrice || 0),
         description: p.description || "",
         titleAbove: isBoundary ? norm : "",
+        sharedGroupId: p.sharedGroupId || null,
+        sharedGroupPrice:
+          p.sharedGroupPrice !== undefined && p.sharedGroupPrice !== null
+            ? Number(p.sharedGroupPrice)
+            : null,
       });
       newShow.push(isBoundary);
       if (isBoundary) prev = norm;
@@ -275,6 +321,8 @@ function wrapDesc(text, maxLen = 40) {
         discount: 0,
         unitPrice: 0,
         titleAbove: "",
+        sharedGroupId: null,
+        sharedGroupPrice: null,
       },
     ]);
     setShowTitles((p) => [...p, false]);
@@ -310,6 +358,7 @@ function wrapDesc(text, maxLen = 40) {
         const disc = clampPct(field === "discount" ? clean : r.discount);
         next.unitPrice = qty * unit * (1 - disc / 100);
         next.discount = disc;
+        next.unitPrice = getRowLineTotal({ ...next, qty, unit });
         return next;
       })
     );
@@ -509,7 +558,12 @@ function wrapDesc(text, maxLen = 40) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
+                {rows.map((r, i) => {
+                  const sharedInfo = r.sharedGroupId
+                    ? sharedGroupMeta[r.sharedGroupId]
+                    : null;
+                  const isSharedRow = !!(sharedInfo && sharedInfo.count > 1);
+                  return (
                   <React.Fragment key={r.id}>
                     {showTitles[i] && (
                       <tr
@@ -528,7 +582,7 @@ function wrapDesc(text, maxLen = 40) {
                         </td>
                       </tr>
                     )}
-                    <tr className={styles.row}>
+                    <tr className={`${styles.row} ${isSharedRow ? styles.sharedRow : ""}`}>
                       <td>{String(r.number).padStart(3, "0")}</td>
                       <td>
                         <input
@@ -579,6 +633,18 @@ function wrapDesc(text, maxLen = 40) {
                             handleRowInputChange(i, "unit", e.target.value)
                           }
                         />
+                        {isSharedRow && (
+                          <div
+                            className={styles.sharedTag}
+                            style={{ borderColor: sharedInfo.color, color: sharedInfo.color }}
+                          >
+                            {sharedInfo.label} · {sharedInfo.count} products share
+                            {" "}
+                            {sharedInfo.price != null
+                              ? `a total of ${formatCurrency(sharedInfo.price)}`
+                              : "this set price"}
+                          </div>
+                        )}
                       </td>
                       <td>
                         <input
@@ -593,7 +659,7 @@ function wrapDesc(text, maxLen = 40) {
                           }
                         />
                       </td>
-                      <td>{formatCurrency(r.unitPrice)}</td>
+                      <td>{formatCurrency(getRowLineTotal(r))}</td>
                       <td className={styles.actionsCell}>
   {/* Title toggle */}
   <button
@@ -630,9 +696,31 @@ function wrapDesc(text, maxLen = 40) {
 
                     </tr>
                   </React.Fragment>
-                ))}
+                )})}
               </tbody>
             </table>
+
+            {Object.keys(sharedGroupMeta).length > 0 && (
+              <div className={styles.sharedLegend}>
+                {Object.entries(sharedGroupMeta).map(([id, info]) => (
+                  <div
+                    key={id}
+                    className={styles.sharedLegendItem}
+                    style={{ borderColor: info.color, color: info.color }}
+                  >
+                    <span
+                      className={styles.sharedLegendDot}
+                      style={{ background: info.color }}
+                    />
+                    <strong>{info.label}</strong>
+                    <span>· {info.count} products</span>
+                    {info.price != null && (
+                      <span>· Shared total {formatCurrency(info.price)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className={styles.inputContainer} style={{ marginTop: 12 }}>
               <label className={styles.label}>
