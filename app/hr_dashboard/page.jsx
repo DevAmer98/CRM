@@ -7,8 +7,10 @@ import EmployeePassportSlideshow from '../ui/hr_dashboard/silde/EmployeePassport
 import EmployeeIqamaSlideshow from '../ui/hr_dashboard/silde/EmployeeIqamaSlideshow';
 import ErrorBoundary from '../ui/dashboard/errorBoundary/errorBoundary';
 import { Suspense, useEffect, useState } from 'react';
+import { useSession } from "next-auth/react";
 
 export default function HrDashboard() {
+  const { data: session, status } = useSession();
   const [counts, setCounts] = useState({
     employeeCount: null,
     managerCount: null,
@@ -16,6 +18,7 @@ export default function HrDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showCongrats, setShowCongrats] = useState(false);
 
 
 
@@ -56,12 +59,47 @@ useEffect(() => {
   })();
 }, []);
 
+useEffect(() => {
+  if (status !== "authenticated") return;
+  const username = (session?.user?.username || "").toLowerCase();
+  const celebratedUsers = ["masteradmin", "lama.zahrani"];
+  if (!celebratedUsers.includes(username)) return;
+
+  if (typeof window !== "undefined") {
+    const storageKey = `hrCongratsShown:${username}`;
+    const alreadyShown = sessionStorage.getItem(storageKey);
+    if (!alreadyShown) {
+      setShowCongrats(true);
+      sessionStorage.setItem(storageKey, "true");
+    }
+  }
+}, [session, status]);
+
 
   if (loading) return <p>Loading data...</p>;
   if (error) return <p>Error fetching data: {error}</p>;
 
   return (
     <>
+      {showCongrats && (
+        <div className={styles.congratsOverlay}>
+          <div className={styles.congratsCard}>
+            <h2 className={styles.congratsTitle}>
+              Stellar leadership, {(session?.user?.username || "Leader").split("@")[0]}!
+            </h2>
+            <p className={styles.congratsText}>
+              Your HR guidance keeps the team thriving. Thanks for setting the bar so high!
+            </p>
+            <button
+              type="button"
+              className={styles.congratsButton}
+              onClick={() => setShowCongrats(false)}
+            >
+              Back to the dashboard
+            </button>
+          </div>
+        </div>
+      )}
       {/* Fixed right sidebar (independent of layout) */}
       <Rightbar />
 
