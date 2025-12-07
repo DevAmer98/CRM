@@ -108,6 +108,21 @@
   justify-content: center;
   z-index: 9999;
   padding: 16px;
+  overflow: hidden;
+}
+
+.congratsOverlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.6) 0, transparent 40%),
+    radial-gradient(circle at 80% 30%, rgba(59, 130, 246, 0.5) 0, transparent 35%),
+    radial-gradient(circle at 30% 80%, rgba(236, 72, 153, 0.55) 0, transparent 45%),
+    radial-gradient(circle at 70% 70%, rgba(16, 185, 129, 0.5) 0, transparent 40%);
+  opacity: 0.35;
+  animation: confettiDrift 12s linear infinite;
+  pointer-events: none;
 }
 
 .congratsCard {
@@ -119,7 +134,27 @@
   text-align: center;
   border: 1px solid var(--border);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
-  animation: fadeInUp 0.4s ease-out;
+  animation: fadeInUp 0.4s ease-out, celebratePulse 2.5s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+
+.congratsCard::before,
+.congratsCard::after {
+  content: "";
+  position: absolute;
+  width: 140%;
+  height: 50px;
+  left: -20%;
+  opacity: 0.4;
+  background: linear-gradient(90deg, rgba(236, 72, 153, 0), rgba(236, 72, 153, 0.8), rgba(236, 72, 153, 0));
+  animation: ribbonSweep 6s linear infinite;
+  pointer-events: none;
+}
+.congratsCard::after {
+  animation-delay: 3s;
+  top: auto;
+  bottom: 0;
 }
 
 .congratsTitle {
@@ -148,4 +183,43 @@
 .congratsButton:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+}
+
+@keyframes confettiDrift {
+  0% {
+    transform: translateY(-20%) rotate(0deg);
+  }
+  50% {
+    transform: translateY(10%) rotate(5deg);
+  }
+  100% {
+    transform: translateY(20%) rotate(-5deg);
+  }
+}
+
+@keyframes celebratePulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 25px 60px rgba(59, 130, 246, 0.35);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 35px 80px rgba(236, 72, 153, 0.3);
+  }
+}
+
+@keyframes ribbonSweep {
+  0% {
+    top: -10%;
+    transform: rotate(5deg);
+  }
+  50% {
+    top: 50%;
+    transform: rotate(-5deg);
+  }
+  100% {
+    top: 110%;
+    transform: rotate(6deg);
+  }
 }
