@@ -636,7 +636,7 @@ const cocSchema = new Schema(
     },
     deliveryLocation: {
       type: String,
-      required: true
+      required: false
     },
     products:  [
       {
@@ -691,7 +691,7 @@ const plSchema = new Schema(
     },
     deliveryLocation: {
       type: String,
-      required: true
+      required: false
     },
     products:  [
       {

@@ -13,9 +13,11 @@ const AddPlPage = () => {
   const [selectedQuotation, setSelectedQuotation] = useState('');
   const [sales, setSales] = useState([]);  
   const [jobOrders, setjobOrders] = useState([]);   
-  const [rows, setRows] = React.useState([{ number: 1 }]);
+  const [rows, setRows] = React.useState([{ number: 1, productCode: '', qty: '', description: '' }]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [jobOrderProducts, setJobOrderProducts] = useState([]);
+  const [selectedJobOrder, setSelectedJobOrder] = useState('');
   const router = useRouter();
 
   const buildApiUrl = (path) => {
@@ -160,20 +162,99 @@ const AddPlPage = () => {
     clientId: z.string().min(1, "Client is required"),
     quotationId: z.string().min(1, "Quotation is required"),
     jobOrderId: z.string().min(1, "Job Order is required"),
-    deliveryLocation: z.string().min(1, "Delivery location is required"),
+    deliveryLocation: z.string().optional(),
     products: z.array(productSchema).min(1, "Add at least one product"),
   });
  
   const addRow = () => {
-    const newRow = { number: rows.length + 1 };
-    const newRows = [...rows, newRow];
-    setRows(newRows);
+    setRows((prev) => {
+      const nextRows = [
+        ...prev,
+        { number: prev.length + 1, productCode: '', qty: '', description: '' },
+      ];
+      return nextRows.map((row, idx) => ({ ...row, number: idx + 1 }));
+    });
   };
 
   const deleteRow = (index) => { 
-    const updatedRows = rows.filter((_, i) => i !== index);
-    const updatedRowsWithNumbers = updatedRows.map((row, i) => ({ ...row, number: i + 1 }));
-    setRows(updatedRowsWithNumbers);
+    setRows((prev) => {
+      const updatedRows = prev.filter((_, i) => i !== index);
+      if (!updatedRows.length) {
+        return [{ number: 1, productCode: '', qty: '', description: '' }];
+      }
+      return updatedRows.map((row, i) => ({ ...row, number: i + 1 }));
+    });
+  };
+
+  const handleRowChange = (index, field, value) => {
+    setRows((prev) =>
+      prev.map((row, i) =>
+        i === index ? { ...row, [field]: field === 'qty' ? value.replace(/[^\d.]/g, '') : value } : row
+      )
+    );
+  };
+
+  const normalizeJobOrderProducts = (jobOrder) => {
+    if (!jobOrder) return [];
+    const fromQuotation = Array.isArray(jobOrder.quotation?.products) ? jobOrder.quotation.products : [];
+    const fallback = Array.isArray(jobOrder.products) ? jobOrder.products : [];
+    const source = fromQuotation.length ? fromQuotation : fallback;
+    return source.map((product) => ({
+      productCode: product.productCode || '',
+      description: product.description || '',
+      qty: product.qty ?? '',
+    }));
+  };
+
+  const handleJobOrderChange = (e) => {
+    const newJobOrderId = e.target.value;
+    setSelectedJobOrder(newJobOrderId);
+    const selectedOrder = jobOrders.find((order) => order._id === newJobOrderId);
+    setJobOrderProducts(normalizeJobOrderProducts(selectedOrder));
+  };
+
+  const handleSelectProduct = (product) => {
+    setRows((prev) => {
+      const alreadyAdded = prev.some(
+        (row) =>
+          row.productCode === (product.productCode || '') &&
+          row.description === (product.description || '')
+      );
+
+      if (alreadyAdded) {
+        toast.error('Product already added!');
+        return prev;
+      }
+
+      const emptyIndex = prev.findIndex(
+        (row) =>
+          !row.productCode &&
+          !row.description &&
+          (row.qty === '' || row.qty === null || typeof row.qty === 'undefined')
+      );
+
+      if (emptyIndex !== -1) {
+        const updatedRows = [...prev];
+        updatedRows[emptyIndex] = {
+          ...updatedRows[emptyIndex],
+          productCode: product.productCode || '',
+          description: product.description || '',
+          qty: product.qty ?? '',
+        };
+        return updatedRows.map((row, idx) => ({ ...row, number: idx + 1 }));
+      }
+
+      const nextRows = [
+        ...prev,
+        {
+          number: prev.length + 1,
+          productCode: product.productCode || '',
+          description: product.description || '',
+          qty: product.qty ?? '',
+        },
+      ];
+      return nextRows.map((row, idx) => ({ ...row, number: idx + 1 }));
+    });
   };
 
   
@@ -182,17 +263,19 @@ const AddPlPage = () => {
     event.preventDefault();
     setError(null);
   
+    const locationValue = event.target.deliveryLocation.value.trim();
+
     const formValues = {
       clientId: event.target.clientId.value,
       quotationId: event.target.quotationId.value,
       saleId: event.target.saleId.value,
       jobOrderId: event.target.jobOrderId.value,
-      deliveryLocation: event.target.deliveryLocation.value.trim(),
+      deliveryLocation: locationValue === '' ? undefined : locationValue,
       products: rows.map((row, index) => ({
         number: index + 1,
-        productCode: event.target[`productCode${index}`].value.trim(),
-        qty: event.target[`qty${index}`].value,
-        description: event.target[`description${index}`].value.trim(),
+        productCode: row.productCode.trim(),
+        qty: Number(row.qty),
+        description: row.description.trim(),
       })),
     };
   
@@ -265,14 +348,62 @@ const AddPlPage = () => {
                 <label htmlFor="jobOrderId" className={styles.label}>
                 Job Order Id:
                 </label>
-          <select name='jobOrderId' className={styles.input}>
-          <option value="" disabled selected>Select Job Orders</option>
+          <select
+            name='jobOrderId'
+            className={styles.input}
+            value={selectedJobOrder}
+            onChange={handleJobOrderChange}
+          >
+          <option value="" disabled>Select Job Orders</option>
           {jobOrders.map((jobOrder) => (
               <option key={jobOrder._id} value={jobOrder._id}>
                   {jobOrder.jobOrderId}
               </option>
             ))}
           </select>
+          {jobOrderProducts.length > 0 && (
+            <div className={styles.jobOrderTableContainer}>
+              <p className={styles.title}>Job Order Products</p>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <td>#</td>
+                    <td>Product Code</td>
+                    <td>Description</td>
+                    <td>Qty</td>
+                    <td>Action</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobOrderProducts.map((product, index) => {
+                    const isAdded = rows.some(
+                      (row) =>
+                        row.productCode === (product.productCode || '') &&
+                        row.description === (product.description || '')
+                    );
+                    return (
+                      <tr key={`${product.productCode}-${index}`}>
+                        <td>{(index + 1).toString().padStart(3, '0')}</td>
+                        <td>{product.productCode || '-'}</td>
+                        <td>{product.description || '-'}</td>
+                        <td>{product.qty || '-'}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className={`${styles.selectButton} ${isAdded ? styles.DisabledButton : ''}`}
+                            onClick={() => handleSelectProduct(product)}
+                            disabled={isAdded}
+                          >
+                            {isAdded ? 'Added' : 'Add'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
           </div>
           <div className={styles.inputContainer}>
                 <label htmlFor="deliveryLocation" className={styles.label}>
@@ -305,9 +436,32 @@ const AddPlPage = () => {
                         readOnly
                       />
                     </td>
-                    <td><input type='text' name={`productCode${index}`} className={styles.input1} /></td>
-                    <td><input type='number' name={`qty${index}`} className={styles.input1} /></td>
-                    <td><textarea name={`description${index}`} className={`${styles.input1} ${styles.textarea}`}></textarea></td>
+                    <td>
+                      <input
+                        type='text'
+                        name={`productCode${index}`}
+                        className={styles.input1}
+                        value={row.productCode}
+                        onChange={(e) => handleRowChange(index, 'productCode', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type='number'
+                        name={`qty${index}`}
+                        className={styles.input1}
+                        value={row.qty}
+                        onChange={(e) => handleRowChange(index, 'qty', e.target.value)}
+                      />
+                    </td>
+                    <td>
+                      <textarea
+                        name={`description${index}`}
+                        className={`${styles.input1} ${styles.textarea}`}
+                        value={row.description}
+                        onChange={(e) => handleRowChange(index, 'description', e.target.value)}
+                      ></textarea>
+                    </td>
                     <td>
                       {index === rows.length - 1 ? (
                         <button
