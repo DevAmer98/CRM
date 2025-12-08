@@ -24,6 +24,14 @@ const createEmptyProduct = () => ({
   unitPrice: '',
 });
 
+const sanitizeDescription = (value) => {
+  if (!value) return '';
+  const normalized = value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/?p>/gi, '\n');
+  return normalized.replace(/<\/?[^>]+(>|$)/g, '').replace(/\s+\n/g, '\n').trim();
+};
+
 const parseEditableNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const numeric = Number(value);
@@ -32,7 +40,7 @@ const parseEditableNumber = (value) => {
 
 const normalizeProductForEditing = (product = {}) => ({
   productCode: product.productCode || '',
-  description: product.description || '',
+  description: sanitizeDescription(product.description || ''),
   qty:
     product.qty === null || product.qty === undefined
       ? ''
@@ -240,9 +248,12 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
 
   const handleProductChange = (index, field, value) => {
     setProductEdits((prev) =>
-      prev.map((product, idx) =>
-        idx === index ? { ...product, [field]: value } : product
-      )
+      prev.map((product, idx) => {
+        if (idx !== index) return product;
+        const nextValue =
+          field === 'description' ? sanitizeDescription(value) : value;
+        return { ...product, [field]: nextValue };
+      })
     );
   };
 
