@@ -12,10 +12,12 @@ import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMe
 import Link from "next/link";
 import HeaderNavigation from "@/components/ui/HeaderNavigation";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
  
 
 const Main = () => {
   const { data: session, status } = useSession();
+  const router = useRouter();
 
   const [counts, setCounts] = useState({
       userCount: null,
@@ -27,6 +29,7 @@ const Main = () => {
     const [roleStats, setRoleStats] = useState([]);
     const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
     const [showMasterCongrats, setShowMasterCongrats] = useState(false);
+    const [hrRedirecting, setHrRedirecting] = useState(false);
 
 
 
@@ -97,6 +100,17 @@ const Main = () => {
         }
       }
     }, [session, status]);
+
+    useEffect(() => {
+      if (status !== "authenticated") return;
+      const role = (session?.user?.role || "").toLowerCase();
+      if (role === "hradmin") {
+        setHrRedirecting(true);
+        router.replace("/hr_dashboard");
+      } else {
+        setHrRedirecting(false);
+      }
+    }, [session, status, router]);
   
 
     
@@ -186,6 +200,16 @@ const formatRoleName = (role) => {
 
   const activeShiftsCount = currentShifts.filter(s => s.status === "active").length;
   const onBreakCount = currentShifts.filter(s => s.status === "break").length;
+
+  if (hrRedirecting) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.redirectNotice}>
+          Redirecting you to the HR dashboard…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>

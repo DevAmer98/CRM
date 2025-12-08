@@ -1,3 +1,4 @@
+//app/ui/dashboard/jobOrder/JobOrderDetailsPage.jsx
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
@@ -14,6 +15,77 @@ const defaultEditForm = {
 };
 
 const VAT_RATE = 0.15;
+
+const createEmptyProduct = () => ({
+  productCode: '',
+  description: '',
+  qty: '',
+  unit: '',
+  unitPrice: '',
+});
+
+const parseEditableNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const normalizeProductForEditing = (product = {}) => ({
+  productCode: product.productCode || '',
+  description: product.description || '',
+  qty:
+    product.qty === null || product.qty === undefined
+      ? ''
+      : product.qty.toString(),
+  unit:
+    product.unit === null || product.unit === undefined
+      ? ''
+      : product.unit.toString(),
+  unitPrice:
+    product.unitPrice === null || product.unitPrice === undefined
+      ? ''
+      : product.unitPrice.toString(),
+});
+
+const sanitizeProductsForSave = (products = []) =>
+  products
+    .map((product) => {
+      const qtyValue = parseEditableNumber(product.qty);
+      const unitValue = parseEditableNumber(product.unit);
+      const unitPriceValue = parseEditableNumber(product.unitPrice);
+
+      return {
+        productCode: product.productCode?.trim() || '',
+        description: product.description?.trim() || '',
+        qty: Number.isFinite(qtyValue) ? qtyValue : null,
+        unit: Number.isFinite(unitValue) ? unitValue : null,
+        unitPrice:
+          Number.isFinite(unitPriceValue)
+            ? unitPriceValue
+            : Number.isFinite(qtyValue) && Number.isFinite(unitValue)
+            ? qtyValue * unitValue
+            : null,
+      };
+    })
+    .filter(
+      (product) =>
+        product.productCode ||
+        product.description ||
+        product.qty !== null ||
+        product.unit !== null ||
+        product.unitPrice !== null
+    );
+
+const getProductLineTotal = (product) => {
+  const explicitTotal = parseEditableNumber(product.unitPrice);
+  if (explicitTotal !== null) return explicitTotal;
+  const qtyValue = parseEditableNumber(product.qty);
+  const unitValue = parseEditableNumber(product.unit);
+  if (qtyValue !== null && unitValue !== null) {
+    return qtyValue * unitValue;
+  }
+  return 0;
+};
 
 const parseNumber = (value) => {
   if (value === null || value === undefined) return null;
@@ -72,9 +144,19 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
 
   const quotationDetails = jobOrder.quotation;
   const jobProducts = jobOrder.products || [];
-  const displayProducts =
-    quotationDetails?.products?.length ? quotationDetails.products : jobProducts;
-  const showProductsSection = quotationDetails || displayProducts.length > 0;
+  const hasQuotationProducts = Boolean(quotationDetails?.products?.length);
+  const [productEdits, setProductEdits] = useState(() => {
+    if (jobProducts.length) {
+      return jobProducts.map((product) => normalizeProductForEditing(product));
+    }
+    if (hasQuotationProducts) {
+      return quotationDetails.products.map((product) =>
+        normalizeProductForEditing(product)
+      );
+    }
+    return [createEmptyProduct()];
+  });
+  const showProductsSection = productEdits.length > 0 || hasQuotationProducts;
   const calculatedJobOrderBaseValue =
     jobOrder.currency === 'SAR'
       ? jobOrder.baseValue && Number(jobOrder.baseValue) > 0
@@ -88,6 +170,10 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
     jobOrder.currency === 'SAR' && hasCalculatedBase && jobOrder.value !== undefined
       ? jobOrder.value - calculatedJobOrderBaseValue
       : null;
+  const manualProductsSubtotal = productEdits.reduce(
+    (sum, product) => sum + getProductLineTotal(product),
+    0
+  );
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
@@ -152,8 +238,30 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
     }));
   };
 
+  const handleProductChange = (index, field, value) => {
+    setProductEdits((prev) =>
+      prev.map((product, idx) =>
+        idx === index ? { ...product, [field]: value } : product
+      )
+    );
+  };
+
+  const handleAddProductRow = () => {
+    setProductEdits((prev) => [...prev, createEmptyProduct()]);
+  };
+
+  const handleRemoveProductRow = (index) => {
+    setProductEdits((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleSaveEdits = async (e) => {
     e.preventDefault();
+
+    const sanitizedProducts = sanitizeProductsForSave(productEdits);
+    if (sanitizedProducts.length === 0) {
+      alert('Enter at least one product before saving.');
+      return;
+    }
 
     const poNumber = editForm.poNumber.trim();
 
@@ -187,6 +295,7 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
         editForm.currency === 'SAR' && baseValueNumber
           ? Number(baseValueNumber.toFixed(2))
           : 0,
+      products: sanitizedProducts,
     };
 
     setIsSaving(true);
@@ -202,7 +311,16 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
         throw new Error(errorText || 'Failed to update job order');
       }
 
-      setJobOrder((prev) => ({ ...prev, ...payload }));
+      setJobOrder((prev) => ({
+        ...prev,
+        ...payload,
+        products: sanitizedProducts,
+      }));
+      setProductEdits(
+        sanitizedProducts.length
+          ? sanitizedProducts.map((product) => normalizeProductForEditing(product))
+          : [createEmptyProduct()]
+      );
       alert('Job order updated successfully.');
     } catch (error) {
       console.error('Error updating job order:', error);
@@ -243,25 +361,25 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
         <div className={styles.quotationSection}>
           <div className={styles.quotationHeader}>
             <div>
-              <h4>{quotationDetails ? 'Quotation Items' : 'Job Order Products'}</h4>
+              <h4>Job Order Products</h4>
               <p>
-                {quotationDetails
-                  ? 'Linked quotation details'
-                  : 'Products captured for this job order'}
+                {hasQuotationProducts
+                  ? 'Started from the linked quotation. Edits only affect this job order.'
+                  : 'Update the products captured for this job order.'}
               </p>
             </div>
             <div className={styles.quotationMeta}>
               <span>
                 <strong>Currency</strong>
-                {quotationDetails?.currency || jobOrder.currency || 'N/A'}
+                {editForm.currency || quotationDetails?.currency || jobOrder.currency || 'N/A'}
               </span>
               <span>
                 <strong>Total</strong>
-                {formatCurrency(quotationDetails?.totalPrice ?? jobOrder.value)}
+                {formatCurrency(manualProductsSubtotal || editForm.value || jobOrder.value)}
               </span>
             </div>
           </div>
-          {displayProducts.length > 0 ? (
+          {productEdits.length > 0 ? (
             <div className={styles.quotationTableWrapper}>
               <table className={styles.quotationTable}>
                 <thead>
@@ -271,24 +389,102 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
                     <th>Qty</th>
                     <th>Unit</th>
                     <th>Unit Price</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {displayProducts.map((product, index) => (
-                    <tr key={`${product.productCode || 'product'}-${index}`}>
-                      <td>{product.productCode || '-'}</td>
-                      <td
-                        dangerouslySetInnerHTML={{
-                          __html: product.description || '-',
-                        }}
-                      ></td>
-                      <td>{product.qty ?? '-'}</td>
-                      <td>{product.unit ?? '-'}</td>
-                      <td>{formatCurrency(product.unitPrice)}</td>
+                  {productEdits.map((product, index) => (
+                    <tr key={`editable-product-${index}`}>
+                      <td>
+                        <input
+                          type="text"
+                          className={styles.productInput}
+                          value={product.productCode}
+                          onChange={(e) =>
+                            handleProductChange(index, 'productCode', e.target.value)
+                          }
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td>
+                        <textarea
+                          className={styles.productTextarea}
+                          value={product.description}
+                          onChange={(e) =>
+                            handleProductChange(index, 'description', e.target.value)
+                          }
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          className={styles.productInput}
+                          value={product.qty}
+                          onChange={(e) =>
+                            handleProductChange(index, 'qty', e.target.value)
+                          }
+                          disabled={isSaving}
+                          min="0"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          className={styles.productInput}
+                          value={product.unit}
+                          onChange={(e) =>
+                            handleProductChange(index, 'unit', e.target.value)
+                          }
+                          disabled={isSaving}
+                          min="0"
+                          step="0.01"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          className={styles.productInput}
+                          value={product.unitPrice}
+                          onChange={(e) =>
+                            handleProductChange(index, 'unitPrice', e.target.value)
+                          }
+                          disabled={isSaving}
+                          min="0"
+                          step="0.01"
+                        />
+                      </td>
+                      <td className={styles.productActions}>
+                        <button
+                          type="button"
+                          className={styles.productRemoveButton}
+                          onClick={() => handleRemoveProductRow(index)}
+                          disabled={isSaving || productEdits.length === 1}
+                        >
+                          Remove
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <div className={styles.productTableFooter}>
+                <button
+                  type="button"
+                  className={styles.addProductButton}
+                  onClick={handleAddProductRow}
+                  disabled={isSaving}
+                >
+                  Add Product
+                </button>
+                <div className={styles.manualSummary}>
+                  <strong>
+                    Manual subtotal: {formatCurrency(manualProductsSubtotal || 0)}{' '}
+                    {editForm.currency}
+                  </strong>
+                  <span>The PO amount should match this subtotal.</span>
+                </div>
+              </div>
             </div>
           ) : (
             <p className={styles.emptyQuotation}>No products available.</p>
@@ -298,11 +494,7 @@ const JobOrderDetailsPage = ({ initialJobOrder }) => {
               <span>Subtotal</span>
               <strong>
                 {formatCurrency(
-                  quotationDetails
-                    ? quotationDetails.subtotal ??
-                        quotationDetails.totalPrice ??
-                        jobOrder.value
-                    : calculatedJobOrderBaseValue ?? jobOrder.value
+                  manualProductsSubtotal || calculatedJobOrderBaseValue || jobOrder.value
                 )}
               </strong>
             </div>

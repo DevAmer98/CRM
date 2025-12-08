@@ -545,6 +545,87 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.productInput,
+.productTextarea {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+.productTextarea {
+  min-height: 60px;
+  resize: vertical;
+}
+
+.productInput:disabled,
+.productTextarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.productActions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.productRemoveButton {
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #f87171;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.productRemoveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.productTableFooter {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.addProductButton {
+  padding: 0.35rem 0.9rem;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.addProductButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.manualSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--textSoft);
+}
+
+.manualSummary strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
 .emptyQuotation {
   margin: 0;
   font-size: 0.85rem;

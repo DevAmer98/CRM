@@ -2,6 +2,43 @@ import { JobOrder } from '@/app/lib/models';
 import { connectToDB } from '@/app/lib/utils';
 import { NextResponse } from 'next/server';
 
+const parseNumberOrNull = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const sanitizeProducts = (products = []) => {
+  if (!Array.isArray(products)) return [];
+  return products
+    .map((product = {}) => {
+      const qtyValue = parseNumberOrNull(product.qty);
+      const unitValue = parseNumberOrNull(product.unit);
+      const unitPriceValue = parseNumberOrNull(product.unitPrice);
+
+      return {
+        productCode: product.productCode?.trim() || '',
+        description: product.description?.trim() || '',
+        qty: Number.isFinite(qtyValue) ? qtyValue : null,
+        unit: Number.isFinite(unitValue) ? unitValue : null,
+        unitPrice:
+          Number.isFinite(unitPriceValue)
+            ? unitPriceValue
+            : Number.isFinite(qtyValue) && Number.isFinite(unitValue)
+            ? qtyValue * unitValue
+            : null,
+      };
+    })
+    .filter(
+      (product) =>
+        product.productCode ||
+        product.description ||
+        product.qty !== null ||
+        product.unit !== null ||
+        product.unitPrice !== null
+    );
+};
+
 export async function POST(req, { params }) {
   const { id } = params;
   const body = await req.json();
@@ -22,6 +59,10 @@ export async function POST(req, { params }) {
     }
     return acc;
   }, {});
+
+  if (body.products !== undefined) {
+    updateData.products = sanitizeProducts(body.products);
+  }
 
   if (updateData.value !== undefined) {
     updateData.value = Number(updateData.value);
