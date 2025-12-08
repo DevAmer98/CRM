@@ -39,13 +39,16 @@ const AddCoc = () => {
   const [rows, setRows] = React.useState([{ number: 1 }]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+  const buildApiUrl = (path) => {
+    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
+    return base ? `${base}${path}` : path;
+  };
 
 
   useEffect(() => { 
   const fetchClientsWithQuotations = async () => {
     try {
-      const response = await fetch(`${domain}/api/clientWithQuoAndPo`, {
+      const response = await fetch(buildApiUrl('/api/clientWithQuoAndPo'), {
         method: "POST"
       });
       if (response.ok) {
@@ -76,11 +79,22 @@ const AddCoc = () => {
   const renderClientOptions = () => (
     <>
       <option value="">Select Client</option>
-      {clientsWithInfo.map((client) => (
-        <option key={client._id.toString()} value={client._id.toString()}>
-          {client.name}
-        </option>
-      ))}
+      {clientsWithInfo.map((client) => {
+        const quotationIds = Array.isArray(client.quotations)
+          ? client.quotations
+              .map((quotation) => quotation?.quotationId)
+              .filter(Boolean)
+          : [];
+
+        const suffix = quotationIds.length ? ` (${quotationIds.join(', ')})` : '';
+
+        return (
+          <option key={client._id.toString()} value={client._id.toString()}>
+            {client.name}
+            {suffix}
+          </option>
+        );
+      })}
     </>
   );
 
@@ -91,11 +105,20 @@ const AddCoc = () => {
     return (
       <>
         <option value="">Select Quotation</option>
-        {selectedClientData?.quotations.map((quotation) => (
-        <option key={quotation._id} value={quotation._id}>
-        {quotation.projectName}
-  </option>
-))}
+        {selectedClientData?.quotations.map((quotation) => {
+          const labelParts = [
+            quotation.quotationId,
+            quotation.projectName && quotation.projectName !== quotation.quotationId
+              ? quotation.projectName
+              : null,
+          ].filter(Boolean);
+
+          return (
+            <option key={quotation._id} value={quotation._id}>
+              {labelParts.join(' - ')}
+            </option>
+          );
+        })}
       </>
     );
   };
@@ -116,7 +139,7 @@ const AddCoc = () => {
   useEffect(() => {
     const fetchSales = async () => {
       try {
-        const response = await fetch(`${domain}/api/allSales`, { method: 'GET' });
+        const response = await fetch(buildApiUrl('/api/allSales'), { method: 'GET' });
         const data = await response.json();
         console.log('Sales fetched:', data);
         setSales(data);
@@ -134,7 +157,7 @@ const AddCoc = () => {
   useEffect(() => {
     const fetchJobOrder = async () => {
       try {
-        const response = await fetch(`${domain}/api/allJobs`, { method: 'GET' });
+        const response = await fetch(buildApiUrl('/api/allJobs'), { method: 'GET' });
         const data = await response.json();
         console.log('Purchase fetched:', data);
         setjobOrders(data);
