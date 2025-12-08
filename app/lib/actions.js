@@ -2486,17 +2486,15 @@ export const deleteCoc = async (formData) => {
 
 
 export const addPickList = async (formData) => {
-  const { saleId, clientId,quotationId, jobOrderId, products,deliveryLocation } = formData;
+  const { saleId, clientId, quotationId, jobOrderId, products, deliveryLocation } = formData;
 
   try {
     await connectToDB();
-
 
     const jobOrder = await JobOrder.findById(jobOrderId);
     if (!jobOrder) {
       throw new Error('job not found');
     }
-
 
     const sale = await Sale.findById(saleId);
     if (!sale) {
@@ -2513,21 +2511,17 @@ export const addPickList = async (formData) => {
       throw new Error('Quotation not found');
     }
 
-
     const year = new Date().getFullYear();
 
+    const latestPicklist = await Pl.findOne({
+      pickListId: { $regex: `SVSPL-${year}-` },
+    }).sort({ pickListId: -1 });
 
-      // Find the latest quotation for the current year
-      const latestPicklist = await Pl.findOne({
-        pickListId: { $regex: `SVSPL-${year}-` }
-      }).sort({ pickListId: -1 });
-  
-      // Generate new sequence number
-      let sequenceNumber = '001';
-      if (latestPicklist) {
-        const currentNumber = parseInt(latestPicklist.pickListId.split('-')[2]);
-        sequenceNumber = String(currentNumber + 1).padStart(3, '0');
-      }
+    let sequenceNumber = '001';
+    if (latestPicklist) {
+      const currentNumber = parseInt(latestPicklist.pickListId.split('-')[2]);
+      sequenceNumber = String(currentNumber + 1).padStart(3, '0');
+    }
 
     const customPickListIdId = `SVSPL-${year}-${sequenceNumber}`;
 
@@ -2542,16 +2536,14 @@ export const addPickList = async (formData) => {
       revisionNumber: 0,
     });
 
-    const savedpl = await newPickList.save();
+    await newPickList.save();
     console.log('pl added successfully:', newPickList);
 
-    return savedpl;
+    revalidatePath("/dashboard/pl_coc/pl");
+    return { success: true, pickListId: customPickListIdId };
   } catch (err) {
     console.error("Error adding pl:", err.message);
     throw new Error('Failed to add pl!');
-  } finally {
-    revalidatePath("/dashboard/pl_coc/pl");
-    redirect("/dashboard/pl_coc/pl");
   }
 };
 

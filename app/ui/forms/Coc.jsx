@@ -10,9 +10,10 @@ import { useRouter } from 'next/navigation';
 
 
   const productSchema = z.object({
-    productCode: z.string().optional(),
-    qty: z.number().optional(),
-    description: z.string().optional(),
+    number: z.number(),
+    productCode: z.string().min(1, "Product code is required"),
+    qty: z.coerce.number().positive("Quantity is required"),
+    description: z.string().min(1, "Description is required"),
   });
   
   const cocSchema = z.object({
@@ -20,8 +21,8 @@ import { useRouter } from 'next/navigation';
     clientId: z.string().min(1, "Client is required"),
     quotationId: z.string().min(1, "Quotation is required"),
     jobOrderId: z.string().min(1, "Job Order is required"),
-    products: z.array(productSchema),
-    deliveryLocation: z.string(),
+    products: z.array(productSchema).min(1, "Add at least one product"),
+    deliveryLocation: z.string().min(1, "Delivery location is required"),
     
  
   });
@@ -189,47 +190,47 @@ const AddCoc = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('Form submitted. FormData:', event.target);
+    setError(null);
  
     const formData = {
       clientId: event.target.clientId.value,
       quotationId: event.target.quotationId.value,
       saleId: event.target.saleId.value,
       jobOrderId: event.target.jobOrderId.value,
-      deliveryLocation: event.target.deliveryLocation.value,
+      deliveryLocation: event.target.deliveryLocation.value.trim(),
       products: rows.map((row, index) => ({
         number: index + 1,
-        productCode: event.target[`productCode${index}`].value,
-          qty: Number(event.target[`qty${index}`].value),
-        description: event.target[`description${index}`].value,
-})),
-     
+        productCode: event.target[`productCode${index}`].value.trim(),
+        qty: Number(event.target[`qty${index}`].value),
+        description: event.target[`description${index}`].value.trim(),
+      })),
     }; 
 
-          try {
-            const validatedData = cocSchema.parse(formData);
-            const result = await addCoc(validatedData);
-            if (result.success) {
-              toast.success('Coc added successfully!');
-              router.push('/dashboard/pl_coc/coc');
-
-        
-
-            }
-          } catch (error) { 
-            if (error instanceof z.ZodError) {
-              error.errors.forEach((err) => {
-                toast.error(err.message);
-              });
-            } else if (error.message.includes("already exists")) { // Specific check for duplicate key error
-              toast.error(error.message);
-            } else {
-              toast.error(error.message);
-            }
-          
-        }
-
-    await addCoc(formData);
+    try {
+      const validatedData = cocSchema.parse(formData);
+      const result = await addCoc(validatedData);
+      if (result?.success) {
+        toast.success(`Coc ${result.cocId} added successfully!`);
+      } else {
+        toast.success('Coc added successfully!');
+      }
+      router.push('/dashboard/pl_coc/coc');
+    } catch (error) { 
+      if (error instanceof z.ZodError) {
+        const firstMessage = error.errors[0]?.message || 'Validation failed';
+        setError(firstMessage);
+        error.errors.forEach((err) => {
+          toast.error(err.message);
+        });
+      } else if (error.message?.includes("already exists")) { 
+        setError(error.message);
+        toast.error(error.message);
+      } else {
+        const message = error.message || 'Failed to add Coc';
+        setError(message);
+        toast.error(message);
+      }
+    }
   };
   
 

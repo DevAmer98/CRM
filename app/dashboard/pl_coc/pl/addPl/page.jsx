@@ -1,6 +1,9 @@
 "use client";
 import React, {useState, useEffect} from 'react'; 
 import { FaPlus, FaTrash } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
+import { z } from 'zod';
+import toast from 'react-hot-toast';
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
 import { addPickList } from '@/app/lib/actions';
 
@@ -13,6 +16,7 @@ const AddPlPage = () => {
   const [rows, setRows] = React.useState([{ number: 1 }]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const router = useRouter();
 
   const buildApiUrl = (path) => {
     const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -144,6 +148,21 @@ const AddPlPage = () => {
     fetchSales();
   }, []);
 
+  const productSchema = z.object({
+    number: z.number(),
+    productCode: z.string().min(1, "Product code is required"),
+    qty: z.coerce.number().positive("Quantity is required"),
+    description: z.string().min(1, "Description is required"),
+  });
+  
+  const pickListSchema = z.object({
+    saleId: z.string().min(1, "Sales Representative is required"),
+    clientId: z.string().min(1, "Client is required"),
+    quotationId: z.string().min(1, "Quotation is required"),
+    jobOrderId: z.string().min(1, "Job Order is required"),
+    deliveryLocation: z.string().min(1, "Delivery location is required"),
+    products: z.array(productSchema).min(1, "Add at least one product"),
+  });
  
   const addRow = () => {
     const newRow = { number: rows.length + 1 };
@@ -161,30 +180,41 @@ const AddPlPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('Form submitted. FormData:', event.target);
+    setError(null);
+  
+    const formValues = {
+      clientId: event.target.clientId.value,
+      quotationId: event.target.quotationId.value,
+      saleId: event.target.saleId.value,
+      jobOrderId: event.target.jobOrderId.value,
+      deliveryLocation: event.target.deliveryLocation.value.trim(),
+      products: rows.map((row, index) => ({
+        number: index + 1,
+        productCode: event.target[`productCode${index}`].value.trim(),
+        qty: event.target[`qty${index}`].value,
+        description: event.target[`description${index}`].value.trim(),
+      })),
+    };
   
     try {
-      const formData = {
-        clientId: event.target.clientId.value,
-        quotationId: event.target.quotationId.value,
-        saleId: event.target.saleId.value,
-        jobOrderId: event.target.jobOrderId.value,
-        deliveryLocation: event.target.deliveryLocation.value,
-        products: rows.map((row, index) => ({
-          number: index + 1,
-          productCode: event.target[`productCode${index}`].value,
-          qty: event.target[`qty${index}`].value,
-          description: event.target[`description${index}`].value,
-        })),
-      };
-  
-      await addPickList(formData);
-  
-      // Reset error state if submission succeeds
-      setError(null);
-    } catch (error) {
-      // Update error state if submission fails
-      setError(error.message || 'An error occurred while submitting the form.');
+      const validatedData = pickListSchema.parse(formValues);
+      const result = await addPickList(validatedData);
+      if (result?.success) {
+        toast.success(`Pick list ${result.pickListId} created successfully!`);
+      } else {
+        toast.success('Pick list created successfully!');
+      }
+      router.push('/dashboard/pl_coc/pl');
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        const firstMessage = err.errors[0]?.message || 'Validation failed';
+        setError(firstMessage);
+        err.errors.forEach((issue) => toast.error(issue.message));
+      } else {
+        const message = err.message || 'An error occurred while submitting the form.';
+        setError(message);
+        toast.error(message);
+      }
     }
   };
   
