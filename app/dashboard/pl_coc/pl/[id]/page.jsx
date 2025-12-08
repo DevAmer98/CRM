@@ -10,6 +10,7 @@ const SinglePl = ({params}) => {
   const [pl, setPl] = useState(null);
   const [error, setError] = useState(null); 
   const [isLoading, setLoading] = useState(true);
+  const [isUploaded, setIsUploaded] = useState(false);
   const [formData, setFormData] = useState({ 
     sale:'',
     clientName: '',  
@@ -42,33 +43,43 @@ const SinglePl = ({params}) => {
 
 
 
+  const buildPlDocumentData = () => {
+    if (!pl) return null;
+
+    return {
+      PickListNumber: pl.pickListId,
+      DeliveryLocation: pl.deliveryLocation,
+      ClientName: pl.client?.name,
+      ClientPhone: pl.client?.phone || 'No address provided',
+      ClientEmail: pl.client?.email || 'No contact info',
+      ClientAddress: pl.client?.address || 'No address info',
+      ClientContactMobile: pl.client?.contactMobile || 'No contact info',
+      ClientContactName: pl.client?.contactName || 'No contact info',
+      SaleName: pl.sale?.name || 'No address provided',
+      SalePhone: pl.sale?.phone || 'No address provided',
+      SaleEmail: pl.sale?.email || 'No contact info',
+      SaleAddress: pl.sale?.address || 'No address info',
+      Products: rows.map((product, index) => ({
+        Number: (index + 1).toString().padStart(3, '0'),
+        ProductCode: product.productCode,
+        Qty: product.qty,
+        Description: product.description,
+      })),
+      CreatedAt: pl.createdAt ? new Date(pl.createdAt).toDateString().slice(4, 16) : '',
+      PurchaseDate: pl.jobOrder?.poDate,
+      PurchaseId: pl.jobOrder?.poNumber,
+      JobOrderNumber: pl.jobOrder?.jobOrderId,
+    };
+  };
+
   const uploadPlDocument = async () => {
     try {
-        const documentData = {
-            PickListNumber: pl.pickListId,
-            DeliveryLocation: pl.deliveryLocation,
-            ClientName: pl.client?.name, 
-            ClientPhone: pl.client?.phone || 'No address provided',
-            ClientEmail: pl.client?.email || 'No contact info',
-            ClientAddress: pl.client?.address || 'No address info',
-            ClientContactMobile: pl.client?.contactMobile || 'No contact info',
-            ClientContactName: pl.client?.contactName || 'No contact info',
-            SaleName: pl.sale?.name || 'No address provided',
-            SalePhone: pl.sale?.phone || 'No address provided',
-            SaleEmail: pl.sale?.email || 'No contact info',
-            SaleAddress: pl.sale?.address || 'No address info',
-            Products: formData.products.map((product, index) => ({
-              Number: (index + 1).toString().padStart(3, '0'),
-              ProductCode: product.productCode,
-              Qty: product.qty,
-              Description: product.description,
-            })),
-            CreatedAt: pl.createdAt ? new Date(pl.createdAt).toDateString().slice(4, 16) : '',
-            PurchaseDate: pl.jobOrder?.poDate,
-            PurchaseId: pl.jobOrder?.poNumber,
-            JobOrderNumber: pl.jobOrder?.jobOrderId,
-      };
-  
+      const documentData = buildPlDocumentData();
+      if (!documentData) {
+        alert('Pick list data is still loading. Please try again in a moment.');
+        return;
+      }
+
       // Log document data for debugging
       console.log('Document Data for upload:', documentData);
   
@@ -100,90 +111,14 @@ const SinglePl = ({params}) => {
   
       
 
-      /*const downloadQuotationDocument = async () => {
-        try {
-          const documentData = {
-            PickListNumber: pl.pickListId,
-            DeliveryLocation: pl.deliveryLocation,
-            ClientName: pl.client?.name, 
-            ClientPhone: pl.client?.phone || 'No address provided',
-            ClientEmail: pl.client?.email || 'No contact info',
-            ClientAddress: pl.client?.address || 'No address info',
-            ClientContactMobile: pl.client?.contactMobile || 'No contact info',
-            ClientContactName: pl.client?.contactName || 'No contact info',
-            SaleName: pl.sale?.name || 'No address provided',
-            SalePhone: pl.sale?.phone || 'No address provided',
-            SaleEmail: pl.sale?.email || 'No contact info',
-            SaleAddress: pl.sale?.address || 'No address info',
-            Products: formData.products.map((product, index) => ({
-              Number: (index + 1).toString().padStart(3, '0'),
-              ProductCode: product.productCode,
-              Qty: product.qty,
-              Description: product.description,
-            })),
-            CreatedAt: pl.createdAt ? new Date(pl.createdAt).toDateString().slice(4, 16) : '',
-            PurchaseDate: pl.jobOrder?.poDate,
-            PurchaseId: pl.jobOrder?.poNumber,
-            JobOrderNumber: pl.jobOrder?.jobOrderId,
-
-          };
-    
-          // Send data to the server to create the document
-          const response = await fetch('http://localhost:3000/api/loadPlData', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(documentData),
-          });
-    
-          if (response.ok) {
-            // Create a Blob from the PDF Stream
-            const fileBlob = await response.blob();
-            // Create a link element, use it to download the blob, and then remove it
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(fileBlob);
-            link.download = `PL_${documentData.PickListNumber}.docx`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          } else {
-            throw new Error(`Server responded with status: ${response.status}`);}
-             } catch (error) {
-              console.error('Error downloading the document:', error);
-          }
-      };*/
-
-
-
       const downloadPlPdfDocument = async () => {
         try {
-          const documentData = {
-            PickListNumber: pl.pickListId,
-            DeliveryLocation: pl.deliveryLocation,
-            ClientName: pl.client?.name, 
-            ClientPhone: pl.client?.phone || 'No address provided',
-            ClientEmail: pl.client?.email || 'No contact info',
-            ClientAddress: pl.client?.address || 'No address info',
-            ClientContactMobile: pl.client?.contactMobile || 'No contact info',
-            ClientContactName: pl.client?.contactName || 'No contact info',
-            SaleName: pl.sale?.name || 'No address provided',
-            SalePhone: pl.sale?.phone || 'No address provided',
-            SaleEmail: pl.sale?.email || 'No contact info',
-            SaleAddress: pl.sale?.address || 'No address info',
-            Products: formData.products.map((product, index) => ({
-              Number: (index + 1).toString().padStart(3, '0'),
-              ProductCode: product.productCode,
-              Qty: product.qty,
-              Description: product.description,
-            })),
-            CreatedAt: pl.createdAt ? new Date(pl.createdAt).toDateString().slice(4, 16) : '',
-            PurchaseDate: pl.jobOrder?.poDate,
-            PurchaseId: pl.jobOrder?.poNumber,
-            JobOrderNumber: pl.jobOrder?.jobOrderId,
+          const documentData = buildPlDocumentData();
+          if (!documentData) {
+            alert('Pick list data is still loading. Please try again in a moment.');
+            return;
+          }
 
-          };
-    
           // Send data to the server to create the document
           const response = await fetch(`${domain}/api/loadPlPdf`, {
             method: 'POST',
@@ -209,7 +144,44 @@ const SinglePl = ({params}) => {
               console.error('Error downloading the document:', error);
           }
       };
-              
+      
+      const previewPlPdfDocument = async () => {
+        try {
+          const documentData = buildPlDocumentData();
+          if (!documentData) {
+            alert('Pick list data is still loading. Please try again in a moment.');
+            return;
+          }
+
+          const response = await fetch(`${domain}/api/loadPlPdf`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(documentData),
+          });
+
+          if (response.ok) {
+            const fileBlob = await response.blob();
+            const fileURL = URL.createObjectURL(fileBlob);
+            const newWindow = window.open(fileURL, '_blank');
+
+            if (!newWindow) {
+              alert('Please enable pop-ups in your browser to preview the PDF.');
+              URL.revokeObjectURL(fileURL);
+              return;
+            }
+
+            setTimeout(() => {
+              URL.revokeObjectURL(fileURL);
+            }, 60 * 1000);
+          } else {
+            throw new Error(`Server responded with status: ${response.status}`);
+          }
+        } catch (error) {
+          console.error('Error generating the preview:', error);
+        }
+      };
     
 
   
@@ -304,9 +276,30 @@ const SinglePl = ({params}) => {
         <div className={styles.container}>
         PickList ID: {formData.pickListId}
       </div>
-        <button type="button" className={styles.DownloadButton} onClick={uploadPlDocument}>
-           Upload to Synology 
-           </button>
+        <div className={styles.buttonRow}>
+          <button
+            type="button"
+            className={`${styles.DownloadButton} ${isUploaded ? styles.DisabledButton : ''}`}
+            onClick={uploadPlDocument}
+            disabled={isUploaded}
+          >
+            {isUploaded ? 'Uploaded' : 'Upload to Synology'}
+          </button>
+          <button
+            type="button"
+            className={styles.DownloadButton}
+            onClick={previewPlPdfDocument}
+          >
+            Preview PDF
+          </button>
+          <button
+            type="button"
+            className={styles.DownloadButton}
+            onClick={downloadPlPdfDocument}
+          >
+            Download PDF
+          </button>
+        </div>
           <div className={styles.form1}>
           
             <input type="hidden" name="id" value={params.id} />

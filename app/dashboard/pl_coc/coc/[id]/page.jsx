@@ -41,61 +41,108 @@ const SingleCoc = ({params}) => {
     getCocById();
   }, [params.id]); // <-- Add params.id as a dependency
   
-      
+  const buildCocDocumentData = () => {
+    if (!coc) return null;
 
-      const downloadCocPdfDocument = async () => {
-        try {
-          const documentData = {
-            CocNumber: coc.cocId,
-            ProjectName:coc.quotation?.projectName,
-            DeliveryLocation: coc.deliveryLocation,
-            ClientName: coc.client?.name, 
-            userName: coc.user?.username, 
-            ClientPhone: coc.client?.phone ,
-            ClientEmail: coc.client?.email ,
-            ClientAddress: coc.client?.address,
-            ClientContactMobile: coc.client?.contactMobile ,
-            ClientContactName: coc.client?.contactName ,
-            SaleName: coc.sale?.name ,
-            SalePhone: coc.sale?.phone ,
-            SaleEmail: coc.sale?.email ,
-            SaleAddress: coc.sale?.address ,
-            Products: formData.products.map((product, index) => ({
-              Number: (index + 1).toString().padStart(3, '0'),
-              ProductCode: product.productCode,
-              Qty: product.qty,
-              Description: product.description,
-            })),
-            CreatedAt: coc.createdAt ? new Date(coc.createdAt).toDateString().slice(4, 16) : '',
-            PurchaseDate: coc.jobOrder?.poDate,
-            PurchaseId: coc.jobOrder?.poNumber,
-            JobOrderNumber: coc.jobOrder?.jobOrderId,
-          };
-    
-          const response = await fetch(`${domain}/api/loadCocPdf`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(documentData),
-          });
-    
-          if (response.ok) {
-            const fileBlob = await response.blob();
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(fileBlob);
-            link.download = `Coc_${documentData.CocNumber}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          } else {
-            throw new Error(`Server responded with status: ${response.status}`);}
-             } catch (error) {
-              console.error('Error downloading the document:', error);
-          }
-      };
-              
-    
+    return {
+      CocNumber: coc.cocId,
+      ProjectName: coc.quotation?.projectName,
+      DeliveryLocation: coc.deliveryLocation,
+      ClientName: coc.client?.name,
+      userName: coc.user?.username,
+      ClientPhone: coc.client?.phone,
+      ClientEmail: coc.client?.email,
+      ClientAddress: coc.client?.address,
+      ClientContactMobile: coc.client?.contactMobile,
+      ClientContactName: coc.client?.contactName,
+      SaleName: coc.sale?.name,
+      SalePhone: coc.sale?.phone,
+      SaleEmail: coc.sale?.email,
+      SaleAddress: coc.sale?.address,
+      Products: rows.map((product, index) => ({
+        Number: (index + 1).toString().padStart(3, '0'),
+        ProductCode: product.productCode,
+        Qty: product.qty,
+        Description: product.description,
+      })),
+      CreatedAt: coc.createdAt ? new Date(coc.createdAt).toDateString().slice(4, 16) : '',
+      PurchaseDate: coc.jobOrder?.poDate,
+      PurchaseId: coc.jobOrder?.poNumber,
+      JobOrderNumber: coc.jobOrder?.jobOrderId,
+    };
+  };
+
+  const downloadCocPdfDocument = async () => {
+    try {
+      const documentData = buildCocDocumentData();
+      if (!documentData) {
+        alert('Certificate of Conformity data is loading. Please try again shortly.');
+        return;
+      }
+
+      const response = await fetch(`${domain}/api/loadCocPdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(documentData),
+      });
+
+      if (response.ok) {
+        const fileBlob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(fileBlob);
+        link.download = `Coc_${documentData.CocNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error downloading the document:', error);
+    }
+  };
+
+  const previewCocPdfDocument = async () => {
+    try {
+      const documentData = buildCocDocumentData();
+      if (!documentData) {
+        alert('Certificate of Conformity data is loading. Please try again shortly.');
+        return;
+      }
+
+      const response = await fetch(`${domain}/api/loadCocPdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(documentData),
+      });
+
+      if (response.ok) {
+        const fileBlob = await response.blob();
+        const fileURL = URL.createObjectURL(fileBlob);
+        const newWindow = window.open(fileURL, '_blank');
+
+        if (!newWindow) {
+          alert('Please allow pop-ups in your browser to preview the PDF.');
+          URL.revokeObjectURL(fileURL);
+          return;
+        }
+
+        setTimeout(() => {
+          URL.revokeObjectURL(fileURL);
+        }, 60 * 1000);
+      } else {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error generating the preview:', error);
+    }
+  };
+             
+   
 
   
 
@@ -191,13 +238,23 @@ const SingleCoc = ({params}) => {
         <div className={styles.container}>
         Coc ID: {formData.cocId}
       </div>
-        <button type="button" 
-        className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
-        onClick={downloadCocPdfDocument}
-        disabled={!formData.userName || formData.userName.trim() === 'N/A'}
-        >
-           Download Coc
-           </button>
+        <div className={styles.buttonRow}>
+          <button
+            type="button"
+            className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
+            onClick={previewCocPdfDocument}
+            disabled={!formData.userName || formData.userName.trim() === 'N/A'}
+          >
+            Preview PDF
+          </button>
+          <button type="button" 
+          className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
+          onClick={downloadCocPdfDocument}
+          disabled={!formData.userName || formData.userName.trim() === 'N/A'}
+          >
+             Download PDF
+             </button>
+        </div>
            
           <div className={styles.form1}>
             <input type="hidden" name="id" value={params.id} />

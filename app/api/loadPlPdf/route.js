@@ -35,11 +35,35 @@ async function fetchDocxTemplate(fileName) {
   return fs.readFileSync(filePath); // Return the file buffer
 }
 
+function getLibreOfficeExecutable() {
+  if (process.env.LIBREOFFICE_PATH) {
+    return `"${process.env.LIBREOFFICE_PATH}"`;
+  }
+
+  if (process.platform === 'win32') {
+    const windowsPaths = [
+      'C:\\\\Program Files\\\\LibreOffice\\\\program\\\\soffice.exe',
+      'C:\\\\Program Files (x86)\\\\LibreOffice\\\\program\\\\soffice.exe',
+    ];
+    const existingPath = windowsPaths.find((exePath) => fs.existsSync(exePath));
+    if (existingPath) {
+      return `"${existingPath}"`;
+    }
+  } else if (process.platform === 'darwin') {
+    const macPath = '/Applications/LibreOffice.app/Contents/MacOS/soffice';
+    if (fs.existsSync(macPath)) {
+      return `"${macPath}"`;
+    }
+  }
+
+  return 'soffice';
+}
+
 // Function to convert DOCX to PDF using LibreOffice
 async function convertDocxToPdf(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
-    const libreOfficePath = `"C:\\Program Files\\LibreOffice\\program\\soffice.exe"`; // Path to LibreOffice
-    const command = `${libreOfficePath} --headless --convert-to pdf --outdir ${path.dirname(outputPath)} ${inputPath}`;
+    const libreOfficePath = getLibreOfficeExecutable();
+    const command = `${libreOfficePath} --headless --convert-to pdf --outdir "${path.dirname(outputPath)}" "${inputPath}"`;
     
     console.log('Running command:', command);
 
@@ -106,7 +130,7 @@ export async function POST(req) {
     const response = new NextResponse(pdfBuffer, {
       status: 200,
       headers: {
-        'Content-Disposition': `attachment; filename="Piklist_${data.PiklistNumber || 'Document'}.pdf"`,
+        'Content-Disposition': `attachment; filename="Piklist_${data.PickListNumber || 'Document'}.pdf"`,
         'Content-Type': 'application/pdf',
       },
     });
@@ -116,8 +140,11 @@ export async function POST(req) {
 
     return response;
   } catch (error) {
-    console.error('Error in document generation:', error.message);
-    console.error('Stack Trace:', error.stack);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Error in document generation:', message);
+    if (error instanceof Error && error.stack) {
+      console.error('Stack Trace:', error.stack);
+    }
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

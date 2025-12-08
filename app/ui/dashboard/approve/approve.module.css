@@ -485,6 +485,22 @@
   margin-left: 80%;
 }
 
+.buttonRow {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 15px 0;
+}
+
+.buttonRow .DownloadButton {
+  width: auto;
+  margin: 0;
+  margin-left: 0;
+  padding: 10px 24px;
+}
+
 /* AddQuotation.module.css */
 
 .container {
