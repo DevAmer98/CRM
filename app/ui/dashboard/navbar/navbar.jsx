@@ -1,5 +1,6 @@
 "use client";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import styles from "./navbar.module.css";
 import { Bell, CirclePlus, MessageSquare, Power, Search, UserRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -17,6 +18,8 @@ const Navbar = () => {
   const pathname = usePathname();
   const [showDropdown, setShowDropdown] = useState(false);
   const [tasks, setTasks] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [approvalError, setApprovalError] = useState("");
   const [selectedTask, setSelectedTask] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
@@ -40,6 +43,37 @@ const Navbar = () => {
     getTasks().then(data => {
       setTasks(data || []);
     });
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchApprovals = async () => {
+      try {
+        const response = await fetch("/api/approvalNotifications", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Failed to load approval notifications.");
+        }
+        const data = await response.json();
+        if (isMounted) {
+          setPendingApprovals(Array.isArray(data) ? data : []);
+          setApprovalError("");
+        }
+      } catch (error) {
+        console.error("Error fetching approval notifications:", error);
+        if (isMounted) {
+          setApprovalError(error?.message || "Failed to load approval notifications.");
+        }
+      }
+    };
+
+    fetchApprovals();
+    const interval = setInterval(fetchApprovals, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchAccountDetails = useCallback(async () => {
@@ -189,6 +223,8 @@ const Navbar = () => {
   };
 
   const pendingTasks = tasks.filter(task => task.status !== 'done');
+  const notificationCount = pendingTasks.length + pendingApprovals.length;
+  const hasNotifications = notificationCount > 0;
 
   return (
     <div>
@@ -308,29 +344,67 @@ const Navbar = () => {
             <div className="relative">
               <button onClick={() => setShowDropdown(!showDropdown)}>
                 <Bell className="text-[var(--textSoft)]" />
-                {pendingTasks.length > 0 && (
+                {hasNotifications && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                    {pendingTasks.length}
+                    {notificationCount}
                   </span>
                 )}
               </button>
 
-              {showDropdown && pendingTasks.length > 0 && (
+              {showDropdown && (
                 <div className={styles.dropdown}>
-                  <div className={styles.dropdownHeader}>
-                    <span>New Tasks</span>
-                  </div>
-                  <ul className={styles.dropdownList}>
-                    {pendingTasks.map(task => (
-                      <li
-                        key={task.id}
-                        className={styles.dropdownItem}
-                        onClick={() => openDialog(task)}
-                      >
-                        {task.title}
-                      </li>
-                    ))}
-                  </ul>
+                  {pendingApprovals.length > 0 && (
+                    <>
+                      <div className={styles.dropdownHeader}>
+                        <span>Pending Approvals</span>
+                      </div>
+                      <ul className={styles.dropdownList}>
+                        {pendingApprovals.map((approval) => (
+                          <li key={approval.id} className={styles.dropdownItem}>
+                            <Link
+                              href={`/dashboard/quotations/${approval.id}`}
+                              className="flex flex-col gap-1 text-sm"
+                              onClick={() => setShowDropdown(false)}
+                            >
+                              <span className="font-medium text-[var(--text)]">
+                                {approval.quotationId || "Quotation"}
+                              </span>
+                              <span className="text-xs text-[var(--textSoft)]">
+                                {approval.clientName}
+                                {approval.projectName ? ` • ${approval.projectName}` : ""}
+                              </span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {pendingTasks.length > 0 && (
+                    <>
+                      <div className={styles.dropdownHeader}>
+                        <span>New Tasks</span>
+                      </div>
+                      <ul className={styles.dropdownList}>
+                        {pendingTasks.map(task => (
+                          <li
+                            key={task.id}
+                            className={styles.dropdownItem}
+                            onClick={() => openDialog(task)}
+                          >
+                            {task.title}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+
+                  {!hasNotifications && !approvalError && (
+                    <div className={styles.dropdownEmpty}>You're all caught up!</div>
+                  )}
+                  {approvalError && (
+                    <div className={styles.dropdownEmpty}>{approvalError}</div>
+                  )}
                 </div>
               )}
             </div>
