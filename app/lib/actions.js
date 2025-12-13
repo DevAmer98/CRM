@@ -2013,6 +2013,7 @@ export const updateQuotation = async (formData) => {
     paymentTerm, paymentDelivery, note, excluding,
     totalPrice, currency,warranty,validityPeriod,
     companyProfile,
+    clientId,
 
     // NEW: allow optional updates
     totalDiscount,                 // NEW
@@ -2035,6 +2036,19 @@ export const updateQuotation = async (formData) => {
     const normalizedProducts = Array.isArray(products)
       ? normalizeSectionTitles(products)
       : undefined;
+
+    if (clientId) {
+      const nextClientId = clientId.toString();
+      const currentClientId =
+        typeof quotation.client?.toString === "function"
+          ? quotation.client.toString()
+          : quotation.client;
+      if (nextClientId !== currentClientId) {
+        const client = await Client.findById(clientId);
+        if (!client) throw new Error("Client not found");
+        quotation.client = client._id;
+      }
+    }
 
     const updateFields = {
       projectName,
@@ -2164,6 +2178,7 @@ export const editQuotation = async (formData) => {
     totalPrice,
     currency,
     companyProfile,
+    clientId,
 
     // NEW
     totalDiscount,                 
@@ -2178,6 +2193,21 @@ export const editQuotation = async (formData) => {
     const quotation = await Quotation.findById(id);
     if (!quotation) {
       throw new Error("Quotation not found");
+    }
+
+    if (clientId) {
+      const nextClientId = clientId.toString();
+      const currentClientId =
+        typeof quotation.client?.toString === "function"
+          ? quotation.client.toString()
+          : quotation.client;
+      if (nextClientId !== currentClientId) {
+        const client = await Client.findById(clientId);
+        if (!client) {
+          throw new Error("Client not found");
+        }
+        quotation.client = client._id;
+      }
     }
 
     // ✅ Safely update basic fields (allow empty strings, 0, etc.)

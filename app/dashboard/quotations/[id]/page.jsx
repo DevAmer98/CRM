@@ -26,9 +26,13 @@ const SingleQuotation = ({ params }) => {
 const [isDescPopupOpen, setIsDescPopupOpen] = useState(false);
 const [activeDescIndex, setActiveDescIndex] = useState(null);
 const [richDescValue, setRichDescValue] = useState("");
+  const [clients, setClients] = useState([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [clientsError, setClientsError] = useState(null);
 
 
   const [formData, setFormData] = useState({
+    clientId: "",
     clientName: "",
     projectName: "",
     projectLA: "",
@@ -107,6 +111,14 @@ const [richDescValue, setRichDescValue] = useState("");
     });
     return meta;
   }, [rows]);
+
+  const activeClient = useMemo(() => {
+    if (formData.clientId) {
+      const match = clients.find((client) => client._id === formData.clientId);
+      if (match) return match;
+    }
+    return quotation?.client || null;
+  }, [clients, formData.clientId, quotation]);
 
   const getRowLineTotal = (row) => {
     const discountPct = clampPct(row.discount);
@@ -332,6 +344,7 @@ const formatReadableDate = (dateInput) => {
     .toUpperCase();
 };
 
+const clientForDoc = activeClient || {};
 
 
 const payload = {
@@ -339,27 +352,27 @@ const payload = {
   templateId,
 
   QuotationNumber: (formData.quotationId || "").toUpperCase(),
-AdminName: (
+ AdminName: (
     quotation.user?.employee?.name ||
     quotation.user?.username ||
     formData.userName ||
     ""
   ).toUpperCase(),
  // AdminName: (formData.userName || "").toUpperCase(),
-  ClientName: (formData.clientName || "").toUpperCase(),
+  ClientName: (formData.clientName || clientForDoc.name || "").toUpperCase(),
 CreatedAt: formatReadableDate(quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
   ProjectLA: (formData.projectLA || "").toUpperCase(),
   SaleName: (quotation.sale?.name || "").toUpperCase(),
-  ClientContactName: (quotation.client?.contactName || "").toUpperCase(),
+  ClientContactName: (clientForDoc.contactName || "").toUpperCase(),
   userName: (quotation.user?.username || "").toUpperCase(),
-  ClientPhone: (quotation.client?.phone || "").toUpperCase(),
+  ClientPhone: (clientForDoc.phone || "").toUpperCase(),
   UserPhone: (quotation.sale?.phone || "").toUpperCase(),
   UserEmail: (quotation.sale?.email || ""),
   UserAddress: (quotation.sale?.address || "").toUpperCase(),
-  ClientContactMobile: (quotation.client?.contactMobile || "").toUpperCase(),
-  ClientEmail: (quotation.client?.email || ""),
-  ClientAddress: (quotation.client?.address || "").toUpperCase(),
+  ClientContactMobile: (clientForDoc.contactMobile || "").toUpperCase(),
+  ClientEmail: (clientForDoc.email || ""),
+  ClientAddress: (clientForDoc.address || "").toUpperCase(),
 
   CompanyProfile: companyProfile,
   CompanyName: companyLabel.toUpperCase(),
@@ -440,6 +453,33 @@ return payload;
     getQuotationById();
   }, [params.id]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const loadClients = async () => {
+      setClientsLoading(true);
+      setClientsError(null);
+      try {
+        const res = await fetch(`/api/allClients`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        const data = await res.json();
+        setClients(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (err.name === "AbortError") return;
+        console.error("Failed to load clients:", err);
+        setClientsError("Failed to load clients");
+        setClients([]);
+      } finally {
+        setClientsLoading(false);
+      }
+    };
+
+    loadClients();
+    return () => controller.abort();
+  }, []);
+
   // Load rows and dedupe titles so only the first of a same-title run shows the title input
   useEffect(() => {
     if (!quotation) return;
@@ -451,6 +491,9 @@ return payload;
         quotation.user?.username ||
         "N/A",
       saleName: quotation.sale?.name ?? "N/A",
+      clientId:
+        quotation.client?._id?.toString?.() ??
+        (typeof quotation.client === "string" ? quotation.client : ""),
       clientName: quotation.client?.name ?? "N/A",
       projectName: quotation.projectName || "",
       projectLA: quotation.projectLA || "",
@@ -637,6 +680,14 @@ return payload;
     }));
   };
 
+  const handleClientSelect = (clientId) => {
+    const selected = clients.find((client) => client._id === clientId);
+    setFormData((prev) => ({
+      ...prev,
+      clientId,
+      clientName: selected?.name || "",
+    }));
+  };
 
   const handleInputChange = (fieldName, value) => {
   setFormData((prev) => ({
@@ -686,6 +737,10 @@ return payload;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.clientId) {
+      alert("Please select a client before updating this quotation.");
+      return;
+    }
     const rowInputs = buildRowsForSubmit();
     await updateQuotation({
       id: params.id,
@@ -703,6 +758,10 @@ return payload;
 
   const handleEdit = async (e) => {
     e.preventDefault();
+    if (!formData.clientId) {
+      alert("Please select a client before editing this quotation.");
+      return;
+    }
     const rowInputs = buildRowsForSubmit();
     await editQuotation({
       id: params.id,
@@ -822,13 +881,23 @@ return payload;
             </div>
             <div className={styles.inputContainer}>
               <label className={styles.label}>Client Name:</label>
-              <input
-                type="text"
+              <select
                 className={styles.input}
-                value={formData.clientName}
-                onChange={(e) => handleInputChange("clientName", e.target.value)}
-                readOnly
-              />
+                value={formData.clientId || ""}
+                onChange={(e) => handleClientSelect(e.target.value)}
+                disabled={clientsLoading}
+              >
+                <option value="">
+                  {clientsLoading
+                    ? "Loading clients..."
+                    : clientsError || "Select Client"}
+                </option>
+                {clients.map((client) => (
+                  <option key={client._id} value={client._id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className={styles.inputContainer}>
               <label className={styles.label}>Sale Representative Name:</label>
