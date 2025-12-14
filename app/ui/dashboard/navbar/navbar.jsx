@@ -362,7 +362,7 @@ const Navbar = () => {
                         {pendingApprovals.map((approval) => (
                           <li key={approval.id} className={styles.dropdownItem}>
                             <Link
-                              href={`/dashboard/quotations/${approval.id}`}
+                              href={`/dashboard/approves/${approval.id}`}
                               className="flex flex-col gap-1 text-sm"
                               onClick={() => setShowDropdown(false)}
                             >
