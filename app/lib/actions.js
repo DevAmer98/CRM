@@ -2233,14 +2233,29 @@ export const editQuotation = async (formData) => {
     if (typeof vatAmount === "number") quotation.vatAmount = vatAmount;
 
     // ✅ Validate and update products (allow 0 price/unit/qty)
-    if (Array.isArray(products) && products.length > 0) {
-      quotation.products = products.filter(
-        p =>
-          p &&
-          p.productCode &&                  // keep valid product codes
-          p.qty != null &&                  // allow qty = 0
-          p.unit != null                    // allow unit = 0
-      );
+    if (Array.isArray(products)) {
+      const normalizedProducts = normalizeSectionTitles(products);
+      const filteredProducts = normalizedProducts.filter((p) => {
+        if (!p) return false;
+
+        const hasDescription =
+          typeof p.description === "string" && p.description.trim() !== "";
+        const hasCode =
+          typeof p.productCode === "string" && p.productCode.trim() !== "";
+        const hasQty = typeof p.qty === "number" && p.qty > 0;
+        const hasUnit = typeof p.unit === "number" && p.unit > 0;
+        const hasSharedPrice =
+          (typeof p.sharedGroupId === "string" &&
+            p.sharedGroupId.trim() !== "") ||
+          (typeof p.sharedGroupPrice === "number" &&
+            !Number.isNaN(p.sharedGroupPrice));
+        const hasTitle =
+          typeof p.titleAbove === "string" && p.titleAbove.trim() !== "";
+
+        return hasDescription || hasCode || hasQty || hasUnit || hasSharedPrice || hasTitle;
+      });
+
+      quotation.products = filteredProducts;
     }
 
     await quotation.save();
