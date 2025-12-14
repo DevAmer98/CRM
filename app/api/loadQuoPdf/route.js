@@ -8,6 +8,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
 import { normalizeDocx } from "@/app/api/_lib/normalizeDocx";
+import { decodeHtmlEntities } from "@/app/lib/richTextUtils";
 
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
@@ -23,7 +24,7 @@ function getLibreOfficePath() {
 // ---------- Clean HTML (for Description fields) ----------
 function cleanHTML(input = "") {
   if (!input) return "";
-  let output = String(input);
+  let output = decodeHtmlEntities(input);
 
   // Normalize <br> and paragraphs
   output = output

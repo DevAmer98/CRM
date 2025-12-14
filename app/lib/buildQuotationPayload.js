@@ -1,4 +1,5 @@
 import { UNIT_MERGE_CONT_TOKEN, UNIT_MERGE_START_TOKEN } from "./sharedPriceTokens"
+import { richTextToPlainText } from "./richTextUtils"
 
 export function buildQuotationPayload(q) {
   if (!q) throw new Error("No quotation found");
@@ -76,7 +77,8 @@ export function buildQuotationPayload(q) {
     const unit = Number(p.unit || 0);
     const rowSubtotal = p.unitPrice != null ? Number(p.unitPrice) : unit * qty;
 
-    const lines = wrapDesc(p.description);
+    const cleanDescription = richTextToPlainText(p.description || "");
+    const lines = wrapDesc(cleanDescription);
 
     const sharedGroupId = (p.sharedGroupId || "").trim();
     const sharedGroupPrice =
@@ -111,7 +113,7 @@ export function buildQuotationPayload(q) {
 
       // Optional extras (kept if you ever switch to looping)
       DescriptionRich: lines,
-      Description: (p.description || "—").toUpperCase(),
+      Description: (cleanDescription || "—").toUpperCase(),
 
       Qty: qty,
       Unit: unitDisplay,

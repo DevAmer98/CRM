@@ -1,3 +1,5 @@
+import { richTextToPlainText } from "./richTextUtils";
+
 const DEFAULT_PLACEHOLDER = "—";
 const BULLET_PREFIX = /^[•●▪·‣⁃*\-–—]+\s*/;
 const CLAUSE_FIELDS = [
@@ -24,13 +26,8 @@ function formatDecimal(value, decimals = 2) {
 }
 
 export function wrapPurchaseDescription(text = "", maxLen = 55) {
-  if (!text) return [DEFAULT_PLACEHOLDER];
-
-  const normalized = String(text)
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\r\n?/g, "\n");
+  const normalized = richTextToPlainText(text);
+  if (!normalized) return [DEFAULT_PLACEHOLDER];
 
   const segments = normalized
     .split(/\n+/)

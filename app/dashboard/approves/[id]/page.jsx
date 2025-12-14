@@ -6,6 +6,7 @@ import { FaPlus, FaTrash, FaTag, FaEdit } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { updateQuotationApprove } from "@/app/lib/actions";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
+import { decodeHtmlEntities } from "@/app/lib/richTextUtils";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
@@ -100,7 +101,7 @@ const SingleApprovePage = ({ params }) => {
 function cleanHTML(input = "") {
   if (!input) return "";
 
-  let output = String(input);
+  let output = decodeHtmlEntities(input);
 
   // Normalize simple breaks and paragraphs
   output = output.replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n");

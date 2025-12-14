@@ -11,6 +11,7 @@ import {
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "@/app/lib/sharedPriceTokens";
+import { decodeHtmlEntities } from "@/app/lib/richTextUtils";
 
 const COMPANY_OPTIONS = [
   { value: "SMART_VISION", label: "Smart Vision" },
@@ -184,7 +185,9 @@ const [richDescValue, setRichDescValue] = useState("");
 function cleanHTML(input = "") {
   if (!input) return "";
 
-  let output = input
+  let output = decodeHtmlEntities(input);
+
+  output = output
     // Normalize breaks and paragraphs
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/p>/gi, "\n");
