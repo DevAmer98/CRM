@@ -2607,10 +2607,7 @@ export const updatePl = async (formData) => {
 
     pl.revisionNumber += 1;
 
-    if (pl.pickListId) {
-      const baseId = pl.pickListId.split(" Rev.")[0];
-      pl.pickListId = `${baseId} Rev.${pl.revisionNumber}`;
-    }
+   
 
     const updateFields = {
       clientName,
