@@ -4,7 +4,35 @@ import { FaPlus, FaTrash } from 'react-icons/fa';
 import styles from '@/app/ui/dashboard/approve/approve.module.css';
 import { updatePl } from '@/app/lib/actions';
 
+const formatDateToLongUppercase = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '';
+  return date
+    .toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' })
+    .toUpperCase();
+};
 
+const splitDescriptionIntoLines = (text = '', maxLineLength = 90) => {
+  const upperText = text.toUpperCase();
+  const words = upperText.split(' ').filter(Boolean);
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const nextLine = currentLine ? `${currentLine} ${word}` : word;
+
+    if (nextLine.length <= maxLineLength) {
+      currentLine = nextLine;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+
+  if (currentLine) lines.push(currentLine);
+  return lines.join('\n');
+};
 
 const SinglePl = ({params}) => {
   const [pl, setPl] = useState(null);
@@ -48,24 +76,24 @@ const SinglePl = ({params}) => {
 
     return {
       PickListNumber: pl.pickListId,
-      DeliveryLocation: pl.deliveryLocation,
-      ClientName: pl.client?.name,
-      ClientPhone: pl.client?.phone || 'No address provided',
-      ClientEmail: pl.client?.email || 'No contact info',
-      ClientAddress: pl.client?.address || 'No address info',
-      ClientContactMobile: pl.client?.contactMobile || 'No contact info',
-      ClientContactName: pl.client?.contactName || 'No contact info',
-      SaleName: pl.sale?.name || 'No address provided',
-      SalePhone: pl.sale?.phone || 'No address provided',
-      SaleEmail: pl.sale?.email || 'No contact info',
-      SaleAddress: pl.sale?.address || 'No address info',
+      DeliveryLocation: pl.deliveryLocation?.toUpperCase() || '',
+      ClientName: pl.client?.name?.toUpperCase() || '',
+      ClientPhone: pl.client?.phone || '',
+      ClientEmail: pl.client?.email || '',
+      ClientAddress: pl.client?.address?.toUpperCase() || '',
+      ClientContactMobile: pl.client?.contactMobile || '',
+      ClientContactName: pl.client?.contactName?.toUpperCase() || '',
+      SaleName: pl.sale?.name?.toUpperCase() || '',
+      SalePhone: pl.sale?.phone || '',
+      SaleEmail: pl.sale?.email || '',
+      SaleAddress: pl.sale?.address?.toUpperCase() || '',
       Products: rows.map((product, index) => ({
         Number: (index + 1).toString().padStart(3, '0'),
         ProductCode: product.productCode,
-        Qty: product.qty,
-        Description: product.description,
+        Qty: product.qty, 
+        Description: splitDescriptionIntoLines(product.description || ''),
       })),
-      CreatedAt: pl.createdAt ? new Date(pl.createdAt).toDateString().slice(4, 16) : '',
+      CreatedAt: formatDateToLongUppercase(pl.createdAt),
       PurchaseDate: pl.jobOrder?.poDate,
       PurchaseId: pl.jobOrder?.poNumber,
       JobOrderNumber: pl.jobOrder?.jobOrderId,
