@@ -949,7 +949,7 @@ export const fetchPls = async (projectName, page = 1) => {
 export const fetchPl = async (id) => {
   try {
     await connectToDB();
-    const pl = await Pl.findById(id).populate('sale').populate('client').populate('jobOrder').populate('quotation')  
+    const pl = await Pl.findById(id).populate('sale').populate('client').populate('jobOrder')  
     return pl;
   } catch (err) {
     console.error('Error fetching pl:', err);
