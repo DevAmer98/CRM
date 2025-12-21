@@ -13,36 +13,12 @@ const formatDateToLongUppercase = (dateString) => {
     .toUpperCase();
 };
 
-const splitDescriptionIntoLines = (text = '', maxLineLength = 45) => {
-  const upperText = text.replace(/\s+/g, ' ').trim().toUpperCase();
-  if (!upperText) return '';
-  const words = upperText.split(' ');
-  const lines = [];
-  let currentLine = '';
-
-  words.forEach((word) => {
-    if (word.length > maxLineLength) {
-      if (currentLine) {
-        lines.push(currentLine);
-        currentLine = '';
-      }
-      const chunks = word.match(new RegExp(`.{1,${maxLineLength}}`, 'g')) || [word];
-      lines.push(...chunks);
-      return;
-    }
-
-    const nextLine = currentLine ? `${currentLine} ${word}` : word;
-
-    if (nextLine.length <= maxLineLength) {
-      currentLine = nextLine;
-    } else {
-      if (currentLine) lines.push(currentLine);
-      currentLine = word;
-    }
-  });
-
-  if (currentLine) lines.push(currentLine);
-  return lines.join('\n');
+const splitDescriptionIntoLines = (text = '') => {
+  // Normalize spacing and keep description on a single line for mixed Arabic/English text
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
+  const hasArabic = /[\u0600-\u06FF]/.test(normalized);
+  return hasArabic ? normalized : normalized.toUpperCase();
 };
 
 const SinglePl = ({params}) => {
