@@ -326,7 +326,9 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       });
     });
 
-    const createdAt = new Date(quotation.createdAt || Date.now());
+    const createdAt = new Date(
+      quotation.updatedAt || quotation.createdAt || Date.now()
+    );
 
 const formattedDate = createdAt.toLocaleDateString("en-US", {
   year: "numeric",
@@ -355,7 +357,7 @@ const payload = {
   templateId,
 
   QuotationNumber: (formData.quotationId || "").toUpperCase(),
- AdminName: (
+  AdminName: (
     quotation.user?.employee?.name ||
     quotation.user?.username ||
     formData.userName ||
@@ -363,7 +365,7 @@ const payload = {
   ).toUpperCase(),
  // AdminName: (formData.userName || "").toUpperCase(),
   ClientName: (formData.clientName || clientForDoc.name || "").toUpperCase(),
-CreatedAt: formatReadableDate(quotation.createdAt),
+CreatedAt: formatReadableDate(quotation.updatedAt || quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
   ProjectLA: (formData.projectLA || "").toUpperCase(),
   SaleName: (quotation.sale?.name || "").toUpperCase(),
