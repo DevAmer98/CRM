@@ -2531,7 +2531,7 @@ export const deleteCoc = async (formData) => {
 
 
 export const addPickList = async (formData) => {
-  const { saleId, clientId, quotationId, jobOrderId, products, deliveryLocation } = formData;
+  const { saleId, clientId, jobOrderId, products, deliveryLocation } = formData;
 
   try {
     await connectToDB();
@@ -2551,10 +2551,7 @@ export const addPickList = async (formData) => {
       throw new Error('Client not found');
     }
 
-    const quotation = await Quotation.findById(quotationId);
-    if (!quotation) {
-      throw new Error('Quotation not found');
-    }
+  
 
     const year = new Date().getFullYear();
 
@@ -2572,7 +2569,6 @@ export const addPickList = async (formData) => {
 
     const newPickList = new Pl({
       client: client._id,
-      quotation: quotation._id,
       sale: sale._id,
       jobOrder: jobOrder._id,
       products,

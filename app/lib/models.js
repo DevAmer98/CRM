@@ -684,11 +684,6 @@ const plSchema = new Schema(
       ref: 'Client',
       required: true
     },
-    quotation: {
-      type: Schema.Types.ObjectId,
-      ref: 'Quotation', 
-      required: true,
-    },
     deliveryLocation: {
       type: String,
       required: false

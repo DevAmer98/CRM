@@ -10,7 +10,6 @@ import { addPickList } from '@/app/lib/actions';
 const AddPlPage = () => { 
   const [clientsWithInfo, setClientsWithInfo] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
-  const [selectedQuotation, setSelectedQuotation] = useState('');
   const [sales, setSales] = useState([]);  
   const [jobOrders, setjobOrders] = useState([]);   
   const [rows, setRows] = React.useState([{ number: 1, productCode: '', qty: '', description: '' }]);
@@ -106,7 +105,6 @@ const AddPlPage = () => {
   const handleClientChange = (e) => {
     const newClient = e.target.value;
     setSelectedClient(newClient);
-    setSelectedQuotation(''); 
   };
 
   const handleQuotationChange = (e) => {
@@ -160,7 +158,6 @@ const AddPlPage = () => {
   const pickListSchema = z.object({
     saleId: z.string().min(1, "Sales Representative is required"),
     clientId: z.string().min(1, "Client is required"),
-    quotationId: z.string().min(1, "Quotation is required"),
     jobOrderId: z.string().min(1, "Job Order is required"),
     deliveryLocation: z.string().optional(),
     products: z.array(productSchema).min(1, "Add at least one product"),
@@ -267,7 +264,6 @@ const AddPlPage = () => {
 
     const formValues = {
       clientId: event.target.clientId.value,
-      quotationId: event.target.quotationId.value,
       saleId: event.target.saleId.value,
       jobOrderId: event.target.jobOrderId.value,
       deliveryLocation: locationValue === '' ? undefined : locationValue,
@@ -323,12 +319,8 @@ const AddPlPage = () => {
           </div>
           <div className={styles.selectContainer}>                
           <div className={styles.inputContainer}>
-          <label htmlFor="adminName" className={styles.label}>
-                  Quotation Number:
-                </label>
-        <select name="quotationId" onChange={handleQuotationChange} value={selectedQuotation}>
-          {renderQuotationOptions()}
-          </select>
+    
+      
           </div>
           </div>
           <div className={styles.inputContainer}>

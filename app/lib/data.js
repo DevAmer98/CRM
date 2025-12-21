@@ -934,7 +934,6 @@ export const fetchPls = async (projectName, page = 1) => {
           .populate('jobOrder')
           .populate('sale')
           .populate('client')
-          .populate('quotation')  
           .limit(ITEM_PER_PAGE)
           .skip((page - 1) * ITEM_PER_PAGE);
 
