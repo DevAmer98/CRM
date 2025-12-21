@@ -30,11 +30,16 @@ const [richDescValue, setRichDescValue] = useState("");
   const [clients, setClients] = useState([]);
   const [clientsLoading, setClientsLoading] = useState(false);
   const [clientsError, setClientsError] = useState(null);
+  const [sales, setSales] = useState([]);
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [salesError, setSalesError] = useState(null);
 
 
   const [formData, setFormData] = useState({
     clientId: "",
     clientName: "",
+    saleId: "",
+    saleName: "",
     projectName: "",
     projectLA: "",
     products: [],
@@ -120,6 +125,14 @@ const [richDescValue, setRichDescValue] = useState("");
     }
     return quotation?.client || null;
   }, [clients, formData.clientId, quotation]);
+
+  const activeSale = useMemo(() => {
+    if (formData.saleId) {
+      const match = sales.find((sale) => sale._id === formData.saleId);
+      if (match) return match;
+    }
+    return quotation?.sale || null;
+  }, [formData.saleId, sales, quotation]);
 
   const getRowLineTotal = (row) => {
     const discountPct = clampPct(row.discount);
@@ -350,6 +363,7 @@ const formatReadableDate = (dateInput) => {
 };
 
 const clientForDoc = activeClient || {};
+const activeSaleForDoc = activeSale || {};
 
 
 const payload = {
@@ -368,13 +382,13 @@ const payload = {
 CreatedAt: formatReadableDate(quotation.updatedAt || quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
   ProjectLA: (formData.projectLA || "").toUpperCase(),
-  SaleName: (quotation.sale?.name || "").toUpperCase(),
+  SaleName: (activeSaleForDoc.name || "").toUpperCase(),
   ClientContactName: (clientForDoc.contactName || "").toUpperCase(),
   userName: (quotation.user?.username || "").toUpperCase(),
   ClientPhone: (clientForDoc.phone || "").toUpperCase(),
-  UserPhone: (quotation.sale?.phone || "").toUpperCase(),
-  UserEmail: (quotation.sale?.email || ""),
-  UserAddress: (quotation.sale?.address || "").toUpperCase(),
+  UserPhone: (activeSaleForDoc.phone || "").toUpperCase(),
+  UserEmail: (activeSaleForDoc.email || ""),
+  UserAddress: (activeSaleForDoc.address || "").toUpperCase(),
   ClientContactMobile: (clientForDoc.contactMobile || "").toUpperCase(),
   ClientEmail: (clientForDoc.email || ""),
   ClientAddress: (clientForDoc.address || "").toUpperCase(),
@@ -460,28 +474,46 @@ return payload;
 
   useEffect(() => {
     const controller = new AbortController();
-    const loadClients = async () => {
+    const loadClientsAndSales = async () => {
       setClientsLoading(true);
+      setSalesLoading(true);
       setClientsError(null);
+      setSalesError(null);
       try {
-        const res = await fetch(`/api/allClients`, {
-          method: "GET",
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        const data = await res.json();
-        setClients(Array.isArray(data) ? data : []);
+        const [clientsRes, salesRes] = await Promise.all([
+          fetch(`/api/allClients`, {
+            method: "GET",
+            signal: controller.signal,
+          }),
+          fetch(`/api/allSales`, {
+            method: "GET",
+            signal: controller.signal,
+          }),
+        ]);
+        if (!clientsRes.ok) throw new Error(`Clients error: ${clientsRes.status}`);
+        if (!salesRes.ok) throw new Error(`Sales error: ${salesRes.status}`);
+
+        const [clientsData, salesData] = await Promise.all([
+          clientsRes.json(),
+          salesRes.json(),
+        ]);
+
+        setClients(Array.isArray(clientsData) ? clientsData : []);
+        setSales(Array.isArray(salesData) ? salesData : []);
       } catch (err) {
         if (err.name === "AbortError") return;
-        console.error("Failed to load clients:", err);
+        console.error("Failed to load clients or sales:", err);
         setClientsError("Failed to load clients");
+        setSalesError("Failed to load sales");
         setClients([]);
+        setSales([]);
       } finally {
         setClientsLoading(false);
+        setSalesLoading(false);
       }
     };
 
-    loadClients();
+    loadClientsAndSales();
     return () => controller.abort();
   }, []);
 
@@ -495,6 +527,7 @@ return payload;
         quotation.user?.employee?.name ||
         quotation.user?.username ||
         "N/A",
+      saleId: quotation.sale?._id?.toString?.() ?? "",
       saleName: quotation.sale?.name ?? "N/A",
       clientId:
         quotation.client?._id?.toString?.() ??
@@ -694,6 +727,15 @@ return payload;
     }));
   };
 
+  const handleSaleSelect = (saleId) => {
+    const selected = sales.find((sale) => sale._id === saleId);
+    setFormData((prev) => ({
+      ...prev,
+      saleId,
+      saleName: selected?.name || "",
+    }));
+  };
+
   const handleInputChange = (fieldName, value) => {
   setFormData((prev) => ({
     ...prev,
@@ -746,10 +788,15 @@ return payload;
       alert("Please select a client before updating this quotation.");
       return;
     }
+    if (!formData.saleId) {
+      alert("Please select a sale representative before updating this quotation.");
+      return;
+    }
     const rowInputs = buildRowsForSubmit();
     await updateQuotation({
       id: params.id,
       ...formData,
+      saleId: formData.saleId,
       products: rowInputs,
       currency: selectedCurrency, // NEW: keep currency on update as well
       totalDiscount: clampPct(formData.totalDiscount), // NEW
@@ -767,10 +814,15 @@ return payload;
       alert("Please select a client before editing this quotation.");
       return;
     }
+    if (!formData.saleId) {
+      alert("Please select a sale representative before editing this quotation.");
+      return;
+    }
     const rowInputs = buildRowsForSubmit();
     await editQuotation({
       id: params.id,
       ...formData,
+      saleId: formData.saleId,
       products: rowInputs,
       currency: selectedCurrency,
       totalDiscount: clampPct(formData.totalDiscount), // NEW
@@ -906,13 +958,23 @@ return payload;
             </div>
             <div className={styles.inputContainer}>
               <label className={styles.label}>Sale Representative Name:</label>
-              <input
-                type="text"
+              <select
                 className={styles.input}
-                value={formData.saleName}
-                onChange={(e) => handleInputChange("saleName", e.target.value)}
-                readOnly
-              />
+                value={formData.saleId || ""}
+                onChange={(e) => handleSaleSelect(e.target.value)}
+                disabled={salesLoading}
+              >
+                <option value="">
+                  {salesLoading
+                    ? "Loading sales..."
+                    : salesError || "Select Sale Representative"}
+                </option>
+                {sales.map((sale) => (
+                  <option key={sale._id} value={sale._id}>
+                    {sale.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className={styles.inputContainer}>
               <label className={styles.label}>Project Name:</label>

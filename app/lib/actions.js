@@ -2014,6 +2014,7 @@ export const updateQuotation = async (formData) => {
     totalPrice, currency,warranty,validityPeriod,
     companyProfile,
     clientId,
+    saleId,
 
     // NEW: allow optional updates
     totalDiscount,                 // NEW
@@ -2047,6 +2048,19 @@ export const updateQuotation = async (formData) => {
         const client = await Client.findById(clientId);
         if (!client) throw new Error("Client not found");
         quotation.client = client._id;
+      }
+    }
+
+    if (saleId) {
+      const nextSaleId = saleId.toString();
+      const currentSaleId =
+        typeof quotation.sale?.toString === "function"
+          ? quotation.sale.toString()
+          : quotation.sale;
+      if (nextSaleId !== currentSaleId) {
+        const sale = await Sale.findById(saleId);
+        if (!sale) throw new Error("Sale not found");
+        quotation.sale = sale._id;
       }
     }
 
@@ -2179,6 +2193,7 @@ export const editQuotation = async (formData) => {
     currency,
     companyProfile,
     clientId,
+    saleId,
 
     // NEW
     totalDiscount,                 
@@ -2207,6 +2222,21 @@ export const editQuotation = async (formData) => {
           throw new Error("Client not found");
         }
         quotation.client = client._id;
+      }
+    }
+
+    if (saleId) {
+      const nextSaleId = saleId.toString();
+      const currentSaleId =
+        typeof quotation.sale?.toString === "function"
+          ? quotation.sale.toString()
+          : quotation.sale;
+      if (nextSaleId !== currentSaleId) {
+        const sale = await Sale.findById(saleId);
+        if (!sale) {
+          throw new Error("Sale not found");
+        }
+        quotation.sale = sale._id;
       }
     }
 
