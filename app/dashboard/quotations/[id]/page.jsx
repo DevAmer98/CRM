@@ -326,11 +326,14 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
           ? `${formatCurrency(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
           : UNIT_MERGE_CONT_TOKEN
         : formatCurrency(rowSubtotal);
+      const descLines = wrapDesc(r.description);
 
       currentSection.Items.push({
         Number: String(globalRowCounter).padStart(3, "0"),
         ProductCode: (r.productCode || "—").toUpperCase(),
-        DescriptionRich: wrapDesc(r.description),
+        DescriptionRich: descLines.join("\n"),
+        DescriptionLines: descLines.join("\n"),
+        Description: cleanHTML(r.description || "").toUpperCase(),
 
 
         Qty: qty,
