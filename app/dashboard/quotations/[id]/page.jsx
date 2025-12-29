@@ -331,7 +331,8 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       currentSection.Items.push({
         Number: String(globalRowCounter).padStart(3, "0"),
         ProductCode: (r.productCode || "—").toUpperCase(),
-        DescriptionRich: descLines.join("\n"),
+        // Docx template expects an array for looping; keep a joined string too for single token use.
+        DescriptionRich: descLines,
         DescriptionLines: descLines.join("\n"),
         Description: cleanHTML(r.description || "").toUpperCase(),
 
