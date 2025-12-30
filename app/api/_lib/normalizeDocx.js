@@ -100,7 +100,12 @@ const removeNothingMoreRows = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
   return xml
     .replace(rowRegex, (row) => {
-      if (/Nothing More/i.test(row)) {
+      const text = (row.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("")
+        .replace(/\s+/g, "")
+        .toLowerCase()
+      if (text.includes("nothingmore")) {
         // Remove the entire table row to avoid lingering borders
         return ""
       }
