@@ -1,4 +1,4 @@
-//app/dashboard/quotations/%5Bid%5D/page.jsx
+//app/dashboard/quotations/[id]/page.jsx
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -290,7 +290,12 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       if (startNew || !currentSection) {
         // A new title boundary should restart shared-price merges
         sharedGroupTracker.clear();
-        currentSection = { Title: title, Items: [], __counter: 0 };
+        currentSection = {
+          Title: title,
+          TitleRow: title ? [{ Title: title }] : [],
+          Items: [],
+          __counter: 0,
+        };
         Sections.push(currentSection);
       }
 
@@ -321,12 +326,12 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       const unitDisplay = hasSharedPrice
         ? isFirstSharedRow
           ? `${formatCurrency(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
-          : UNIT_MERGE_CONT_TOKEN
+          : formatCurrency(sharedGroupPrice)
         : formatCurrency(unit);
       const subtotalDisplay = hasSharedPrice
         ? isFirstSharedRow
           ? `${formatCurrency(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
-          : UNIT_MERGE_CONT_TOKEN
+          : formatCurrency(rowSubtotal)
         : formatCurrency(rowSubtotal);
       const descLines = wrapDesc(r.description);
 
@@ -343,6 +348,15 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
         Unit: unitDisplay,
         UnitPrice: subtotalDisplay,
       });
+    });
+
+    const sanitizedSections = Sections.filter(
+      (section) => section.Items.length > 0 || (section.Title && section.Title.trim() !== "")
+    ).map((section) => {
+      const trimmedTitle = section.Title?.trim();
+      return trimmedTitle
+        ? { ...section, Title: trimmedTitle, TitleRow: [{ Title: trimmedTitle }] }
+        : { ...section, Title: undefined, TitleRow: undefined };
     });
 
     const createdAt = new Date(
@@ -436,7 +450,7 @@ CreatedAt: formatReadableDate(quotation.updatedAt || quotation.createdAt),
   Excluding: formData.excluding && formData.excluding.trim() !== "" ? formData.excluding.toUpperCase() : undefined,
 
 
-  Sections,
+  Sections: sanitizedSections,
 };
 
 // DEBUG
