@@ -97,55 +97,8 @@ const replaceCurrencyAnchors = (xml) => {
 }
 
 const removeNothingMoreRows = (xml) => {
-  const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
-  const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/gi
-
-  const noneBorders =
-    '<w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders>'
-
-  const ensureBordersNone = (cell) => {
-    if (/<w:tcPr\b/i.test(cell)) {
-      return cell.replace(/<w:tcPr([\s\S]*?)<\/w:tcPr>/i, (match, inner) => {
-        // inner already contains the leading '>' plus any props
-        let body = inner.replace(/<w:tcBorders[\s\S]*?<\/w:tcBorders>/i, "")
-        if (!/w:tcBorders/i.test(body)) {
-          body = `${body}${noneBorders}`
-        } else {
-          body = body.replace(/(<w:tcBorders[\s\S]*?<\/w:tcBorders>)/i, noneBorders)
-        }
-        return `<w:tcPr${body}</w:tcPr>`
-      })
-    }
-    // No tcPr: inject one right after <w:tc ...>
-    return cell.replace(/<w:tc([^>]*)>/i, `<w:tc$1><w:tcPr>${noneBorders}</w:tcPr>`)
-  }
-
-  const neutralizeCell = (cell) =>
-    ensureBordersNone(
-      cell
-        // remove any shading or merge markers
-        .replace(/<w:shd [^>]*\/>/gi, "")
-        .replace(/<w:vMerge[^>]*\/>/gi, "")
-        // blank text
-        .replace(/<w:t[^>]*>[\s\S]*?<\/w:t>/gi, "<w:t></w:t>")
-    )
-
+  // Temporarily leave the row untouched to avoid malformed XML in LibreOffice.
   return xml
-    .replace(rowRegex, (row) => {
-      const text = (row.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [])
-        .map((t) => t.replace(/<[^>]+>/g, ""))
-        .join("")
-        .replace(/\s+/g, "")
-        .toLowerCase()
-      if (text.includes("nothingmore")) {
-        let cleaned = row.replace(/<w:trHeight[^>]*\/>/gi, '<w:trHeight w:val="1" w:hRule="auto"/>')
-        cleaned = cleaned.replace(/<w:cantSplit [^>]*\/>/gi, "")
-        cleaned = cleaned.replace(cellRegex, (cell) => neutralizeCell(cell))
-        return cleaned
-      }
-      return row
-    })
-    .replace(/\n{3,}/g, "\n\n")
 }
 
 const relaxTotalRowHeights = (xml) => {
