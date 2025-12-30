@@ -56,14 +56,6 @@ const cleanTokens = (markup, token) => {
 const containsToken = (markup, token) =>
   tokenVariants(token).some((variant) => variant && markup.includes(variant))
 
-const hasMergeStart = (markup) =>
-  containsToken(markup, UNIT_MERGE_START_TOKEN) ||
-  /<w:vMerge[^>]*\brestart\b[^>]*\/>/i.test(markup)
-
-const hasMergeCont = (markup) =>
-  containsToken(markup, UNIT_MERGE_CONT_TOKEN) ||
-  /<w:vMerge[^>]*\bcontinue\b[^>]*\/>/i.test(markup)
-
 const addKeepNextToParagraphs = (rowXml) =>
   rowXml.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/g, (match, inner) => {
     if (/w:keepNext\b/i.test(inner)) return match
@@ -83,8 +75,8 @@ const applyKeepNextForSharedMerges = (xml) => {
   let inMergeGroup = false
 
   return xml.replace(rowRegex, (row) => {
-    const start = hasMergeStart(row)
-    const cont = hasMergeCont(row)
+    const start = containsToken(row, UNIT_MERGE_START_TOKEN)
+    const cont = containsToken(row, UNIT_MERGE_CONT_TOKEN)
 
     if (start || inMergeGroup) {
       row = addKeepNextToParagraphs(row)
@@ -237,9 +229,9 @@ export async function normalizeDocx(buffer) {
 
     xml = xml.replace(/<w:cantSplit w:val="1"\/>/g, '<w:cantSplit w:val="0"/>')
 
-    xml = applyUnitMergeMarkers(xml)
-    // Keep shared-price blocks together even after tokens are replaced.
+    // Keep shared-price blocks together before tokens are removed.
     xml = applyKeepNextForSharedMerges(xml)
+    xml = applyUnitMergeMarkers(xml)
     xml = removeNothingMoreRows(xml)
     xml = relaxTotalRowHeights(xml)
     xml = removeEmptyTrailingRowsInTotalsTable(xml)
