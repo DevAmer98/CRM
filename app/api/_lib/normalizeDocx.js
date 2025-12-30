@@ -13,15 +13,23 @@ const addMergePr = (cell, type) => {
   const mergeVal = type === "start" ? "restart" : "continue"
   let updated = cell.replace(/<w:vMerge[^>]*\/>/g, "")
 
+  const ensureVAlignCenter = (tcPrInner) => {
+    if (/<w:vAlign\b[^>]*>/i.test(tcPrInner)) {
+      return tcPrInner.replace(/<w:vAlign\b[^>]*?\/>/gi, '<w:vAlign w:val="center"/>')
+    }
+    return `${tcPrInner}<w:vAlign w:val="center"/>`
+  }
+
   if (/<w:tcPr[\s\S]*?<\/w:tcPr>/.test(updated)) {
     updated = updated.replace(
       /<w:tcPr([\s\S]*?)<\/w:tcPr>/,
-      (match, inner) => `<w:tcPr${inner}<w:vMerge w:val="${mergeVal}"/></w:tcPr>`
+      (match, inner) =>
+        `<w:tcPr${ensureVAlignCenter(inner)}<w:vMerge w:val="${mergeVal}"/></w:tcPr>`
     )
   } else {
     updated = updated.replace(
       /<w:tc([^>]*)>/,
-      `<w:tc$1><w:tcPr><w:vMerge w:val="${mergeVal}"/></w:tcPr>`
+      `<w:tc$1><w:tcPr><w:vAlign w:val="center"/><w:vMerge w:val="${mergeVal}"/></w:tcPr>`
     )
   }
 
