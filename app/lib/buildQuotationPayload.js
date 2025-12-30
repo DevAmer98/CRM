@@ -59,6 +59,8 @@ export function buildQuotationPayload(q) {
 
     // Start a new section when a NEW title appears
     if (title && title !== lastTitle) {
+      // Reset shared-price continuation when a title splits the table
+      sharedGroupTracker.clear();
       current = { Title: title, TitleRow: [{ Title: title }], Items: [], __counter: 0 };
       Sections.push(current);
       lastTitle = title;

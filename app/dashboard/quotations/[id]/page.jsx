@@ -288,6 +288,8 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
         }
       }
       if (startNew || !currentSection) {
+        // A new title boundary should restart shared-price merges
+        sharedGroupTracker.clear();
         currentSection = { Title: title, Items: [], __counter: 0 };
         Sections.push(currentSection);
       }
