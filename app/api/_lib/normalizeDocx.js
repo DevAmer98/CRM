@@ -229,8 +229,9 @@ export async function normalizeDocx(buffer) {
 
     xml = xml.replace(/<w:cantSplit w:val="1"\/>/g, '<w:cantSplit w:val="0"/>')
 
-    xml = applyUnitMergeMarkers(xml)
+    // Keep shared-price blocks together before we strip merge tokens.
     xml = applyKeepNextForSharedMerges(xml)
+    xml = applyUnitMergeMarkers(xml)
     xml = removeNothingMoreRows(xml)
     xml = relaxTotalRowHeights(xml)
     xml = removeEmptyTrailingRowsInTotalsTable(xml)
