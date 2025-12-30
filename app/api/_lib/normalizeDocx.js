@@ -56,6 +56,53 @@ const cleanTokens = (markup, token) => {
 const containsToken = (markup, token) =>
   tokenVariants(token).some((variant) => variant && markup.includes(variant))
 
+const addKeepNextToParagraphs = (rowXml) =>
+  rowXml.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/g, (match, inner) => {
+    if (/w:keepNext\b/i.test(inner)) return match
+    return `<w:pPr${inner}<w:keepNext/></w:pPr>`
+  })
+
+const applyKeepNextForSharedMerges = (xml) => {
+  const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
+  let inMergeGroup = false
+
+  return xml.replace(rowRegex, (row) => {
+    const hasStart = containsToken(row, UNIT_MERGE_START_TOKEN)
+    const hasCont = containsToken(row, UNIT_MERGE_CONT_TOKEN)
+
+    if (hasStart || inMergeGroup) {
+      row = addKeepNextToParagraphs(row)
+    }
+
+    if (hasStart) inMergeGroup = true
+    if (!hasCont && !hasStart) inMergeGroup = false
+
+    return row
+  })
+}
+
+const replaceCurrencyAnchors = (xml) => {
+  const currencyAnchorRegex =
+    /<w:r\b[^>]*>[^<]*<w:drawing>[\s\S]*?r:embed="rId9"[\s\S]*?<\/w:drawing>[^<]*<\/w:r>/gi
+  return xml.replace(currencyAnchorRegex, '<w:r><w:t>{CurrencySymbol}</w:t></w:r>')
+}
+
+const removeNothingMoreRows = (xml) => {
+  const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
+  return xml
+    .replace(rowRegex, (row) => (/Nothing More/i.test(row) ? "" : row))
+    .replace(/\n{3,}/g, "\n\n")
+}
+
+const relaxTotalRowHeights = (xml) => {
+  const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
+  const targets = /(TotalPrice|VatPrice|NetPrice|All prices in)/i
+  return xml.replace(rowRegex, (row) => {
+    if (!targets.test(row)) return row
+    return row.replace(/<w:trHeight[^>]*\/>/gi, "")
+  })
+}
+
 const applyUnitMergeMarkers = (xml) => {
   const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/g
   return xml.replace(cellRegex, (cell) => {
@@ -112,6 +159,10 @@ export async function normalizeDocx(buffer) {
     xml = xml.replace(/<w:cantSplit w:val="1"\/>/g, '<w:cantSplit w:val="0"/>')
 
     xml = applyUnitMergeMarkers(xml)
+    xml = applyKeepNextForSharedMerges(xml)
+    xml = removeNothingMoreRows(xml)
+    xml = relaxTotalRowHeights(xml)
+    xml = replaceCurrencyAnchors(xml)
 
     zip.file(f, xml)
   }
