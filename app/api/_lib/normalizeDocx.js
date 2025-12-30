@@ -62,6 +62,14 @@ const addKeepNextToParagraphs = (rowXml) =>
     return `<w:pPr${inner}<w:keepNext/></w:pPr>`
   })
 
+const ensureCantSplitRow = (rowXml) => {
+  if (/<w:cantSplit\b[^>]*\/>/i.test(rowXml)) return rowXml
+  return rowXml.replace(
+    /<w:trPr([^>]*)>/i,
+    (m, attrs) => `<w:trPr${attrs}><w:cantSplit w:val="1"/>`
+  )
+}
+
 const applyKeepNextForSharedMerges = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
   let inMergeGroup = false
@@ -72,6 +80,7 @@ const applyKeepNextForSharedMerges = (xml) => {
 
     if (hasStart || inMergeGroup) {
       row = addKeepNextToParagraphs(row)
+      row = ensureCantSplitRow(row)
     }
 
     if (hasStart) inMergeGroup = true
@@ -100,6 +109,31 @@ const relaxTotalRowHeights = (xml) => {
   return xml.replace(rowRegex, (row) => {
     if (!targets.test(row)) return row
     return row.replace(/<w:trHeight[^>]*\/>/gi, "")
+  })
+}
+
+const removeEmptyTrailingRowsInTotalsTable = (xml) => {
+  const tableRegex = /<w:tbl\b[\s\S]*?<\/w:tbl>/gi
+  return xml.replace(tableRegex, (tbl) => {
+    if (!/All prices in/i.test(tbl)) return tbl
+    const rows = Array.from(tbl.matchAll(/<w:tr\b[\s\S]*?<\/w:tr>/gi)).map((m) => m[0])
+    const rebuilt = []
+    let seenAllPrices = false
+    for (const row of rows) {
+      const text = (row.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [])
+        .map((t) => t.replace(/<[^>]+>/g, ""))
+        .join("")
+        .replace(/\s+/g, "")
+      const isEmpty = text === ""
+      if (seenAllPrices && isEmpty) {
+        continue
+      }
+      rebuilt.push(row)
+      if (/All prices in/i.test(text)) {
+        seenAllPrices = true
+      }
+    }
+    return tbl.replace(/<w:tr\b[\s\S]*?<\/w:tr>/gi, () => rebuilt.shift() || "")
   })
 }
 
@@ -162,6 +196,7 @@ export async function normalizeDocx(buffer) {
     xml = applyKeepNextForSharedMerges(xml)
     xml = removeNothingMoreRows(xml)
     xml = relaxTotalRowHeights(xml)
+    xml = removeEmptyTrailingRowsInTotalsTable(xml)
     xml = replaceCurrencyAnchors(xml)
 
     zip.file(f, xml)
