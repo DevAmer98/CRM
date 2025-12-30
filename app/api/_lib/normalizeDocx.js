@@ -184,7 +184,13 @@ const applyUnitMergeMarkers = (xml) => {
 
     if (containsToken(cell, UNIT_MERGE_CONT_TOKEN)) {
       let updated = cleanTokens(cell, UNIT_MERGE_CONT_TOKEN)
-      // ensure empty run so docx shows blank cell
+      // ensure cell still has visible text if merge breaks across pages
+      if (!/<w:t[^>]*>[^<]*<\/w:t>/i.test(updated)) {
+        updated = updated.replace(
+          /<w:tc([^>]*)>/,
+          (m, attrs) => `<w:tc${attrs}><w:p><w:r><w:t></w:t></w:r></w:p>`
+        )
+      }
       updated = updated.replace(/<w:t([^>]*)><\/w:t>/g, `<w:t$1></w:t>`)
       return addMergePr(updated, "cont")
     }
