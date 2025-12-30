@@ -97,7 +97,7 @@ const replaceCurrencyAnchors = (xml) => {
 }
 
 const removeNothingMoreRows = (xml) => {
-  // Temporarily leave the row untouched to avoid malformed XML in LibreOffice.
+  // Leave content intact, but we'll soften borders in a later step.
   return xml
 }
 
@@ -132,6 +132,35 @@ const removeEmptyTrailingRowsInTotalsTable = (xml) => {
       }
     }
     return tbl.replace(/<w:tr\b[\s\S]*?<\/w:tr>/gi, () => rebuilt.shift() || "")
+  })
+}
+
+const softenSpecialRowBorders = (xml) => {
+  const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
+  const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/gi
+  const noneBorders =
+    '<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>'
+
+  const applyNoneBorders = (cell) => {
+    if (/<w:tcPr[\s\S]*?<\/w:tcPr>/i.test(cell)) {
+      return cell.replace(/<w:tcPr([\s\S]*?)<\/w:tcPr>/i, (match, inner) => {
+        let body = inner.replace(/<w:tcBorders[\s\S]*?<\/w:tcBorders>/i, "")
+        return `<w:tcPr${body}${noneBorders}</w:tcPr>`
+      })
+    }
+    return cell.replace(/<w:tc([^>]*)>/i, `<w:tc$1><w:tcPr>${noneBorders}</w:tcPr>`)
+  }
+
+  return xml.replace(rowRegex, (row) => {
+    const text = (row.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [])
+      .map((t) => t.replace(/<[^>]+>/g, ""))
+      .join("")
+      .replace(/\s+/g, "")
+      .toLowerCase()
+    if (text.includes("nothingmore") || text.includes("allpricesin")) {
+      return row.replace(cellRegex, (cell) => applyNoneBorders(cell))
+    }
+    return row
   })
 }
 
@@ -195,6 +224,7 @@ export async function normalizeDocx(buffer) {
     xml = removeNothingMoreRows(xml)
     xml = relaxTotalRowHeights(xml)
     xml = removeEmptyTrailingRowsInTotalsTable(xml)
+    xml = softenSpecialRowBorders(xml)
     xml = replaceCurrencyAnchors(xml)
 
     zip.file(f, xml)
