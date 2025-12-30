@@ -100,27 +100,35 @@ const removeNothingMoreRows = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
   const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/gi
 
-  const neutralizeCell = (cell) =>
-    cell
-      // remove any shading or merge markers
-      .replace(/<w:shd [^>]*\/>/gi, "")
-      .replace(/<w:vMerge[^>]*\/>/gi, "")
-      // blank text
-      .replace(/<w:t[^>]*>[\s\S]*?<\/w:t>/gi, "<w:t></w:t>")
-      // replace borders with nil to avoid visible lines; if tcBorders missing, add inside tcPr
-      .replace(
-        /<w:tcPr([\s\S]*?)<\/w:tcPr>/i,
-        (match, inner) => {
-          let body = inner.replace(
-            /<w:tcBorders[\s\S]*?<\/w:tcBorders>/i,
-            '<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>'
-          )
-          if (!/w:tcBorders/i.test(body)) {
-            body = `${body}<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>`
-          }
-          return `<w:tcPr${body}</w:tcPr>`
+  const noneBorders =
+    '<w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders>'
+
+  const ensureBordersNone = (cell) => {
+    if (/<w:tcPr\b/i.test(cell)) {
+      return cell.replace(/<w:tcPr([\s\S]*?)<\/w:tcPr>/i, (match, inner) => {
+        // inner already contains the leading '>' plus any props
+        let body = inner.replace(/<w:tcBorders[\s\S]*?<\/w:tcBorders>/i, "")
+        if (!/w:tcBorders/i.test(body)) {
+          body = `${body}${noneBorders}`
+        } else {
+          body = body.replace(/(<w:tcBorders[\s\S]*?<\/w:tcBorders>)/i, noneBorders)
         }
-      )
+        return `<w:tcPr${body}</w:tcPr>`
+      })
+    }
+    // No tcPr: inject one right after <w:tc ...>
+    return cell.replace(/<w:tc([^>]*)>/i, `<w:tc$1><w:tcPr>${noneBorders}</w:tcPr>`)
+  }
+
+  const neutralizeCell = (cell) =>
+    ensureBordersNone(
+      cell
+        // remove any shading or merge markers
+        .replace(/<w:shd [^>]*\/>/gi, "")
+        .replace(/<w:vMerge[^>]*\/>/gi, "")
+        // blank text
+        .replace(/<w:t[^>]*>[\s\S]*?<\/w:t>/gi, "<w:t></w:t>")
+    )
 
   return xml
     .replace(rowRegex, (row) => {
