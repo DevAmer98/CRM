@@ -99,7 +99,13 @@ const replaceCurrencyAnchors = (xml) => {
 const removeNothingMoreRows = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
   return xml
-    .replace(rowRegex, (row) => (/Nothing More/i.test(row) ? "" : row))
+    .replace(rowRegex, (row) => {
+      if (/Nothing More/i.test(row)) {
+        // Remove the entire table row to avoid lingering borders
+        return ""
+      }
+      return row
+    })
     .replace(/\n{3,}/g, "\n\n")
 }
 
