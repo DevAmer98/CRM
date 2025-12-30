@@ -107,10 +107,19 @@ const removeNothingMoreRows = (xml) => {
       .replace(/<w:vMerge[^>]*\/>/gi, "")
       // blank text
       .replace(/<w:t[^>]*>[\s\S]*?<\/w:t>/gi, "<w:t></w:t>")
-      // replace borders with nil to avoid visible lines
+      // replace borders with nil to avoid visible lines; if tcBorders missing, add inside tcPr
       .replace(
-        /<w:tcBorders[\s\S]*?<\/w:tcBorders>/gi,
-        '<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>'
+        /<w:tcPr([\s\S]*?)<\/w:tcPr>/i,
+        (match, inner) => {
+          let body = inner.replace(
+            /<w:tcBorders[\s\S]*?<\/w:tcBorders>/i,
+            '<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>'
+          )
+          if (!/w:tcBorders/i.test(body)) {
+            body = `${body}<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>`
+          }
+          return `<w:tcPr${body}</w:tcPr>`
+        }
       )
 
   return xml
