@@ -138,31 +138,24 @@ const removeEmptyTrailingRowsInTotalsTable = (xml) => {
 const softenSpecialRowBorders = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
   const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/gi
-  const bordersTopNone =
-    '<w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders>'
-  const bordersBottomNone =
-    '<w:tcBorders><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders>'
+  const stripTopBorder = (cell) =>
+    cell.replace(/<w:tcBorders([\s\S]*?)<\/w:tcBorders>/i, (match, inner) => {
+      const kept = inner.replace(/<w:top\b[^>]*\/>/gi, "")
+      return `<w:tcBorders${kept}</w:tcBorders>`
+    })
 
-  const applySelectiveBorders = (cell, removeTop, removeBottom) => {
-    let tcPrBody = ""
-    const hasTcPr = /<w:tcPr[\s\S]*?<\/w:tcPr>/i.test(cell)
-    if (hasTcPr) {
-      tcPrBody = cell.match(/<w:tcPr([\s\S]*?)<\/w:tcPr>/i)?.[1] || ""
-    }
-    // strip existing tcBorders
-    tcPrBody = tcPrBody.replace(/<w:tcBorders[\s\S]*?<\/w:tcBorders>/i, "")
+  const stripBottomBorder = (cell) =>
+    cell.replace(/<w:tcBorders([\s\S]*?)<\/w:tcBorders>/i, (match, inner) => {
+      const kept = inner.replace(/<w:bottom\b[^>]*\/>/gi, "")
+      return `<w:tcBorders${kept}</w:tcBorders>`
+    })
 
-    const borders = []
-    if (removeTop) borders.push('<w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>')
-    if (removeBottom)
-      borders.push('<w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/>')
-
-    const newTcPr = `<w:tcPr${tcPrBody}<w:tcBorders>${borders.join("")}</w:tcBorders></w:tcPr>`
-
-    if (hasTcPr) {
-      return cell.replace(/<w:tcPr[\s\S]*?<\/w:tcPr>/i, newTcPr)
-    }
-    return cell.replace(/<w:tc([^>]*)>/i, `<w:tc$1>${newTcPr}`)
+  const ensureTcBorders = (cell) => {
+    if (/<w:tcBorders[\s\S]*?<\/w:tcBorders>/i.test(cell)) return cell
+    return cell.replace(
+      /<w:tcPr([\s\S]*?)<\/w:tcPr>/i,
+      (match, inner) => `<w:tcPr${inner}<w:tcBorders></w:tcBorders></w:tcPr>`
+    )
   }
 
   return xml.replace(rowRegex, (row) => {
@@ -172,12 +165,10 @@ const softenSpecialRowBorders = (xml) => {
       .replace(/\s+/g, "")
       .toLowerCase()
     if (text.includes("nothingmore")) {
-      // drop top border only
-      return row.replace(cellRegex, (cell) => applySelectiveBorders(cell, true, false))
+      return row.replace(cellRegex, (cell) => stripTopBorder(ensureTcBorders(cell)))
     }
     if (text.includes("allpricesin")) {
-      // drop bottom border only
-      return row.replace(cellRegex, (cell) => applySelectiveBorders(cell, false, true))
+      return row.replace(cellRegex, (cell) => stripBottomBorder(ensureTcBorders(cell)))
     }
     return row
   })
