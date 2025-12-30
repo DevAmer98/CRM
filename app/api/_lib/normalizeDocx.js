@@ -139,7 +139,7 @@ const softenSpecialRowBorders = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
   const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/gi
   const noneBorders =
-    '<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>'
+    '<w:tcBorders><w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/><w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/></w:tcBorders>'
 
   const applyNoneBorders = (cell) => {
     if (/<w:tcPr[\s\S]*?<\/w:tcPr>/i.test(cell)) {
