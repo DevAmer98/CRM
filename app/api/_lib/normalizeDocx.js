@@ -98,6 +98,21 @@ const replaceCurrencyAnchors = (xml) => {
 
 const removeNothingMoreRows = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
+  const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/gi
+
+  const neutralizeCell = (cell) =>
+    cell
+      // remove any shading or merge markers
+      .replace(/<w:shd [^>]*\/>/gi, "")
+      .replace(/<w:vMerge[^>]*\/>/gi, "")
+      // blank text
+      .replace(/<w:t[^>]*>[\s\S]*?<\/w:t>/gi, "<w:t></w:t>")
+      // replace borders with nil to avoid visible lines
+      .replace(
+        /<w:tcBorders[\s\S]*?<\/w:tcBorders>/gi,
+        '<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:right w:val="nil"/><w:bottom w:val="nil"/></w:tcBorders>'
+      )
+
   return xml
     .replace(rowRegex, (row) => {
       const text = (row.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/gi) || [])
@@ -106,8 +121,10 @@ const removeNothingMoreRows = (xml) => {
         .replace(/\s+/g, "")
         .toLowerCase()
       if (text.includes("nothingmore")) {
-        // Remove the entire table row to avoid lingering borders
-        return ""
+        let cleaned = row.replace(/<w:trHeight[^>]*\/>/gi, '<w:trHeight w:val="1" w:hRule="auto"/>')
+        cleaned = cleaned.replace(/<w:cantSplit [^>]*\/>/gi, "")
+        cleaned = cleaned.replace(cellRegex, (cell) => neutralizeCell(cell))
+        return cleaned
       }
       return row
     })
