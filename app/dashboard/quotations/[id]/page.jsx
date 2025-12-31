@@ -73,6 +73,11 @@ const [richDescValue, setRichDescValue] = useState("");
   // Preview state (popup)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [isOnlyOfficeOpen, setIsOnlyOfficeOpen] = useState(false);
+  const onlyOfficeUrl =
+    process.env.NEXT_PUBLIC_ONLYOFFICE_URL || "http://localhost:8080";
+  const [synologyUploading, setSynologyUploading] = useState(false);
+  const [synologyStatus, setSynologyStatus] = useState("");
 
   // ---------- helpers ----------
   const clampPct = (n) => Math.min(Math.max(Number(n || 0), 0), 100); // NEW
@@ -749,6 +754,67 @@ return payload;
   }));
 };
 
+  const loadOnlyOfficeScript = () =>
+    new Promise((resolve, reject) => {
+      if (typeof window === "undefined") return;
+      if (window.DocsAPI) return resolve();
+      const existing = document.querySelector('script[data-oo="true"]');
+      if (existing) {
+        existing.addEventListener("load", () => resolve());
+        existing.addEventListener("error", reject);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = `${onlyOfficeUrl}/web-apps/apps/api/documents/api.js`;
+      script.dataset.oo = "true";
+      script.onload = () => resolve();
+      script.onerror = (e) => reject(e);
+      document.body.appendChild(script);
+    });
+
+  const openOnlyOfficeEditor = async () => {
+    try {
+      await loadOnlyOfficeScript();
+      setIsOnlyOfficeOpen(true);
+      setTimeout(initOnlyOfficeEditor, 50);
+    } catch (err) {
+      console.error("OnlyOffice script load failed:", err);
+      alert("Failed to load OnlyOffice editor. Is the document server running?");
+    }
+  };
+
+  const initOnlyOfficeEditor = async () => {
+    if (typeof window === "undefined" || !window.DocsAPI) return;
+    const target = document.getElementById("onlyoffice-container");
+    if (!target) return;
+    target.innerHTML = "";
+
+    let payloadForDoc = null;
+    try {
+      payloadForDoc = buildDocumentData("docx");
+    } catch (e) {
+      console.error("Failed to build document data for OnlyOffice:", e);
+    }
+
+    const res = await fetch("/api/onlyoffice/template/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "SVS_Quotation_NEW.docx",
+        onlyOfficeUrl,
+        quotationId: params.id,
+        payload: payloadForDoc,
+      }),
+    });
+    if (!res.ok) {
+      alert("Failed to load template config");
+      return;
+    }
+    const config = await res.json();
+    // eslint-disable-next-line no-new
+    new window.DocsAPI.DocEditor("onlyoffice-container", config);
+  };
+
 
   // ---------- submit/update ----------
   const buildRowsForSubmit = () => {
@@ -812,6 +878,21 @@ return payload;
       vatAmount: totals.vatAmount,
       totalPrice: totals.totalUnitPriceWithVAT, // grand total
     });
+  };
+
+  const uploadPdfToSynology = async () => {
+    if (synologyUploading) return;
+    setSynologyUploading(true);
+    setSynologyStatus("Uploading...");
+    try {
+      await uploadQuotationDocument();
+      setSynologyStatus("Uploaded to Synology");
+    } catch (err) {
+      console.error("Synology upload failed:", err);
+      setSynologyStatus("Upload failed");
+    } finally {
+      setSynologyUploading(false);
+    }
   };
 
   const handleEdit = async (e) => {
@@ -940,19 +1021,7 @@ return payload;
               onClick={() => previewQuotationDocument(true)}
               disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
             >
-              Preview
-            </button>
-            <button
-              type="button"
-              className={`${styles.DownloadButton} ${
-                rows.length > 0 && formData.userName && formData.userName.trim() !== "N/A"
-                  ? ""
-                  : styles.DisabledButton
-              }`}
-              onClick={downloadWordDocument}
-              disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
-            >
-              Download Word
+              Preview PDF
             </button>
 
             <button
@@ -1080,6 +1149,11 @@ return payload;
                   <option value="SAR">SAR</option>
                 </select>
               </div>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <button type="button" className={styles.DownloadButton} onClick={openOnlyOfficeEditor}>
+                Edit template (OnlyOffice)
+              </button>
             </div>
 
             <table className={styles.table}>
@@ -1395,9 +1469,8 @@ return payload;
                   if (!pdfUrl) return;
                   const a = document.createElement("a");
                   a.href = pdfUrl;
-                 // a.download = `Quotation_${formData.quotationId || "Preview"}.pdf`;
-                  const qNum = formData.quotationId || quotation?.quotationId || "Preview";
-a.download = `Quotation_${qNum}.pdf`;
+                  const qNum = formData.quotationId || quotation?.quotationId || params.id || "Preview";
+                  a.download = `${qNum}.pdf`;
 
                   document.body.appendChild(a);
                   a.click();
@@ -1527,6 +1600,35 @@ a.download = `Quotation_${qNum}.pdf`;
     </div>
   </div>
 )}
+
+      {/* ---------- OnlyOffice Template Editor Modal ---------- */}
+      {isOnlyOfficeOpen && (
+        <div className={styles.previewBackdrop} onClick={() => setIsOnlyOfficeOpen(false)}>
+          <div
+            className={styles.previewModal}
+            style={{ width: "95vw", maxWidth: "1200px", height: "90vh" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.previewHeader}>
+              <span>Edit Template (OnlyOffice)</span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  className={styles.DownloadButton}
+                  type="button"
+                  onClick={uploadPdfToSynology}
+                  disabled={synologyUploading}
+                >
+                  {synologyUploading ? "Uploading..." : "Upload PDF to Synology"}
+                </button>
+                <button onClick={() => setIsOnlyOfficeOpen(false)}>✖</button>
+              </div>
+            </div>
+            <div style={{ flex: 1, background: "#0f172a" }}>
+              <div id="onlyoffice-container" style={{ width: "100%", height: "100%" }} />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

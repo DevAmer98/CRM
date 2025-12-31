@@ -13,9 +13,34 @@ import { normalizeDocx } from "@/app/api/_lib/normalizeDocx";
 export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const CUSTOM_TEMPLATE_DIR = path.join(process.cwd(), "tmp", "custom-templates");
+
+function ensureCustomDir() {
+  try {
+    fs.mkdirSync(CUSTOM_TEMPLATE_DIR, { recursive: true });
+  } catch {
+    // ignore
+  }
+}
+
+function getSavedTemplateBuffer() {
+  ensureCustomDir();
+  const customPath = path.join(CUSTOM_TEMPLATE_DIR, "SVS_Quotation_NEW.docx");
+  if (fs.existsSync(customPath)) {
+    return { buffer: fs.readFileSync(customPath), templateFile: path.basename(customPath) };
+  }
+  return null;
+}
 
 /* ---------- Render DOCX buffer only ---------- */
 async function buildDocxBuffer(payload) {
+  const saved = getSavedTemplateBuffer();
+  if (saved) {
+    const rendered = await renderDocxBuffer(saved.buffer, payload);
+    const normalized = await normalizeDocx(rendered);
+    return { buffer: normalized, templateFile: saved.templateFile };
+  }
+
   const isUSD = payload?.Currency === "USD";
   const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
 
@@ -294,23 +319,30 @@ async function docxToPdfBytes(payload) {
     hasDiscount,
   });
 
-  // ✅ Choose the correct template
   let templateFile;
-  if (hasDiscount) {
-    templateFile = isUSD
-      ? "SVS_Quotation_Discount_USD.docx"
-      : "SVS_Quotation_Discount.docx";
+  let templateBuffer;
+
+  const saved = getSavedTemplateBuffer();
+  if (saved) {
+    templateFile = saved.templateFile;
+    templateBuffer = saved.buffer;
   } else {
-    templateFile = isUSD
-      ? "SVS_Quotation_NEW_USD.docx"
-      : "SVS_Quotation_NEW.docx";
+    if (hasDiscount) {
+      templateFile = isUSD
+        ? "SVS_Quotation_Discount_USD.docx"
+        : "SVS_Quotation_Discount.docx";
+    } else {
+      templateFile = isUSD
+        ? "SVS_Quotation_NEW_USD.docx"
+        : "SVS_Quotation_NEW.docx";
+    }
+
+    const templatePath = path.join(process.cwd(), "templates", templateFile);
+    if (!fs.existsSync(templatePath))
+      throw new Error(`Template not found: ${templatePath}`);
+    templateBuffer = fs.readFileSync(templatePath);
   }
 
-  const templatePath = path.join(process.cwd(), "templates", templateFile);
-  if (!fs.existsSync(templatePath))
-    throw new Error(`Template not found: ${templatePath}`);
-
-  const templateBuffer = fs.readFileSync(templatePath);
   const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
   const normalizedBuffer = await normalizeDocx(renderedBuffer);
 
