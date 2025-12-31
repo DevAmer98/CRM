@@ -274,18 +274,8 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
     let currentSection = null;
     let lastTitle = "";
     let globalRowCounter = 0;
-    // Repeat shared prices after each page so values reappear at the top of a new page.
-    const ROWS_PER_PAGE_HINT = 22;
-    let estimatedRowsOnPage = 0;
 
     rows.forEach((r, globalIdx) => {
-      const descLines = wrapDesc(r.description);
-      const estimatedRowHeight = Math.max(descLines.length, 1);
-      if (estimatedRowsOnPage + estimatedRowHeight > ROWS_PER_PAGE_HINT) {
-        sharedGroupTracker.clear();
-        estimatedRowsOnPage = 0;
-      }
-
       // section boundary
       let startNew = false;
       let title = "";
@@ -338,6 +328,7 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
           ? `${formatCurrency(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
           : `${formatCurrency(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
         : formatCurrency(rowSubtotal);
+      const descLines = wrapDesc(r.description);
 
       currentSection.Items.push({
         Number: String(globalRowCounter).padStart(3, "0"),
@@ -352,8 +343,6 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
         Unit: unitDisplay,
         UnitPrice: subtotalDisplay,
       });
-
-      estimatedRowsOnPage += estimatedRowHeight;
     });
 
     const createdAt = new Date(

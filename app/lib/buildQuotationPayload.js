@@ -53,8 +53,6 @@ export function buildQuotationPayload(q) {
   let current = null;
   let lastTitle = "";
   let globalRowCounter = 0;
-  const ROWS_PER_PAGE_HINT = 22;
-  let estimatedRowsOnPage = 0;
 
   (q.products || []).forEach((p) => {
     const title = (p.titleAbove || "").trim();
@@ -83,11 +81,6 @@ export function buildQuotationPayload(q) {
 
     const cleanDescription = richTextToPlainText(p.description || "");
     const lines = wrapDesc(cleanDescription);
-    const estimatedRowHeight = Math.max(lines.length, 1);
-    if (estimatedRowsOnPage + estimatedRowHeight > ROWS_PER_PAGE_HINT) {
-      sharedGroupTracker.clear();
-      estimatedRowsOnPage = 0;
-    }
 
     const sharedGroupId = (p.sharedGroupId || "").trim();
     const sharedGroupPrice =
@@ -128,8 +121,6 @@ export function buildQuotationPayload(q) {
       Unit: unitDisplay,
       UnitPrice: subtotalDisplay,
     });
-
-    estimatedRowsOnPage += estimatedRowHeight;
   });
 
   // Totals
