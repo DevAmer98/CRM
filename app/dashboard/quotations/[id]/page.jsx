@@ -335,12 +335,16 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       const unitDisplay = hasSharedPrice
         ? isFirstSharedRow
           ? `${formatCurrency(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
-          : `${formatCurrency(sharedGroupPrice)}${UNIT_MERGE_CONT_TOKEN}`
+          : `${formatCurrency(sharedGroupPrice)}${UNIT_MERGE_CONT_TOKEN}${formatCurrency(
+              sharedGroupPrice
+            )}`
         : formatCurrency(unit);
       const subtotalDisplay = hasSharedPrice
         ? isFirstSharedRow
           ? `${formatCurrency(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
-          : `${formatCurrency(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
+          : `${formatCurrency(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}${formatCurrency(
+              rowSubtotal
+            )}`
         : formatCurrency(rowSubtotal);
       const descLines = wrapDesc(r.description);
       const rowGroupToken =
