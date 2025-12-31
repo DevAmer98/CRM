@@ -258,12 +258,9 @@ const applyUnitMergeMarkers = (xml) => {
         )
       }
       updated = updated.replace(/<w:t([^>]*)><\/w:t>/g, `<w:t$1></w:t>`)
-      // also duplicate the text into a sibling run so if merge splits, text still shows
-      updated = updated.replace(/(<w:t[^>]*>)([\s\S]*?)(<\/w:t>)/, (m, open, text, close) => {
-        const safeText = text || ""
-        return `${open}${safeText}${close}${open}${safeText}${close}`
-      })
-      return addMergePr(updated, "cont")
+      // For continuation rows, drop vertical merge so text remains visible across pages.
+      updated = updated.replace(/<w:vMerge[^>]*\/>/gi, "")
+      return updated
     }
 
     return cell
