@@ -1,6 +1,7 @@
 import {
   ROW_GROUP_CONT_TOKEN,
   ROW_GROUP_START_TOKEN,
+  PAGE_BREAK_TOKEN,
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "./sharedPriceTokens"
@@ -68,7 +69,7 @@ export function buildQuotationPayload(q) {
       sharedGroupTracker.clear();
       current = {
         Title: title,
-        TitleRow: [{ Title: `${title}${ROW_GROUP_START_TOKEN}` }],
+        TitleRow: [{ Title: `${PAGE_BREAK_TOKEN}${title}${ROW_GROUP_START_TOKEN}` }],
         Items: [],
         __counter: 0,
       };

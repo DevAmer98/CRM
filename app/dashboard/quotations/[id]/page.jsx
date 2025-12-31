@@ -10,6 +10,7 @@ import "react-quill/dist/quill.snow.css";
 import {
   ROW_GROUP_CONT_TOKEN,
   ROW_GROUP_START_TOKEN,
+  PAGE_BREAK_TOKEN,
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "@/app/lib/sharedPriceTokens";
@@ -295,7 +296,7 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
         currentSection = {
           Title: title,
           TitleRow: title
-            ? [{ Title: `${title}${ROW_GROUP_START_TOKEN}` }]
+            ? [{ Title: `${PAGE_BREAK_TOKEN}${title}${ROW_GROUP_START_TOKEN}` }]
             : [],
           Items: [],
           __counter: 0,

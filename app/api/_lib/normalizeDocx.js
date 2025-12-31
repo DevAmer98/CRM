@@ -2,6 +2,7 @@ import JSZip from "jszip"
 import {
   ROW_GROUP_CONT_TOKEN,
   ROW_GROUP_START_TOKEN,
+  PAGE_BREAK_TOKEN,
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "@/app/lib/sharedPriceTokens"
@@ -12,6 +13,7 @@ const START_MARKER = escapeRegExp(UNIT_MERGE_START_TOKEN)
 const CONT_MARKER = escapeRegExp(UNIT_MERGE_CONT_TOKEN)
 const ROW_GROUP_START_MARKER = escapeRegExp(ROW_GROUP_START_TOKEN)
 const ROW_GROUP_CONT_MARKER = escapeRegExp(ROW_GROUP_CONT_TOKEN)
+const PAGE_BREAK_MARKER = escapeRegExp(PAGE_BREAK_TOKEN)
 
 const addMergePr = (cell, type) => {
   const mergeVal = type === "start" ? "restart" : "continue"
@@ -128,8 +130,9 @@ const applyRowGroupKeepNext = (xml) => {
   return xml.replace(rowRegex, (row) => {
     const start = containsToken(row, ROW_GROUP_START_TOKEN)
     const cont = containsToken(row, ROW_GROUP_CONT_TOKEN)
+    const hasPageBreakToken = containsToken(row, PAGE_BREAK_TOKEN)
 
-    if (start) {
+    if (start || hasPageBreakToken) {
       if (seenFirstGroup) {
         row = addPageBreakBefore(row)
       } else {
@@ -144,6 +147,7 @@ const applyRowGroupKeepNext = (xml) => {
 
     row = cleanTokens(row, ROW_GROUP_START_TOKEN)
     row = cleanTokens(row, ROW_GROUP_CONT_TOKEN)
+    row = cleanTokens(row, PAGE_BREAK_TOKEN)
 
     if (start) inGroup = true
     if (!cont && !start) inGroup = false
