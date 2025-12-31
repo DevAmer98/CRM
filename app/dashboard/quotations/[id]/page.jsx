@@ -8,9 +8,6 @@ import { editQuotation, updateQuotation } from "@/app/lib/actions";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import {
-  ROW_GROUP_CONT_TOKEN,
-  ROW_GROUP_START_TOKEN,
-  PAGE_BREAK_TOKEN,
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "@/app/lib/sharedPriceTokens";
@@ -293,18 +290,7 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       if (startNew || !currentSection) {
         // A new title boundary should restart shared-price merges
         sharedGroupTracker.clear();
-        currentSection = {
-          Title: title,
-          TitleRow: title
-            ? [{ Title: `${PAGE_BREAK_TOKEN}${title}${ROW_GROUP_START_TOKEN}` }]
-            : [],
-          Items: [],
-          __counter: 0,
-        };
-        Sections.push(currentSection);
-      }
-      if (!currentSection) {
-        currentSection = { Title: "", TitleRow: [], Items: [], __counter: 0 };
+        currentSection = { Title: title, Items: [], __counter: 0 };
         Sections.push(currentSection);
       }
 
@@ -343,15 +329,9 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
           : `${formatCurrency(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
         : formatCurrency(rowSubtotal);
       const descLines = wrapDesc(r.description);
-      const rowGroupToken =
-        currentSection.TitleRow && currentSection.TitleRow.length > 0
-          ? ROW_GROUP_CONT_TOKEN
-          : currentSection.__counter === 1
-          ? ROW_GROUP_START_TOKEN
-          : ROW_GROUP_CONT_TOKEN;
 
       currentSection.Items.push({
-        Number: `${String(globalRowCounter).padStart(3, "0")}${rowGroupToken}`,
+        Number: String(globalRowCounter).padStart(3, "0"),
         ProductCode: (r.productCode || "—").toUpperCase(),
         // Docx template expects an array for looping; keep a joined string too for single token use.
         DescriptionRich: descLines,

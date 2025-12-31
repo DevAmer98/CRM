@@ -1,8 +1,5 @@
 import JSZip from "jszip"
 import {
-  ROW_GROUP_CONT_TOKEN,
-  ROW_GROUP_START_TOKEN,
-  PAGE_BREAK_TOKEN,
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "@/app/lib/sharedPriceTokens"
@@ -11,9 +8,6 @@ const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 const START_MARKER = escapeRegExp(UNIT_MERGE_START_TOKEN)
 const CONT_MARKER = escapeRegExp(UNIT_MERGE_CONT_TOKEN)
-const ROW_GROUP_START_MARKER = escapeRegExp(ROW_GROUP_START_TOKEN)
-const ROW_GROUP_CONT_MARKER = escapeRegExp(ROW_GROUP_CONT_TOKEN)
-const PAGE_BREAK_MARKER = escapeRegExp(PAGE_BREAK_TOKEN)
 
 const addMergePr = (cell, type) => {
   const mergeVal = type === "start" ? "restart" : "continue"
@@ -68,32 +62,6 @@ const addKeepNextToParagraphs = (rowXml) =>
     return `<w:pPr${inner}<w:keepNext/></w:pPr>`
   })
 
-const addPageBreakBefore = (rowXml) => {
-  // Inject a hard page break into the first paragraph of the row and mark pPr.
-  const addBreakRun = (p) =>
-    p.replace(/(<w:p\b[^>]*>)([\s\S]*?<\/w:p>)/, (match, open, rest) => {
-      const breakRun = `<w:r><w:br w:type="page"/></w:r>`
-      return `${open}${breakRun}${rest}`
-    })
-
-  let updated = rowXml
-  if (!/w:pageBreakBefore\b/i.test(updated)) {
-    if (/<w:pPr([\s\S]*?)<\/w:pPr>/.test(updated)) {
-      updated = updated.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/, (match, inner) => {
-        return `<w:pPr${inner}<w:pageBreakBefore/></w:pPr>`
-      })
-    } else {
-      updated = updated.replace(
-        /<w:p\b([^>]*)>/,
-        `<w:p$1><w:pPr><w:pageBreakBefore/></w:pPr>`
-      )
-    }
-  }
-  // ensure a rendered page break
-  updated = updated.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/, (p) => addBreakRun(p))
-  return updated
-}
-
 const ensureCantSplitRow = (rowXml) => {
   if (/<w:cantSplit\b[^>]*\/>/i.test(rowXml)) return rowXml
   return rowXml.replace(
@@ -117,40 +85,6 @@ const applyKeepNextForSharedMerges = (xml) => {
 
     if (start) inMergeGroup = true
     if (!cont && !start) inMergeGroup = false
-
-    return row
-  })
-}
-
-const applyRowGroupKeepNext = (xml) => {
-  const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
-  let inGroup = false
-  let seenFirstGroup = false
-
-  return xml.replace(rowRegex, (row) => {
-    const start = containsToken(row, ROW_GROUP_START_TOKEN)
-    const cont = containsToken(row, ROW_GROUP_CONT_TOKEN)
-    const hasPageBreakToken = containsToken(row, PAGE_BREAK_TOKEN)
-
-    if (start || hasPageBreakToken) {
-      if (seenFirstGroup) {
-        row = addPageBreakBefore(row)
-      } else {
-        seenFirstGroup = true
-      }
-    }
-
-    if (start || (cont && inGroup)) {
-      row = addKeepNextToParagraphs(row)
-      row = ensureCantSplitRow(row)
-    }
-
-    row = cleanTokens(row, ROW_GROUP_START_TOKEN)
-    row = cleanTokens(row, ROW_GROUP_CONT_TOKEN)
-    row = cleanTokens(row, PAGE_BREAK_TOKEN)
-
-    if (start) inGroup = true
-    if (!cont && !start) inGroup = false
 
     return row
   })
@@ -244,10 +178,8 @@ const applyUnitMergeMarkers = (xml) => {
   const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/g
   return xml.replace(cellRegex, (cell) => {
     if (containsToken(cell, UNIT_MERGE_START_TOKEN)) {
-      // Keep the value, just strip the merge token and any vMerge.
       let updated = cleanTokens(cell, UNIT_MERGE_START_TOKEN)
-      updated = updated.replace(/<w:vMerge[^>]*\/>/gi, "")
-      return updated
+      return addMergePr(updated, "start")
     }
 
     if (containsToken(cell, UNIT_MERGE_CONT_TOKEN)) {
@@ -260,8 +192,7 @@ const applyUnitMergeMarkers = (xml) => {
         )
       }
       updated = updated.replace(/<w:t([^>]*)><\/w:t>/g, `<w:t$1></w:t>`)
-      updated = updated.replace(/<w:vMerge[^>]*\/>/gi, "")
-      return updated
+      return addMergePr(updated, "cont")
     }
 
     return cell
@@ -304,9 +235,8 @@ export async function normalizeDocx(buffer) {
 
     xml = xml.replace(/<w:cantSplit w:val="1"\/>/g, '<w:cantSplit w:val="0"/>')
 
-    // Keep shared-price and titled blocks together before tokens are removed.
+    // Keep shared-price blocks together before tokens are removed.
     xml = applyKeepNextForSharedMerges(xml)
-    xml = applyRowGroupKeepNext(xml)
     xml = applyUnitMergeMarkers(xml)
     xml = removeNothingMoreRows(xml)
     xml = relaxTotalRowHeights(xml)

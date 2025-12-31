@@ -1,10 +1,4 @@
-import {
-  ROW_GROUP_CONT_TOKEN,
-  ROW_GROUP_START_TOKEN,
-  PAGE_BREAK_TOKEN,
-  UNIT_MERGE_CONT_TOKEN,
-  UNIT_MERGE_START_TOKEN,
-} from "./sharedPriceTokens"
+import { UNIT_MERGE_CONT_TOKEN, UNIT_MERGE_START_TOKEN } from "./sharedPriceTokens"
 import { richTextToPlainText } from "./richTextUtils"
 
 export function buildQuotationPayload(q) {
@@ -67,12 +61,7 @@ export function buildQuotationPayload(q) {
     if (title && title !== lastTitle) {
       // Reset shared-price continuation when a title splits the table
       sharedGroupTracker.clear();
-      current = {
-        Title: title,
-        TitleRow: [{ Title: `${PAGE_BREAK_TOKEN}${title}${ROW_GROUP_START_TOKEN}` }],
-        Items: [],
-        __counter: 0,
-      };
+      current = { Title: title, TitleRow: [{ Title: title }], Items: [], __counter: 0 };
       Sections.push(current);
       lastTitle = title;
     }
@@ -109,22 +98,16 @@ export function buildQuotationPayload(q) {
     const unitDisplay = hasSharedPrice
       ? isFirstSharedRow
         ? `${fmt(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
-        : `${fmt(sharedGroupPrice)}${UNIT_MERGE_CONT_TOKEN}`
+        : fmt(sharedGroupPrice)
       : fmt(unit);
     const subtotalDisplay = hasSharedPrice
       ? isFirstSharedRow
         ? `${fmt(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
-        : `${fmt(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
+        : fmt(rowSubtotal)
       : fmt(rowSubtotal);
-    const rowGroupToken =
-      current.TitleRow && current.TitleRow.length > 0
-        ? ROW_GROUP_CONT_TOKEN
-        : current.__counter === 1
-        ? ROW_GROUP_START_TOKEN
-        : ROW_GROUP_CONT_TOKEN;
 
     current.Items.push({
-      Number: `${String(globalRowCounter).padStart(3, "0")}${rowGroupToken}`,
+      Number: String(globalRowCounter).padStart(3, "0"),
       ProductCode: (p.productCode || "—").toUpperCase(),
 
       // Use this token in the DOCX description cell
