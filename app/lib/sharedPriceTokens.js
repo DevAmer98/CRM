@@ -1,2 +1,4 @@
 export const UNIT_MERGE_START_TOKEN = '<<MU_START>>'
 export const UNIT_MERGE_CONT_TOKEN = '<<MU_CONT>>'
+export const ROW_GROUP_START_TOKEN = '<<RG_START>>'
+export const ROW_GROUP_CONT_TOKEN = '<<RG_CONT>>'

@@ -8,6 +8,8 @@ import { editQuotation, updateQuotation } from "@/app/lib/actions";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import {
+  ROW_GROUP_CONT_TOKEN,
+  ROW_GROUP_START_TOKEN,
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "@/app/lib/sharedPriceTokens";
@@ -329,9 +331,11 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
           : `${formatCurrency(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
         : formatCurrency(rowSubtotal);
       const descLines = wrapDesc(r.description);
+      const rowGroupToken =
+        currentSection.__counter === 1 ? ROW_GROUP_START_TOKEN : ROW_GROUP_CONT_TOKEN;
 
       currentSection.Items.push({
-        Number: String(globalRowCounter).padStart(3, "0"),
+        Number: `${String(globalRowCounter).padStart(3, "0")}${rowGroupToken}`,
         ProductCode: (r.productCode || "—").toUpperCase(),
         // Docx template expects an array for looping; keep a joined string too for single token use.
         DescriptionRich: descLines,

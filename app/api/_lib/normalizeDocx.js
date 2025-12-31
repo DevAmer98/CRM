@@ -1,5 +1,7 @@
 import JSZip from "jszip"
 import {
+  ROW_GROUP_CONT_TOKEN,
+  ROW_GROUP_START_TOKEN,
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
 } from "@/app/lib/sharedPriceTokens"
@@ -8,6 +10,8 @@ const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
 const START_MARKER = escapeRegExp(UNIT_MERGE_START_TOKEN)
 const CONT_MARKER = escapeRegExp(UNIT_MERGE_CONT_TOKEN)
+const ROW_GROUP_START_MARKER = escapeRegExp(ROW_GROUP_START_TOKEN)
+const ROW_GROUP_CONT_MARKER = escapeRegExp(ROW_GROUP_CONT_TOKEN)
 
 const addMergePr = (cell, type) => {
   const mergeVal = type === "start" ? "restart" : "continue"
@@ -85,6 +89,29 @@ const applyKeepNextForSharedMerges = (xml) => {
 
     if (start) inMergeGroup = true
     if (!cont && !start) inMergeGroup = false
+
+    return row
+  })
+}
+
+const applyRowGroupKeepNext = (xml) => {
+  const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
+  let inGroup = false
+
+  return xml.replace(rowRegex, (row) => {
+    const start = containsToken(row, ROW_GROUP_START_TOKEN)
+    const cont = containsToken(row, ROW_GROUP_CONT_TOKEN)
+
+    if (start || (cont && inGroup)) {
+      row = addKeepNextToParagraphs(row)
+      row = ensureCantSplitRow(row)
+    }
+
+    row = cleanTokens(row, ROW_GROUP_START_TOKEN)
+    row = cleanTokens(row, ROW_GROUP_CONT_TOKEN)
+
+    if (start) inGroup = true
+    if (!cont && !start) inGroup = false
 
     return row
   })
@@ -235,8 +262,9 @@ export async function normalizeDocx(buffer) {
 
     xml = xml.replace(/<w:cantSplit w:val="1"\/>/g, '<w:cantSplit w:val="0"/>')
 
-    // Keep shared-price blocks together before tokens are removed.
+    // Keep shared-price and titled blocks together before tokens are removed.
     xml = applyKeepNextForSharedMerges(xml)
+    xml = applyRowGroupKeepNext(xml)
     xml = applyUnitMergeMarkers(xml)
     xml = removeNothingMoreRows(xml)
     xml = relaxTotalRowHeights(xml)

@@ -1,4 +1,9 @@
-import { UNIT_MERGE_CONT_TOKEN, UNIT_MERGE_START_TOKEN } from "./sharedPriceTokens"
+import {
+  ROW_GROUP_CONT_TOKEN,
+  ROW_GROUP_START_TOKEN,
+  UNIT_MERGE_CONT_TOKEN,
+  UNIT_MERGE_START_TOKEN,
+} from "./sharedPriceTokens"
 import { richTextToPlainText } from "./richTextUtils"
 
 export function buildQuotationPayload(q) {
@@ -98,16 +103,18 @@ export function buildQuotationPayload(q) {
     const unitDisplay = hasSharedPrice
       ? isFirstSharedRow
         ? `${fmt(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
-        : fmt(sharedGroupPrice)
+        : `${fmt(sharedGroupPrice)}${UNIT_MERGE_CONT_TOKEN}`
       : fmt(unit);
     const subtotalDisplay = hasSharedPrice
       ? isFirstSharedRow
         ? `${fmt(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
-        : fmt(rowSubtotal)
+        : `${fmt(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
       : fmt(rowSubtotal);
+    const rowGroupToken =
+      current.__counter === 1 ? ROW_GROUP_START_TOKEN : ROW_GROUP_CONT_TOKEN;
 
     current.Items.push({
-      Number: String(globalRowCounter).padStart(3, "0"),
+      Number: `${String(globalRowCounter).padStart(3, "0")}${rowGroupToken}`,
       ProductCode: (p.productCode || "—").toUpperCase(),
 
       // Use this token in the DOCX description cell
