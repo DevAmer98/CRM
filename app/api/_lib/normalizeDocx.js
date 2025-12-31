@@ -244,8 +244,10 @@ const applyUnitMergeMarkers = (xml) => {
   const cellRegex = /<w:tc\b[\s\S]*?<\/w:tc>/g
   return xml.replace(cellRegex, (cell) => {
     if (containsToken(cell, UNIT_MERGE_START_TOKEN)) {
+      // Keep the value, just strip the merge token and any vMerge.
       let updated = cleanTokens(cell, UNIT_MERGE_START_TOKEN)
-      return addMergePr(updated, "start")
+      updated = updated.replace(/<w:vMerge[^>]*\/>/gi, "")
+      return updated
     }
 
     if (containsToken(cell, UNIT_MERGE_CONT_TOKEN)) {
@@ -258,7 +260,6 @@ const applyUnitMergeMarkers = (xml) => {
         )
       }
       updated = updated.replace(/<w:t([^>]*)><\/w:t>/g, `<w:t$1></w:t>`)
-      // For continuation rows, drop vertical merge so text remains visible across pages.
       updated = updated.replace(/<w:vMerge[^>]*\/>/gi, "")
       return updated
     }
