@@ -66,7 +66,12 @@ export function buildQuotationPayload(q) {
     if (title && title !== lastTitle) {
       // Reset shared-price continuation when a title splits the table
       sharedGroupTracker.clear();
-      current = { Title: title, TitleRow: [{ Title: title }], Items: [], __counter: 0 };
+      current = {
+        Title: title,
+        TitleRow: [{ Title: `${title}${ROW_GROUP_START_TOKEN}` }],
+        Items: [],
+        __counter: 0,
+      };
       Sections.push(current);
       lastTitle = title;
     }
@@ -111,7 +116,11 @@ export function buildQuotationPayload(q) {
         : `${fmt(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
       : fmt(rowSubtotal);
     const rowGroupToken =
-      current.__counter === 1 ? ROW_GROUP_START_TOKEN : ROW_GROUP_CONT_TOKEN;
+      current.TitleRow && current.TitleRow.length > 0
+        ? ROW_GROUP_CONT_TOKEN
+        : current.__counter === 1
+        ? ROW_GROUP_START_TOKEN
+        : ROW_GROUP_CONT_TOKEN;
 
     current.Items.push({
       Number: `${String(globalRowCounter).padStart(3, "0")}${rowGroupToken}`,

@@ -68,9 +68,13 @@ const addKeepNextToParagraphs = (rowXml) =>
 
 const addPageBreakBefore = (rowXml) => {
   if (/w:pageBreakBefore\b/i.test(rowXml)) return rowXml
-  return rowXml.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/, (match, inner) => {
-    return `<w:pPr${inner}<w:pageBreakBefore/></w:pPr>`
-  })
+  if (/<w:pPr([\s\S]*?)<\/w:pPr>/.test(rowXml)) {
+    return rowXml.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/, (match, inner) => {
+      return `<w:pPr${inner}<w:pageBreakBefore/></w:pPr>`
+    })
+  }
+  // If no paragraph properties, insert one into the first paragraph.
+  return rowXml.replace(/<w:p\b([^>]*)>/, `<w:p$1><w:pPr><w:pageBreakBefore/></w:pPr>`)
 }
 
 const ensureCantSplitRow = (rowXml) => {
