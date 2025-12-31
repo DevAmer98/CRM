@@ -19,7 +19,11 @@ function ensureCustomDir() {
 export async function POST(req) {
   const body = await req.json();
   const name = body?.name || DEFAULT_TEMPLATE;
-  const onlyOfficeUrl = (body?.onlyOfficeUrl || "").replace(/\/+$/, "");
+  const onlyOfficeUrl = (
+    body?.onlyOfficeUrl ||
+    process.env.NEXT_PUBLIC_ONLYOFFICE_URL ||
+    ""
+  ).replace(/\/+$/, "");
   const quotationId = body?.quotationId;
   const payloadData = body?.payload || null;
   const secret = process.env.ONLYOFFICE_JWT_SECRET || "local-secret";
@@ -90,7 +94,7 @@ export async function POST(req) {
       fileType: "docx",
       title: effectiveName,
       url: docUrl,
-      key: `${effectiveName}-${Date.now()}`, // simple key; change to hash if needed
+      key: `${effectiveName}-${Date.now()}-${Math.random().toString(16).slice(2)}`, // unique per session
       permissions: {
         edit: true,
         download: true,
@@ -120,6 +124,7 @@ export async function POST(req) {
   // Attach token if service URL provided
   if (onlyOfficeUrl) {
     config.token = jwt.sign(signedPayload, secret);
+    config.onlyofficeUrl = onlyOfficeUrl;
   }
 
   return NextResponse.json(config);
