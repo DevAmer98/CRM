@@ -66,6 +66,13 @@ const addKeepNextToParagraphs = (rowXml) =>
     return `<w:pPr${inner}<w:keepNext/></w:pPr>`
   })
 
+const addPageBreakBefore = (rowXml) => {
+  if (/w:pageBreakBefore\b/i.test(rowXml)) return rowXml
+  return rowXml.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/, (match, inner) => {
+    return `<w:pPr${inner}<w:pageBreakBefore/></w:pPr>`
+  })
+}
+
 const ensureCantSplitRow = (rowXml) => {
   if (/<w:cantSplit\b[^>]*\/>/i.test(rowXml)) return rowXml
   return rowXml.replace(
@@ -97,10 +104,19 @@ const applyKeepNextForSharedMerges = (xml) => {
 const applyRowGroupKeepNext = (xml) => {
   const rowRegex = /<w:tr\b[\s\S]*?<\/w:tr>/gi
   let inGroup = false
+  let seenFirstGroup = false
 
   return xml.replace(rowRegex, (row) => {
     const start = containsToken(row, ROW_GROUP_START_TOKEN)
     const cont = containsToken(row, ROW_GROUP_CONT_TOKEN)
+
+    if (start) {
+      if (seenFirstGroup) {
+        row = addPageBreakBefore(row)
+      } else {
+        seenFirstGroup = true
+      }
+    }
 
     if (start || (cont && inGroup)) {
       row = addKeepNextToParagraphs(row)
