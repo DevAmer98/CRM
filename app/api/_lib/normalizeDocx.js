@@ -67,14 +67,29 @@ const addKeepNextToParagraphs = (rowXml) =>
   })
 
 const addPageBreakBefore = (rowXml) => {
-  if (/w:pageBreakBefore\b/i.test(rowXml)) return rowXml
-  if (/<w:pPr([\s\S]*?)<\/w:pPr>/.test(rowXml)) {
-    return rowXml.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/, (match, inner) => {
-      return `<w:pPr${inner}<w:pageBreakBefore/></w:pPr>`
+  // Inject a hard page break into the first paragraph of the row and mark pPr.
+  const addBreakRun = (p) =>
+    p.replace(/(<w:p\b[^>]*>)([\s\S]*?<\/w:p>)/, (match, open, rest) => {
+      const breakRun = `<w:r><w:br w:type="page"/></w:r>`
+      return `${open}${breakRun}${rest}`
     })
+
+  let updated = rowXml
+  if (!/w:pageBreakBefore\b/i.test(updated)) {
+    if (/<w:pPr([\s\S]*?)<\/w:pPr>/.test(updated)) {
+      updated = updated.replace(/<w:pPr([\s\S]*?)<\/w:pPr>/, (match, inner) => {
+        return `<w:pPr${inner}<w:pageBreakBefore/></w:pPr>`
+      })
+    } else {
+      updated = updated.replace(
+        /<w:p\b([^>]*)>/,
+        `<w:p$1><w:pPr><w:pageBreakBefore/></w:pPr>`
+      )
+    }
   }
-  // If no paragraph properties, insert one into the first paragraph.
-  return rowXml.replace(/<w:p\b([^>]*)>/, `<w:p$1><w:pPr><w:pageBreakBefore/></w:pPr>`)
+  // ensure a rendered page break
+  updated = updated.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/, (p) => addBreakRun(p))
+  return updated
 }
 
 const ensureCantSplitRow = (rowXml) => {
