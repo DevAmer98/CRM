@@ -90,7 +90,7 @@ export async function POST(req) {
       fileType: "docx",
       title: effectiveName,
       url: docUrl,
-      key: `svs-template-${effectiveName}`, // simple key; change to hash if needed
+      key: `${effectiveName}-${Date.now()}`, // simple key; change to hash if needed
       permissions: {
         edit: true,
         download: true,
