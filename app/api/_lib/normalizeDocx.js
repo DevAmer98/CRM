@@ -179,20 +179,23 @@ const applyUnitMergeMarkers = (xml) => {
   return xml.replace(cellRegex, (cell) => {
     if (containsToken(cell, UNIT_MERGE_START_TOKEN)) {
       let updated = cleanTokens(cell, UNIT_MERGE_START_TOKEN)
-      return addMergePr(updated, "start")
+      // Do not merge; keep value visible on every page.
+      return updated
     }
 
     if (containsToken(cell, UNIT_MERGE_CONT_TOKEN)) {
       let updated = cleanTokens(cell, UNIT_MERGE_CONT_TOKEN)
-      // ensure cell still has visible text if merge breaks across pages
+      // Ensure a visible text node even after cleaning tokens
       if (!/<w:t[^>]*>[^<]*<\/w:t>/i.test(updated)) {
         updated = updated.replace(
           /<w:tc([^>]*)>/,
           (m, attrs) => `<w:tc${attrs}><w:p><w:r><w:t></w:t></w:r></w:p>`
         )
       }
+      // Strip any existing vMerge to avoid hidden cells.
+      updated = updated.replace(/<w:vMerge[^>]*\/>/gi, "")
       updated = updated.replace(/<w:t([^>]*)><\/w:t>/g, `<w:t$1></w:t>`)
-      return addMergePr(updated, "cont")
+      return updated
     }
 
     return cell
