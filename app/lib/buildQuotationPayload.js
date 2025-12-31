@@ -98,12 +98,12 @@ export function buildQuotationPayload(q) {
     const unitDisplay = hasSharedPrice
       ? isFirstSharedRow
         ? `${fmt(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
-        : `${fmt(sharedGroupPrice)}${UNIT_MERGE_CONT_TOKEN}`
+        : fmt(sharedGroupPrice)
       : fmt(unit);
     const subtotalDisplay = hasSharedPrice
       ? isFirstSharedRow
         ? `${fmt(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
-        : `${fmt(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
+        : fmt(rowSubtotal)
       : fmt(rowSubtotal);
 
     current.Items.push({
