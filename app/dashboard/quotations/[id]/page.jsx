@@ -867,6 +867,33 @@ return payload;
   }
 };
 
+  const downloadWordDocument = async () => {
+    try {
+      const payload = buildDocumentData("docx");
+      const res = await fetch(`/api/quotation/${params.id}/preview?format=docx`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const buf = await res.arrayBuffer();
+      const blob = new Blob([buf], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `Quotation_${formData.quotationId || params.id}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error("Word download error:", e);
+      alert(e.message || "Failed to download Word file.");
+    }
+  };
+
   // ---------- upload ----------
   const uploadQuotationDocument = async () => {
     try {
@@ -914,6 +941,18 @@ return payload;
               disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
             >
               Preview
+            </button>
+            <button
+              type="button"
+              className={`${styles.DownloadButton} ${
+                rows.length > 0 && formData.userName && formData.userName.trim() !== "N/A"
+                  ? ""
+                  : styles.DisabledButton
+              }`}
+              onClick={downloadWordDocument}
+              disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
+            >
+              Download Word
             </button>
 
             <button

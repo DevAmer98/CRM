@@ -14,6 +14,50 @@ export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/* ---------- Render DOCX buffer only ---------- */
+async function buildDocxBuffer(payload) {
+  const isUSD = payload?.Currency === "USD";
+  const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
+
+  const discountPer =
+    num(payload?.discount_per) ||
+    num(payload?.DiscountPer) ||
+    num(payload?.TotalDiscountPct);
+  const discountAmount =
+    num(payload?.discount_amount) || num(payload?.DiscountAmount);
+  const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
+  const subtotalAfter =
+    num(payload?.total_after) || num(payload?.SubtotalAfterTotalDiscount);
+  const totalPrice = num(payload?.TotalPrice) || num(payload?.totalPrice);
+
+  const hasDiscount =
+    discountPer > 0 ||
+    discountAmount > 0 ||
+    (subtotalAfter > 0 && subtotalAfter < subtotal) ||
+    (subtotalAfter > 0 && subtotalAfter < totalPrice);
+
+  let templateFile;
+  if (hasDiscount) {
+    templateFile = isUSD
+      ? "SVS_Quotation_Discount_USD.docx"
+      : "SVS_Quotation_Discount.docx";
+  } else {
+    templateFile = isUSD
+      ? "SVS_Quotation_NEW_USD.docx"
+      : "SVS_Quotation_NEW.docx";
+  }
+
+  const templatePath = path.join(process.cwd(), "templates", templateFile);
+  if (!fs.existsSync(templatePath))
+    throw new Error(`Template not found: ${templatePath}`);
+
+  const templateBuffer = fs.readFileSync(templatePath);
+  const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
+  const normalizedBuffer = await normalizeDocx(renderedBuffer);
+
+  return { buffer: normalizedBuffer, templateFile };
+}
+
 /* ---------- Detect LibreOffice ---------- */
 function getLibreOfficePath() {
   const p = process.platform;
@@ -698,19 +742,33 @@ export async function POST(req, { params }) {
   try {
     const { quotationId } = params;
     let payload = await req.json();
+    const url = new URL(req.url || "http://localhost");
+    const formatParam = url.searchParams.get("format") || url.searchParams.get("type");
+    const wantsDocx =
+      (payload?.renderMode && payload.renderMode.toLowerCase() === "docx") ||
+      (formatParam && ["docx", "word"].includes(formatParam.toLowerCase()));
     console.log(
       "🧩 [Preview PDF POST] Received payload keys:",
       Object.keys(payload)
     );
 
     payload = sanitizeSections(payload);
-    const pdfBytes = await docxToPdfBytes(payload);
-
-    const filename = `Quotation_${payload?.QuotationNumber || quotationId}.pdf`;
-    return new NextResponse(pdfBytes, {
-      status: 200,
-      headers: pdfHeaders(filename),
-    });
+    if (wantsDocx) {
+      const { buffer: docxBuffer, templateFile } = await buildDocxBuffer(payload);
+      const filename = `Quotation_${payload?.QuotationNumber || quotationId}.docx`;
+      console.log("📄 Returning DOCX from template:", templateFile);
+      return new NextResponse(docxBuffer, {
+        status: 200,
+        headers: docxHeaders(filename),
+      });
+    } else {
+      const pdfBytes = await docxToPdfBytes(payload);
+      const filename = `Quotation_${payload?.QuotationNumber || quotationId}.pdf`;
+      return new NextResponse(pdfBytes, {
+        status: 200,
+        headers: pdfHeaders(filename),
+      });
+    }
   } catch (err) {
     console.error("❌ [Preview PDF POST] error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
@@ -722,6 +780,19 @@ function pdfHeaders(filename) {
   return {
     "Content-Type": "application/pdf",
     "Content-Disposition": `inline; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(
+      filename
+    )}`,
+    "Cache-Control": "no-store",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Content-Security-Policy": "frame-ancestors 'self'",
+    "Cross-Origin-Resource-Policy": "same-origin",
+  };
+}
+function docxHeaders(filename) {
+  return {
+    "Content-Type":
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(
       filename
     )}`,
     "Cache-Control": "no-store",
