@@ -1018,6 +1018,19 @@ return payload;
                   ? ""
                   : styles.DisabledButton
               }`}
+              onClick={downloadWordDocument}
+              disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
+            >
+              Download Word
+            </button>
+
+            <button
+              type="button"
+              className={`${styles.DownloadButton} ${
+                rows.length > 0 && formData.userName && formData.userName.trim() !== "N/A"
+                  ? ""
+                  : styles.DisabledButton
+              }`}
               onClick={() => previewQuotationDocument(true)}
               disabled={rows.length === 0 || !formData.userName || formData.userName.trim() === "N/A"}
             >
