@@ -34,7 +34,6 @@ export async function POST(req) {
 
   const { headers } = req;
   const hintedBase =
-    process.env.ONLYOFFICE_PUBLIC_BASE ||
     process.env.INTERNAL_API_BASE ||
     null;
 
