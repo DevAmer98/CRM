@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   onlyoffice:
     image: onlyoffice/documentserver:latest
@@ -8,8 +6,8 @@ services:
     ports:
       - "8080:80"
     environment:
-      - JWT_ENABLED=true
-      - JWT_SECRET=${ONLYOFFICE_JWT_SECRET:-local-secret}
+      - JWT_ENABLED=false
+      - USE_UNAUTHORIZED_STORAGE=true
     volumes:
       - ./onlyoffice_data/logs:/var/log/onlyoffice
       - ./onlyoffice_data/data:/var/www/onlyoffice/Data
