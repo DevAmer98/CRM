@@ -5,6 +5,7 @@ import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import jwt from "jsonwebtoken";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
+import { normalizeDocx } from "@/app/api/_lib/normalizeDocx";
 
 const CUSTOM_TEMPLATE_DIR = path.join(process.cwd(), "tmp", "custom-templates");
 const DEFAULT_TEMPLATE = "SVS_Quotation_NEW.docx";
@@ -66,8 +67,9 @@ export async function GET(req) {
       const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
       doc.render(payload);
       const rendered = doc.getZip().generate({ type: "nodebuffer" });
+      const normalized = await normalizeDocx(rendered);
 
-      return new NextResponse(rendered, {
+      return new NextResponse(normalized, {
         status: 200,
         headers: {
           "Content-Type":
@@ -108,8 +110,9 @@ export async function GET(req) {
       const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
       doc.render(payload);
       const rendered = doc.getZip().generate({ type: "nodebuffer" });
+      const normalized = await normalizeDocx(rendered);
 
-      return new NextResponse(rendered, {
+      return new NextResponse(normalized, {
         status: 200,
         headers: {
           "Content-Type":

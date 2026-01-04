@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
+import { normalizeDocx } from "@/app/api/_lib/normalizeDocx";
 
 const CUSTOM_TEMPLATE_DIR = path.join(process.cwd(), "tmp", "custom-templates");
 const DEFAULT_TEMPLATE = "SVS_Quotation_NEW.docx";
@@ -75,7 +76,8 @@ export async function POST(req) {
 
       doc.render(payloadData);
       const rendered = doc.getZip().generate({ type: "nodebuffer" });
-      fs.writeFileSync(filledPath, rendered);
+      const normalized = await normalizeDocx(rendered);
+      fs.writeFileSync(filledPath, normalized);
 
       console.log("[OO CONFIG] Wrote filled doc for editor:", filledPath);
     } catch (err) {
