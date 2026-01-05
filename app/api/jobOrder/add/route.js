@@ -81,12 +81,13 @@ export async function POST(req) {
       }
     }
 
-    const year = new Date().getFullYear();
+    const parsedPoYear = poDate ? new Date(poDate).getFullYear() : NaN;
+    const year = Number.isNaN(parsedPoYear) ? new Date().getFullYear() : parsedPoYear;
     const latestJobOrder = await JobOrder.findOne({
       jobOrderId: { $regex: `SVSJO-${year}-` },
     }).sort({ jobOrderId: -1 });
 
-    let sequenceNumber = '050';
+    let sequenceNumber = '001';
     if (latestJobOrder) {
       const currentNumber = parseInt(latestJobOrder.jobOrderId.split('-')[2]);
       sequenceNumber = String(currentNumber + 1).padStart(3, '0');
