@@ -152,8 +152,11 @@ export function buildQuotationPayload(q) {
         IsUSD: false,
       };
 
+  const companyProfile = q.companyProfile || "SMART_VISION";
+
   return {
     templateId: "quotation-v1",
+    CompanyProfile: companyProfile,
 
     QuotationNumber: q.quotationId || "—",
     ClientName: q.client?.name || "—",

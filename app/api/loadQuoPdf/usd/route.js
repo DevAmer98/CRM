@@ -30,7 +30,12 @@ async function renderDocxBuffer(templateBuffer, data) {
 // Convert DOCX buffer to PDF bytes via LibreOffice
 async function docxToPdfBytes(payload) {
   // 1) Load DOCX template from your repo
-  const templatePath = path.join(process.cwd(), "templates", "SVS_Quotation_NEW_USD.docx");
+  const companyProfile = payload?.CompanyProfile || "SMART_VISION";
+  const templateFile =
+    companyProfile === "ARABIC_LINE"
+      ? "AR_Quotation_NEW.docx"
+      : "SVS_Quotation_NEW.docx";
+  const templatePath = path.join(process.cwd(), "templates", templateFile);
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Template not found at ${templatePath}`);
   }

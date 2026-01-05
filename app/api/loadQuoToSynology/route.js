@@ -97,7 +97,10 @@ export async function POST(req) {
         }
         const data = JSON.parse(Buffer.concat(chunks).toString());
 
-        const fileName = 'SVS_Quotation_NEW.docx';
+        const companyProfile = data?.CompanyProfile || 'SMART_VISION';
+        const fileName = companyProfile === 'ARABIC_LINE'
+          ? 'AR_Quotation_NEW.docx'
+          : 'SVS_Quotation_NEW.docx';
         const docxBuffer = await fetchDocxTemplate(fileName);
 
         const zip = new PizZip(docxBuffer);

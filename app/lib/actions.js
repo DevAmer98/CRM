@@ -1702,11 +1702,11 @@ export const updateQuotation = async (formData) => {
     }
 
     // Increment revision number for each update
-    quotation.revisionNumber += 1;
-    if (quotation.quotationId) {
-      const baseId = quotation.quotationId.split(" Rev.")[0];
-      quotation.quotationId = `${baseId} Rev.${quotation.revisionNumber}`;
-    }
+    quotation.revisionNumber = (Number(quotation.revisionNumber) || 0) + 1;
+    quotation.quotationId = buildRevisionId(
+      quotation.quotationId,
+      quotation.revisionNumber
+    );
 
     // Update fields as provided, reset user/admin information
     const updateFields = {
@@ -1766,6 +1766,14 @@ function normalizeSectionTitles(products = []) {
     if (title) last = title;
   }
   return out;
+}
+
+// Build next revision ID with an uppercase REV suffix, stripping any prior revision tag
+function buildRevisionId(currentId, revisionNumber) {
+  if (!currentId) return currentId;
+  const baseId = currentId.replace(/\s+rev\.?\s*\d*$/i, "");
+  const suffix = revisionNumber > 0 ? ` REV.${revisionNumber}` : "";
+  return `${baseId}${suffix}`;
 }
 
 /*
@@ -1837,11 +1845,11 @@ export const updateQuotation = async (formData) => {
     const quotation = await Quotation.findById(id);
     if (!quotation) throw new Error("Quotation not found");
 
-    quotation.revisionNumber += 1;
-    if (quotation.quotationId) {
-      const baseId = quotation.quotationId.split(" Rev.")[0];
-      quotation.quotationId = `${baseId} Rev.${quotation.revisionNumber}`;
-    }
+    quotation.revisionNumber = (Number(quotation.revisionNumber) || 0) + 1;
+    quotation.quotationId = buildRevisionId(
+      quotation.quotationId,
+      quotation.revisionNumber
+    );
 
     const normalizedProducts = Array.isArray(products)
       ? normalizeSectionTitles(products)
@@ -1903,6 +1911,12 @@ export const editQuotation = async (formData) => {
       throw new Error('Quotation not found');
     }
 
+    quotation.revisionNumber = (Number(quotation.revisionNumber) || 0) + 1;
+    quotation.quotationId = buildRevisionId(
+      quotation.quotationId,
+      quotation.revisionNumber
+    );
+
     // Update basic fields
     quotation.projectName = projectName || quotation.projectName;
     quotation.projectLA = projectLA || quotation.projectLA;
@@ -1959,18 +1973,34 @@ export const addQuotation = async (formData) => {
     const client = await Client.findById(clientId);
     if (!client) throw new Error("Client not found");
 
+    const profile = companyProfile || "SMART_VISION";
+    const prefix = profile === "ARABIC_LINE" ? "ALCQ" : "SVSQ";
+    const companyFilter =
+      profile === "ARABIC_LINE"
+        ? { companyProfile: "ARABIC_LINE" }
+        : {
+            $or: [
+              { companyProfile: { $exists: false } },
+              { companyProfile: "SMART_VISION" },
+            ],
+          };
+
     const year = new Date().getFullYear();
     const latestQuotation = await Quotation.findOne({
-      quotationId: { $regex: `SVSQ-${year}-` }
+      $and: [
+        { quotationId: { $regex: `^${prefix}-${year}-` } },
+        companyFilter,
+      ],
     }).sort({ quotationId: -1 });
 
-    let sequenceNumber = "001";
-    if (latestQuotation) {
-      const currentNumber = parseInt(latestQuotation.quotationId.split("-")[2]);
-      sequenceNumber = String(currentNumber + 1).padStart(3, "0");
-    }
+    const seqMatch = latestQuotation?.quotationId?.match(
+      new RegExp(`^${prefix}-${year}-(\\d{3,})`)
+    );
+    const sequenceNumber = String(
+      seqMatch ? parseInt(seqMatch[1], 10) + 1 : 1
+    ).padStart(3, "0");
 
-    const customQuotationId = `SVSQ-${year}-${sequenceNumber}`;
+    const customQuotationId = `${prefix}-${year}-${sequenceNumber}`;
 
     const normalizedProducts = normalizeSectionTitles(products);
 
@@ -1988,7 +2018,7 @@ export const addQuotation = async (formData) => {
       warranty,
       totalPrice,
       currency,
-      companyProfile: companyProfile || undefined,
+      companyProfile: profile || undefined,
       quotationId: customQuotationId,
       revisionNumber: 0,
 
@@ -2028,11 +2058,11 @@ export const updateQuotation = async (formData) => {
     const quotation = await Quotation.findById(id);
     if (!quotation) throw new Error("Quotation not found");
 
-    quotation.revisionNumber += 1;
-    if (quotation.quotationId) {
-      const baseId = quotation.quotationId.split(" Rev.")[0];
-      quotation.quotationId = `${baseId} Rev.${quotation.revisionNumber}`;
-    }
+    quotation.revisionNumber = (Number(quotation.revisionNumber) || 0) + 1;
+    quotation.quotationId = buildRevisionId(
+      quotation.quotationId,
+      quotation.revisionNumber
+    );
 
     const normalizedProducts = Array.isArray(products)
       ? normalizeSectionTitles(products)
@@ -2209,6 +2239,12 @@ export const editQuotation = async (formData) => {
     if (!quotation) {
       throw new Error("Quotation not found");
     }
+
+    quotation.revisionNumber = (Number(quotation.revisionNumber) || 0) + 1;
+    quotation.quotationId = buildRevisionId(
+      quotation.quotationId,
+      quotation.revisionNumber
+    );
 
     if (clientId) {
       const nextClientId = clientId.toString();

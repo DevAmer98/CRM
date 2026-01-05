@@ -107,68 +107,11 @@ async function renderDocxBuffer(templateBuffer, data) {
 
 // ---------- DOCX → PDF with robust discount detection ----------
 async function docxToPdfBytes(payload) {
-  const isUSD = payload?.Currency === "USD";
-  const num = (v) => {
-    if (v == null) return 0;
-    const n = Number(String(v).replace(/[^\d.-]/g, ""));
-    return isNaN(n) ? 0 : n;
-  };
-
-  // Normalize possible discount / price keys
-  const discountPer =
-    num(payload?.discountPer) ||
-    num(payload?.discount_per) ||
-    num(payload?.DiscountPer) ||
-    num(payload?.TotalDiscountPct);
-
-  const discountAmount =
-    num(payload?.discountAmount) ||
-    num(payload?.discount_amount) ||
-    num(payload?.DiscountAmount);
-
-  const subtotal =
-    num(payload?.Subtotal) ||
-    num(payload?.subtotal) ||
-    num(payload?.TotalPrice);
-
-  const subtotalAfter =
-    num(payload?.SubtotalAfterTotalDiscount) ||
-    num(payload?.subtotalAfterTotalDiscount) ||
-    num(payload?.total_after);
-
-  const totalPrice =
-    num(payload?.NetPrice) ||
-    num(payload?.totalPrice) ||
-    num(payload?.TotalPrice);
-
-  // Robust discount detection
-  const hasDiscount =
-    discountPer > 0 ||
-    discountAmount > 0 ||
-    (subtotal > 0 && subtotalAfter > 0 && subtotalAfter < subtotal) ||
-    (subtotal > 0 && totalPrice > 0 && totalPrice < subtotal);
-
-  console.log("🧾 [loadQuoPdf] Discount detection summary:");
-  console.table({
-    discountPer,
-    discountAmount,
-    subtotal,
-    subtotalAfter,
-    totalPrice,
-    hasDiscount,
-  });
-
-  // Choose correct template
-  let templateFile;
-  if (hasDiscount) {
-    templateFile = isUSD
-      ? "SVS_Quotation_Discount_USD.docx"
-      : "SVS_Quotation_Discount.docx";
-  } else {
-    templateFile = isUSD
-      ? "SVS_Quotation_NEW_USD.docx"
+  const companyProfile = payload?.CompanyProfile || "SMART_VISION";
+  const templateFile =
+    companyProfile === "ARABIC_LINE"
+      ? "AR_Quotation_NEW.docx"
       : "SVS_Quotation_NEW.docx";
-  }
 
   const templatePath = path.join(process.cwd(), "templates", templateFile);
   console.log("📄 [loadQuoPdf] Using template:", templateFile);

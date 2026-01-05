@@ -40,21 +40,12 @@ export async function POST(req) {
       );
     }
 
-    // ---------- Detect discount and select template ----------
-    const isUSD = payload?.Currency === "USD";
-
-    const hasDiscount =
-      (Number(payload?.TotalDiscountPct) > 0) ||
-      (Number(payload?.DiscountAmount) > 0) ||
-      (Number(payload?.DiscountPer) > 0) ||
-      (Number(payload?.SubtotalAfterTotalDiscount) < Number(payload?.TotalPrice));
-
-    let templateFile;
-    if (hasDiscount) {
-      templateFile = "SVS_Quotation_Discount.docx";
-    } else {
-      templateFile = isUSD ? "SVS_Quotation_NEW_USD.docx" : "SVS_Quotation_NEW.docx";
-    }
+    // ---------- Pick template by company profile ----------
+    const companyProfile = payload?.CompanyProfile || "SMART_VISION";
+    const templateFile =
+      companyProfile === "ARABIC_LINE"
+        ? "AR_Quotation_NEW.docx"
+        : "SVS_Quotation_NEW.docx";
 
     const templatePath = path.join(process.cwd(), "templates", templateFile);
 

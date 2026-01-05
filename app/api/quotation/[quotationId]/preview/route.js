@@ -14,6 +14,14 @@ export const runtime = "nodejs";
 const execFileAsync = promisify(execFile);
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const CUSTOM_TEMPLATE_DIR = path.join(process.cwd(), "tmp", "custom-templates");
+const TEMPLATE_BY_COMPANY = {
+  ARABIC_LINE: "AR_Quotation_NEW.docx",
+  SMART_VISION: "SVS_Quotation_NEW.docx",
+};
+
+function pickTemplate(companyProfile = "SMART_VISION") {
+  return TEMPLATE_BY_COMPANY[companyProfile] || TEMPLATE_BY_COMPANY.SMART_VISION;
+}
 
 function ensureCustomDir() {
   try {
@@ -23,9 +31,12 @@ function ensureCustomDir() {
   }
 }
 
-function getSavedTemplateBuffer() {
+function getSavedTemplateBuffer(companyProfile = "SMART_VISION") {
   ensureCustomDir();
-  const customPath = path.join(CUSTOM_TEMPLATE_DIR, "SVS_Quotation_NEW.docx");
+  const customPath = path.join(
+    CUSTOM_TEMPLATE_DIR,
+    pickTemplate(companyProfile)
+  );
   if (fs.existsSync(customPath)) {
     return { buffer: fs.readFileSync(customPath), templateFile: path.basename(customPath) };
   }
@@ -34,42 +45,14 @@ function getSavedTemplateBuffer() {
 
 /* ---------- Render DOCX buffer only ---------- */
 async function buildDocxBuffer(payload) {
-  const saved = getSavedTemplateBuffer();
+  const companyProfile = payload?.CompanyProfile || "SMART_VISION";
+  const templateFile = pickTemplate(companyProfile);
+
+  const saved = getSavedTemplateBuffer(companyProfile);
   if (saved) {
     const rendered = await renderDocxBuffer(saved.buffer, payload);
     const normalized = await normalizeDocx(rendered);
     return { buffer: normalized, templateFile: saved.templateFile };
-  }
-
-  const isUSD = payload?.Currency === "USD";
-  const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
-
-  const discountPer =
-    num(payload?.discount_per) ||
-    num(payload?.DiscountPer) ||
-    num(payload?.TotalDiscountPct);
-  const discountAmount =
-    num(payload?.discount_amount) || num(payload?.DiscountAmount);
-  const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
-  const subtotalAfter =
-    num(payload?.total_after) || num(payload?.SubtotalAfterTotalDiscount);
-  const totalPrice = num(payload?.TotalPrice) || num(payload?.totalPrice);
-
-  const hasDiscount =
-    discountPer > 0 ||
-    discountAmount > 0 ||
-    (subtotalAfter > 0 && subtotalAfter < subtotal) ||
-    (subtotalAfter > 0 && subtotalAfter < totalPrice);
-
-  let templateFile;
-  if (hasDiscount) {
-    templateFile = isUSD
-      ? "SVS_Quotation_Discount_USD.docx"
-      : "SVS_Quotation_Discount.docx";
-  } else {
-    templateFile = isUSD
-      ? "SVS_Quotation_NEW_USD.docx"
-      : "SVS_Quotation_NEW.docx";
   }
 
   const templatePath = path.join(process.cwd(), "templates", templateFile);
@@ -289,59 +272,16 @@ async function renderDocxBuffer(templateBuffer, data) {
 /* ---------- DOCX → PDF Conversion (using unoconv + LibreOffice 25.2) ---------- */
 
 async function docxToPdfBytes(payload) {
-  const isUSD = payload?.Currency === "USD";
-  const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
+  const companyProfile = payload?.CompanyProfile || "SMART_VISION";
+  const templateFile = pickTemplate(companyProfile);
+  const saved = getSavedTemplateBuffer(companyProfile);
 
-  const discountPer =
-    num(payload?.discount_per) ||
-    num(payload?.DiscountPer) ||
-    num(payload?.TotalDiscountPct);
-  const discountAmount =
-    num(payload?.discount_amount) || num(payload?.DiscountAmount);
-  const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
-  const subtotalAfter =
-    num(payload?.total_after) || num(payload?.SubtotalAfterTotalDiscount);
-  const totalPrice = num(payload?.TotalPrice) || num(payload?.totalPrice);
-
-  const hasDiscount =
-    discountPer > 0 ||
-    discountAmount > 0 ||
-    (subtotalAfter > 0 && subtotalAfter < subtotal) ||
-    (subtotalAfter > 0 && subtotalAfter < totalPrice);
-
-  console.log("🧾 [Preview PDF] Discount detection summary:");
-  console.table({
-    discountPer,
-    discountAmount,
-    subtotal,
-    subtotalAfter,
-    totalPrice,
-    hasDiscount,
-  });
-
-  let templateFile;
-  let templateBuffer;
-
-  const saved = getSavedTemplateBuffer();
-  if (saved) {
-    templateFile = saved.templateFile;
-    templateBuffer = saved.buffer;
-  } else {
-    if (hasDiscount) {
-      templateFile = isUSD
-        ? "SVS_Quotation_Discount_USD.docx"
-        : "SVS_Quotation_Discount.docx";
-    } else {
-      templateFile = isUSD
-        ? "SVS_Quotation_NEW_USD.docx"
-        : "SVS_Quotation_NEW.docx";
-    }
-
-    const templatePath = path.join(process.cwd(), "templates", templateFile);
-    if (!fs.existsSync(templatePath))
-      throw new Error(`Template not found: ${templatePath}`);
-    templateBuffer = fs.readFileSync(templatePath);
+  const templatePath = path.join(process.cwd(), "templates", templateFile);
+  if (!saved && !fs.existsSync(templatePath)) {
+    throw new Error(`Template not found: ${templatePath}`);
   }
+
+  const templateBuffer = saved ? saved.buffer : fs.readFileSync(templatePath);
 
   const renderedBuffer = await renderDocxBuffer(templateBuffer, payload);
   const normalizedBuffer = await normalizeDocx(renderedBuffer);
