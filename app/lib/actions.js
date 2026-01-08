@@ -1768,9 +1768,11 @@ function normalizeSectionTitles(products = []) {
   return out;
 }
 
-// Build next revision ID with an uppercase REV suffix, stripping any prior revision tag
+// Build next revision ID with an uppercase REV suffix, stripping any prior revision tag.
+// If no revisionNumber is provided, keep the current ID unchanged.
 function buildRevisionId(currentId, revisionNumber) {
   if (!currentId) return currentId;
+  if (revisionNumber === undefined || revisionNumber === null) return currentId;
   const baseId = currentId.replace(/\s+rev\.?\s*\d*$/i, "");
   const suffix = revisionNumber > 0 ? ` REV.${revisionNumber}` : "";
   return `${baseId}${suffix}`;
