@@ -2240,10 +2240,8 @@ export const editQuotation = async (formData) => {
       throw new Error("Quotation not found");
     }
 
-    quotation.revisionNumber = (Number(quotation.revisionNumber) || 0) + 1;
     quotation.quotationId = buildRevisionId(
       quotation.quotationId,
-      quotation.revisionNumber
     );
 
     if (clientId) {
