@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { FaPlus, FaTrash, FaTag, FaEdit, FaGripLines } from "react-icons/fa";
+import { FaPlus, FaTrash, FaTag, FaEdit, FaGripLines, FaUnlink } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { editQuotation, updateQuotation } from "@/app/lib/actions";
 import ReactQuill from "react-quill";
@@ -58,6 +58,8 @@ const [richDescValue, setRichDescValue] = useState("");
   const [rows, setRows] = useState([]);
   const [showTitles, setShowTitles] = useState([]);
   const [draggingIndex, setDraggingIndex] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [sharedPriceValue, setSharedPriceValue] = useState("");
 
   const currencyFields = (selectedCurrency) => {
     const isSAR = selectedCurrency === "SAR";
@@ -631,6 +633,7 @@ return payload;
 
     setRows(newRows);
     setShowTitles(initialShow);
+    setSelectedRows([]);
   }, [quotation]);
 
   // ---------- table ops ----------
@@ -650,6 +653,7 @@ return payload;
     };
     setRows((prev) => [...prev, newRow]);
     setShowTitles((prev) => [...prev, false]);
+    setSelectedRows((prev) => prev.map((i) => i));
   };
 
   const deleteRow = (index) => {
@@ -657,6 +661,7 @@ return payload;
     const renumbered = updated.map((r, i) => ({ ...r, id: i + 1, number: i + 1 }));
     setRows(renumbered);
     setShowTitles((prev) => prev.filter((_, i) => i !== index));
+    setSelectedRows((prev) => prev.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i)));
   };
 
   const moveRow = (fromIndex, toIndex) => {
@@ -673,6 +678,16 @@ return payload;
       updated.splice(toIndex, 0, movedFlag);
       return updated;
     });
+    setSelectedRows((prevSelected) =>
+      prevSelected
+        .map((i) => {
+          if (i === fromIndex) return toIndex;
+          if (fromIndex < toIndex && i > fromIndex && i <= toIndex) return i - 1;
+          if (fromIndex > toIndex && i >= toIndex && i < fromIndex) return i + 1;
+          return i;
+        })
+        .filter((i) => i >= 0)
+    );
   };
 
   const handleDragStartRow = (event, index) => {
@@ -705,6 +720,63 @@ return payload;
     setShowTitles((prev) => prev.map((v, i) => (i === index ? !v : v)));
   };
 
+  const toggleRowSelection = (index) => {
+    setSelectedRows((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  };
+
+  const clearRowSelection = () => setSelectedRows([]);
+
+  const removeSharedPriceFromRow = (index) => {
+    setRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              sharedGroupId: null,
+              sharedGroupPrice: null,
+              unitPrice: getRowLineTotal({ ...row, sharedGroupId: null, sharedGroupPrice: null }),
+            }
+          : row
+      )
+    );
+  };
+
+  const applySharedPriceToSelection = () => {
+    const uniqueIndexes = Array.from(new Set(selectedRows));
+    if (uniqueIndexes.length < 2) {
+      alert("Select at least two products to apply a shared price.");
+      return;
+    }
+    const numericPrice = Number(sharedPriceValue);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      alert("Enter a valid shared price greater than 0.");
+      return;
+    }
+    const normalizedPrice = Number(numericPrice.toFixed(2));
+    const groupId = `grp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const indexSet = new Set(uniqueIndexes);
+    setRows((prev) =>
+      prev.map((row, idx) =>
+        indexSet.has(idx)
+          ? {
+              ...row,
+              sharedGroupId: groupId,
+              sharedGroupPrice: normalizedPrice,
+              unitPrice: getRowLineTotal({
+                ...row,
+                sharedGroupId: groupId,
+                sharedGroupPrice: normalizedPrice,
+              }),
+            }
+          : row
+      )
+    );
+    setSharedPriceValue("");
+    setSelectedRows([]);
+  };
+
 
   const handleRowInputChange = (index, fieldName, value) => {
   const numericFields = ["qty", "unit", "discount"];
@@ -732,22 +804,6 @@ return payload;
     })
   );
 };
-
-  const handleSharedGroupPriceChange = (groupId, value) => {
-    const normalizedGroupId = (groupId || "").trim();
-    if (!normalizedGroupId) return;
-    const clean = String(value).replace(/[^\d.]/g, "");
-    const parsed = clean === "" ? null : Number(clean);
-    setRows((prev) =>
-      prev.map((row) => {
-        const rowGroupId = (row.sharedGroupId || "").trim();
-        if (rowGroupId !== normalizedGroupId) return row;
-        const next = { ...row, sharedGroupPrice: parsed };
-        next.unitPrice = getRowLineTotal(next);
-        return next;
-      })
-    );
-  };
 
 
 
@@ -1212,6 +1268,7 @@ return payload;
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <td>Select</td>
                   <td>Number</td>
                   <td>Product Code</td>
                   <td>Description</td>
@@ -1239,7 +1296,7 @@ return payload;
                     {/* Title input row (togglable) */}
                     {showTitles[index] && (
                       <tr className={`${styles.row} ${styles.titleRow}`}>
-                        <td colSpan={8} className={styles.titleRowCell}> {/* CHANGED colSpan */}
+                        <td colSpan={9} className={styles.titleRowCell}> {/* CHANGED colSpan */}
                           <input
                             type="text"
                             placeholder='Section title above this product (e.g., "Electrical Works")'
@@ -1259,6 +1316,14 @@ return payload;
                       onDragOver={(event) => event.preventDefault()}
                       onDrop={(event) => handleDropOnRow(event, index)}
                     >
+                      <td>
+                        <input
+                          type="checkbox"
+                          className={styles.selectionCheckbox}
+                          checked={selectedRows.includes(index)}
+                          onChange={() => toggleRowSelection(index)}
+                        />
+                      </td>
                       <td>
                         <input
                           className={`${styles.input} ${styles.numberInput}`}
@@ -1321,19 +1386,6 @@ return payload;
                               : "this set price"}
                           </div>
                         )}
-                        {row.sharedGroupId && (
-                          <input
-                            className={styles.input1}
-                            placeholder="Shared total"
-                            value={row.sharedGroupPrice ?? ""}
-                            onChange={(e) =>
-                              handleSharedGroupPriceChange(
-                                row.sharedGroupId,
-                                e.target.value
-                              )
-                            }
-                          />
-                        )}
                       </td>
                       <td> {/* NEW: per-line discount */}
                         <input
@@ -1383,6 +1435,16 @@ return payload;
                         >
                           <FaTrash />
                         </button>
+                        {row.sharedGroupId && (
+                          <button
+                            type="button"
+                            className={`${styles.iconButton} ${styles.unlinkButton}`}
+                            title="Remove shared price from this product"
+                            onClick={() => removeSharedPriceFromRow(index)}
+                          >
+                            <FaUnlink />
+                          </button>
+                        )}
 
                         {/* Only the last row shows the add button */}
                         {index === rows.length - 1 && (
@@ -1401,6 +1463,39 @@ return payload;
                 )})}
               </tbody>
             </table>
+
+            <div className={styles.sharedPriceControls}>
+              <div className={styles.sharedPriceInfo}>
+                {selectedRows.length > 0
+                  ? `${selectedRows.length} product${
+                      selectedRows.length > 1 ? "s" : ""
+                    } selected`
+                  : "Select two or more products to share a price"}
+              </div>
+              <input
+                type="number"
+                min="0"
+                placeholder="Shared price per product"
+                value={sharedPriceValue}
+                onChange={(e) => setSharedPriceValue(e.target.value)}
+                className={styles.sharedPriceInput}
+              />
+              <button
+                type="button"
+                className={styles.sharedPriceButton}
+                onClick={applySharedPriceToSelection}
+                disabled={selectedRows.length < 2 || !sharedPriceValue}
+              >
+                Apply Shared Price
+              </button>
+              <button
+                type="button"
+                className={styles.sharedPriceButtonSecondary}
+                onClick={clearRowSelection}
+              >
+                Clear Selection
+              </button>
+            </div>
 
             {Object.keys(sharedGroupMeta).length > 0 && (
               <div className={styles.sharedLegend}>

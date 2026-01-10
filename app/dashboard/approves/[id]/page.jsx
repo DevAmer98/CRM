@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { FaPlus, FaTrash, FaTag, FaEdit } from "react-icons/fa";
+import { FaPlus, FaTrash, FaTag, FaEdit, FaUnlink } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { updateQuotationApprove } from "@/app/lib/actions";
 import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
@@ -42,6 +42,8 @@ const SingleApprovePage = ({ params }) => {
 
   const [rows, setRows] = useState([]);
   const [showTitles, setShowTitles] = useState([]);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [sharedPriceValue, setSharedPriceValue] = useState("");
 
   // ---------- helpers ----------
   const clampPct = (n) => Math.min(Math.max(Number(n || 0), 0), 100);
@@ -325,6 +327,7 @@ function wrapDesc(text, maxLen = 40) {
     });
     setRows(newRows);
     setShowTitles(newShow);
+    setSelectedRows([]);
   }, [quotation]);
 
   // ---------- row handlers ----------
@@ -346,6 +349,7 @@ function wrapDesc(text, maxLen = 40) {
       },
     ]);
     setShowTitles((p) => [...p, false]);
+    setSelectedRows((prev) => prev.map((i) => i));
   };
 
   const deleteRow = (i) => {
@@ -357,12 +361,74 @@ function wrapDesc(text, maxLen = 40) {
     }));
     setRows(renumbered);
     setShowTitles((prev) => prev.filter((_, idx) => idx !== i));
+    setSelectedRows((prev) => prev.filter((idx) => idx !== i).map((idx) => (idx > i ? idx - 1 : idx)));
   };
 
   const toggleTitleForRow = (i) =>
     setShowTitles((p) => p.map((v, idx) => (i === idx ? !v : v)));
   const handleTitleChange = (i, v) =>
     setRows((p) => p.map((r, idx) => (i === idx ? { ...r, titleAbove: v } : r)));
+
+  const toggleRowSelection = (index) => {
+    setSelectedRows((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  };
+
+  const clearRowSelection = () => setSelectedRows([]);
+
+  const removeSharedPriceFromRow = (index) => {
+    setRows((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              sharedGroupId: null,
+              sharedGroupPrice: null,
+              unitPrice: getRowLineTotal({
+                ...row,
+                sharedGroupId: null,
+                sharedGroupPrice: null,
+              }),
+            }
+          : row
+      )
+    );
+  };
+
+  const applySharedPriceToSelection = () => {
+    const uniqueIndexes = Array.from(new Set(selectedRows));
+    if (uniqueIndexes.length < 2) {
+      alert("Select at least two products to apply a shared price.");
+      return;
+    }
+    const numericPrice = Number(sharedPriceValue);
+    if (!Number.isFinite(numericPrice) || numericPrice <= 0) {
+      alert("Enter a valid shared price greater than 0.");
+      return;
+    }
+    const normalizedPrice = Number(numericPrice.toFixed(2));
+    const groupId = `grp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const indexSet = new Set(uniqueIndexes);
+    setRows((prev) =>
+      prev.map((row, idx) =>
+        indexSet.has(idx)
+          ? {
+              ...row,
+              sharedGroupId: groupId,
+              sharedGroupPrice: normalizedPrice,
+              unitPrice: getRowLineTotal({
+                ...row,
+                sharedGroupId: groupId,
+                sharedGroupPrice: normalizedPrice,
+              }),
+            }
+          : row
+      )
+    );
+    setSharedPriceValue("");
+    setSelectedRows([]);
+  };
 
   const handleRowInputChange = (index, field, value) => {
     const numeric = ["qty", "unit", "discount"];
@@ -379,22 +445,6 @@ function wrapDesc(text, maxLen = 40) {
         next.unitPrice = qty * unit * (1 - disc / 100);
         next.discount = disc;
         next.unitPrice = getRowLineTotal({ ...next, qty, unit });
-        return next;
-      })
-    );
-  };
-
-  const handleSharedGroupPriceChange = (groupId, value) => {
-    const normalizedGroupId = (groupId || "").trim();
-    if (!normalizedGroupId) return;
-    const clean = String(value).replace(/[^\d.]/g, "");
-    const parsed = clean === "" ? null : Number(clean);
-    setRows((prev) =>
-      prev.map((row) => {
-        const rowGroupId = (row.sharedGroupId || "").trim();
-        if (rowGroupId !== normalizedGroupId) return row;
-        const next = { ...row, sharedGroupPrice: parsed };
-        next.unitPrice = getRowLineTotal(next);
         return next;
       })
     );
@@ -585,6 +635,7 @@ function wrapDesc(text, maxLen = 40) {
             <table className={styles.table}>
               <thead>
                 <tr>
+                  <td>Select</td>
                   <td>No</td>
                   <td>Code</td>
                   <td>Description</td>
@@ -613,7 +664,7 @@ function wrapDesc(text, maxLen = 40) {
                       <tr
                         className={`${styles.row} ${styles.titleRow}`}
                       >
-                        <td colSpan={8}>
+                        <td colSpan={9}>
                           <input
                             type="text"
                             placeholder="Section Title"
@@ -627,6 +678,14 @@ function wrapDesc(text, maxLen = 40) {
                       </tr>
                     )}
                     <tr className={`${styles.row} ${isSharedRow ? styles.sharedRow : ""}`}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          className={styles.selectionCheckbox}
+                          checked={selectedRows.includes(i)}
+                          onChange={() => toggleRowSelection(i)}
+                        />
+                      </td>
                       <td>{String(r.number).padStart(3, "0")}</td>
                       <td>
                         <input
@@ -689,19 +748,6 @@ function wrapDesc(text, maxLen = 40) {
                               : "this set price"}
                           </div>
                         )}
-                        {r.sharedGroupId && (
-                          <input
-                            className={styles.input1}
-                            placeholder="Shared total"
-                            value={r.sharedGroupPrice ?? ""}
-                            onChange={(e) =>
-                              handleSharedGroupPriceChange(
-                                r.sharedGroupId,
-                                e.target.value
-                              )
-                            }
-                          />
-                        )}
                       </td>
                       <td>
                         <input
@@ -753,6 +799,16 @@ function wrapDesc(text, maxLen = 40) {
       <FaTrash />
     </button>
   )}
+  {r.sharedGroupId && (
+    <button
+      type="button"
+      className={`${styles.iconButton} ${styles.unlinkButton}`}
+      title="Remove shared price from this product"
+      onClick={() => removeSharedPriceFromRow(i)}
+    >
+      <FaUnlink />
+    </button>
+  )}
 </td>
 
                     </tr>
@@ -760,6 +816,39 @@ function wrapDesc(text, maxLen = 40) {
                 )})}
               </tbody>
             </table>
+
+            <div className={styles.sharedPriceControls}>
+              <div className={styles.sharedPriceInfo}>
+                {selectedRows.length > 0
+                  ? `${selectedRows.length} product${
+                      selectedRows.length > 1 ? "s" : ""
+                    } selected`
+                  : "Select two or more products to share a price"}
+              </div>
+              <input
+                type="number"
+                min="0"
+                placeholder="Shared price per product"
+                value={sharedPriceValue}
+                onChange={(e) => setSharedPriceValue(e.target.value)}
+                className={styles.sharedPriceInput}
+              />
+              <button
+                type="button"
+                className={styles.sharedPriceButton}
+                onClick={applySharedPriceToSelection}
+                disabled={selectedRows.length < 2 || !sharedPriceValue}
+              >
+                Apply Shared Price
+              </button>
+              <button
+                type="button"
+                className={styles.sharedPriceButtonSecondary}
+                onClick={clearRowSelection}
+              >
+                Clear Selection
+              </button>
+            </div>
 
             {Object.keys(sharedGroupMeta).length > 0 && (
               <div className={styles.sharedLegend}>
