@@ -155,11 +155,29 @@ const [richDescValue, setRichDescValue] = useState("");
     return base * (1 - discountPct / 100);
   };
 
+  const getSharedGroupKey = (row) => {
+    const sharedGroupId = (row.sharedGroupId || "").trim();
+    const sharedGroupPrice =
+      row.sharedGroupPrice !== null && row.sharedGroupPrice !== undefined
+        ? Number(row.sharedGroupPrice)
+        : undefined;
+    if (!sharedGroupId) return null;
+    if (!Number.isFinite(sharedGroupPrice)) return null;
+    return sharedGroupId;
+  };
 
   // CHANGED: totals now include line discount and total discount
   const totals = useMemo(() => {
     // subtotal after per-line discounts
-    const subtotal = rows.reduce((acc, r) => acc + getRowLineTotal(r), 0);
+    const seenGroups = new Set();
+    const subtotal = rows.reduce((acc, r) => {
+      const sharedKey = getSharedGroupKey(r);
+      if (sharedKey) {
+        if (seenGroups.has(sharedKey)) return acc;
+        seenGroups.add(sharedKey);
+      }
+      return acc + getRowLineTotal(r);
+    }, 0);
 
     const totalDiscPct = clampPct(formData.totalDiscount); // NEW
     const subtotalAfterTotalDiscount = subtotal * (1 - totalDiscPct / 100); // NEW
@@ -1005,6 +1023,8 @@ return payload;
   if (error) return <div>Error loading quotation: {error}</div>;
   if (!quotation) return null;
 
+  const sharedGroupSeen = new Set();
+
   return (
     <div>
       <form onSubmit={handleSubmit}>
@@ -1193,6 +1213,12 @@ return payload;
                     ? sharedGroupMeta[row.sharedGroupId]
                     : null;
                   const isSharedRow = !!(sharedInfo && sharedInfo.count > 1);
+                  const sharedKey = getSharedGroupKey(row);
+                  const isFirstSharedRow =
+                    !!sharedKey && !sharedGroupSeen.has(sharedKey);
+                  if (sharedKey) {
+                    sharedGroupSeen.add(sharedKey);
+                  }
                   return (
                   <React.Fragment key={row.id}>
                     {/* Title input row (togglable) */}
@@ -1289,7 +1315,11 @@ return payload;
                           onChange={(e) => handleRowInputChange(index, "discount", e.target.value)}
                         />
                       </td>
-                      <td>{formatCurrency(Number(row.unitPrice) || 0)}</td>
+                      <td>
+                        {sharedKey && !isFirstSharedRow
+                          ? "-"
+                          : formatCurrency(getRowLineTotal(row))}
+                      </td>
                       <td className={styles.actionsCell}>
                         {/* Section title toggle */}
                         <button
