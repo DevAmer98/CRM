@@ -97,6 +97,17 @@ const SingleApprovePage = ({ params }) => {
     return base * (1 - disc / 100);
   };
 
+  const getSharedGroupKey = (row) => {
+    const sharedGroupId = (row.sharedGroupId || "").trim();
+    const sharedGroupPrice =
+      row.sharedGroupPrice !== null && row.sharedGroupPrice !== undefined
+        ? Number(row.sharedGroupPrice)
+        : undefined;
+    if (!sharedGroupId) return null;
+    if (!Number.isFinite(sharedGroupPrice)) return null;
+    return sharedGroupId;
+  };
+
   // ---------- Clean HTML ----------
 function cleanHTML(input = "") {
   if (!input) return "";
@@ -214,7 +225,15 @@ function wrapDesc(text, maxLen = 40) {
 
   // ---------- totals ----------
   const totals = useMemo(() => {
-    const subtotal = rows.reduce((acc, r) => acc + getRowLineTotal(r), 0);
+    const seenGroups = new Set();
+    const subtotal = rows.reduce((acc, r) => {
+      const sharedKey = getSharedGroupKey(r);
+      if (sharedKey) {
+        if (seenGroups.has(sharedKey)) return acc;
+        seenGroups.add(sharedKey);
+      }
+      return acc + getRowLineTotal(r);
+    }, 0);
     const totalDiscPct = clampPct(formData.totalDiscount);
     const subtotalAfterTotalDiscount = subtotal * (1 - totalDiscPct / 100);
     const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
@@ -365,6 +384,22 @@ function wrapDesc(text, maxLen = 40) {
     );
   };
 
+  const handleSharedGroupPriceChange = (groupId, value) => {
+    const normalizedGroupId = (groupId || "").trim();
+    if (!normalizedGroupId) return;
+    const clean = String(value).replace(/[^\d.]/g, "");
+    const parsed = clean === "" ? null : Number(clean);
+    setRows((prev) =>
+      prev.map((row) => {
+        const rowGroupId = (row.sharedGroupId || "").trim();
+        if (rowGroupId !== normalizedGroupId) return row;
+        const next = { ...row, sharedGroupPrice: parsed };
+        next.unitPrice = getRowLineTotal(next);
+        return next;
+      })
+    );
+  };
+
   const handleInputChange = (f, v) =>
     setFormData((p) => ({ ...p, [f]: v }));
 
@@ -452,6 +487,8 @@ function wrapDesc(text, maxLen = 40) {
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading approval: {error}</div>;
   if (!quotation) return null;
+
+  const sharedGroupSeen = new Set();
 
   return (
     <div>
@@ -564,6 +601,12 @@ function wrapDesc(text, maxLen = 40) {
                     ? sharedGroupMeta[r.sharedGroupId]
                     : null;
                   const isSharedRow = !!(sharedInfo && sharedInfo.count > 1);
+                  const sharedKey = getSharedGroupKey(r);
+                  const isFirstSharedRow =
+                    !!sharedKey && !sharedGroupSeen.has(sharedKey);
+                  if (sharedKey) {
+                    sharedGroupSeen.add(sharedKey);
+                  }
                   return (
                   <React.Fragment key={r.id}>
                     {showTitles[i] && (
@@ -646,6 +689,19 @@ function wrapDesc(text, maxLen = 40) {
                               : "this set price"}
                           </div>
                         )}
+                        {r.sharedGroupId && (
+                          <input
+                            className={styles.input1}
+                            placeholder="Shared total"
+                            value={r.sharedGroupPrice ?? ""}
+                            onChange={(e) =>
+                              handleSharedGroupPriceChange(
+                                r.sharedGroupId,
+                                e.target.value
+                              )
+                            }
+                          />
+                        )}
                       </td>
                       <td>
                         <input
@@ -660,7 +716,11 @@ function wrapDesc(text, maxLen = 40) {
                           }
                         />
                       </td>
-                      <td>{formatCurrency(getRowLineTotal(r))}</td>
+                      <td>
+                        {sharedKey && !isFirstSharedRow
+                          ? "-"
+                          : formatCurrency(getRowLineTotal(r))}
+                      </td>
                       <td className={styles.actionsCell}>
   {/* Title toggle */}
   <button

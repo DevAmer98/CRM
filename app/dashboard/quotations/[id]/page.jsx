@@ -725,14 +725,29 @@ return payload;
       const disc =
         fieldName === "discount" ? clampPct(clean) : clampPct(row.discount);
 
-      const base = (Number.isFinite(qty) ? qty : 0) * (Number.isFinite(unit) ? unit : 0);
-      next.unitPrice = base * (1 - disc / 100);
       next.discount = disc;
+      next.unitPrice = getRowLineTotal(next);
 
       return next;
     })
   );
 };
+
+  const handleSharedGroupPriceChange = (groupId, value) => {
+    const normalizedGroupId = (groupId || "").trim();
+    if (!normalizedGroupId) return;
+    const clean = String(value).replace(/[^\d.]/g, "");
+    const parsed = clean === "" ? null : Number(clean);
+    setRows((prev) =>
+      prev.map((row) => {
+        const rowGroupId = (row.sharedGroupId || "").trim();
+        if (rowGroupId !== normalizedGroupId) return row;
+        const next = { ...row, sharedGroupPrice: parsed };
+        next.unitPrice = getRowLineTotal(next);
+        return next;
+      })
+    );
+  };
 
 
 
@@ -1305,6 +1320,19 @@ return payload;
                               ? `a total of ${formatCurrency(sharedInfo.price)}`
                               : "this set price"}
                           </div>
+                        )}
+                        {row.sharedGroupId && (
+                          <input
+                            className={styles.input1}
+                            placeholder="Shared total"
+                            value={row.sharedGroupPrice ?? ""}
+                            onChange={(e) =>
+                              handleSharedGroupPriceChange(
+                                row.sharedGroupId,
+                                e.target.value
+                              )
+                            }
+                          />
                         )}
                       </td>
                       <td> {/* NEW: per-line discount */}
