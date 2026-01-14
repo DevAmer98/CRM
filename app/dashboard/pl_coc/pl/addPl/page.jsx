@@ -193,9 +193,9 @@ const AddPlPage = () => {
 
   const normalizeJobOrderProducts = (jobOrder) => {
     if (!jobOrder) return [];
+    const fromJobOrder = Array.isArray(jobOrder.products) ? jobOrder.products : [];
     const fromQuotation = Array.isArray(jobOrder.quotation?.products) ? jobOrder.quotation.products : [];
-    const fallback = Array.isArray(jobOrder.products) ? jobOrder.products : [];
-    const source = fromQuotation.length ? fromQuotation : fallback;
+    const source = fromJobOrder.length ? fromJobOrder : fromQuotation;
     return source.map((product) => ({
       productCode: product.productCode || '',
       description: product.description || '',

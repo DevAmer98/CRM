@@ -313,10 +313,11 @@ const handleSelectProduct = (product) => {
   const jobOrder = jobOrders.find((jo) => jo._id === selectedId);
   console.log("Selected Job Order:", jobOrder); // <-- DEBUG here
 
-  if (jobOrder?.quotation?.products?.length) {
-    setJobOrderProducts(jobOrder.quotation.products);
-  } else if (jobOrder?.products?.length) {
-    setJobOrderProducts(jobOrder.products);
+  const fromJobOrder = Array.isArray(jobOrder?.products) ? jobOrder.products : [];
+  const fromQuotation = Array.isArray(jobOrder?.quotation?.products) ? jobOrder.quotation.products : [];
+  const source = fromJobOrder.length ? fromJobOrder : fromQuotation;
+  if (source.length) {
+    setJobOrderProducts(source);
   } else {
     console.warn("No products found for job order");
     setJobOrderProducts([]);
