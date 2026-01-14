@@ -1,3 +1,4 @@
+//app/dashboard/pl_coc/coc/[id]/page.jsx
 "use client";
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
@@ -93,6 +94,38 @@ const SingleCoc = ({params}) => {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(fileBlob);
         link.download = `Coc_${documentData.CocNumber}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        throw new Error(`Server responded with status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error downloading the document:', error);
+    }
+  };
+
+  const downloadCocDocxDocument = async () => {
+    try {
+      const documentData = buildCocDocumentData();
+      if (!documentData) {
+        alert('Certificate of Conformity data is loading. Please try again shortly.');
+        return;
+      }
+
+      const response = await fetch(`${domain}/api/loadCocFile`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(documentData),
+      });
+
+      if (response.ok) {
+        const fileBlob = await response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(fileBlob);
+        link.download = `Coc_${documentData.CocNumber}.docx`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -246,6 +279,14 @@ const SingleCoc = ({params}) => {
             disabled={!formData.userName || formData.userName.trim() === 'N/A'}
           >
             Preview PDF
+          </button>
+          <button
+            type="button"
+            className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
+            onClick={downloadCocDocxDocument}
+            disabled={!formData.userName || formData.userName.trim() === 'N/A'}
+          >
+            Download DOCX
           </button>
           <button type="button" 
           className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}

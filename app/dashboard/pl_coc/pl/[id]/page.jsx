@@ -1,3 +1,4 @@
+//app/dashboard/pl_coc/pl/[id]/page.jsx
 "use client";
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaTrash } from 'react-icons/fa';
@@ -159,6 +160,38 @@ const SinglePl = ({params}) => {
               console.error('Error downloading the document:', error);
           }
       };
+
+      const downloadPlDocxDocument = async () => {
+        try {
+          const documentData = buildPlDocumentData();
+          if (!documentData) {
+            alert('Pick list data is still loading. Please try again in a moment.');
+            return;
+          }
+
+          const response = await fetch(`${domain}/api/loadPlData`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(documentData),
+          });
+
+          if (response.ok) {
+            const fileBlob = await response.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(fileBlob);
+            link.download = `PL_${documentData.PickListNumber}.docx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } else {
+            throw new Error(`Server responded with status: ${response.status}`);
+          }
+        } catch (error) {
+          console.error('Error downloading the document:', error);
+        }
+      };
       
       const previewPlPdfDocument = async () => {
         try {
@@ -306,6 +339,13 @@ const SinglePl = ({params}) => {
             onClick={previewPlPdfDocument}
           >
             Preview PDF
+          </button>
+          <button
+            type="button"
+            className={styles.DownloadButton}
+            onClick={downloadPlDocxDocument}
+          >
+            Download DOCX
           </button>
           <button
             type="button"
