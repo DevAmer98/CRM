@@ -317,7 +317,7 @@
 .companyPickerTitle {
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text);
+  color: #ffffff;
   margin: 0;
 }
 
@@ -333,13 +333,14 @@
 .companyButton:link,
 .companyButton:visited {
   position: relative;
+  z-index: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 12px 28px;
   font-size: 0.95rem;
-  font-weight: 600;
-  color: #ffffff;
+  font-weight: 600; 
+  color: teal;
   text-decoration: none;
   letter-spacing: 0.5px;
   cursor: pointer;
@@ -354,6 +355,7 @@
   content: "";
   position: absolute;
   inset: 0;
+  z-index: -1;
   border-radius: 14px;
   transition: transform 0.3s ease, background 0.3s ease, opacity 0.3s ease;
 }

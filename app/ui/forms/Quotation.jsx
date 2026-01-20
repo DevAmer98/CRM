@@ -38,18 +38,19 @@ const handleExcelUpload = (file, setRows, toast) => {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-      // 🔍 1️⃣ Find header row (match any combination of these)
+      // 🔍 1️⃣ Find header row (accept price subtotal or unit price)
       const headerIndex = rows.findIndex((r) => {
         const text = r.join(" ").toLowerCase();
-        return (
-          (text.includes("description") || text.includes("product")) &&
-          (text.includes("qty") || text.includes("quantity")) &&
-          (text.includes("sub-total") ||
-            text.includes("subtotal") ||
-            text.includes("rate") ||
-            text.includes("price") ||
-            text.includes("amount"))
-        );
+        const hasDesc = text.includes("description") || text.includes("product");
+        const hasQty = text.includes("qty") || text.includes("quantity");
+        const hasPrice =
+          text.includes("sub-total") ||
+          text.includes("subtotal") ||
+          text.includes("rate") ||
+          text.includes("price") ||
+          text.includes("amount") ||
+          text.includes("unit");
+        return hasDesc && hasQty && hasPrice;
       });
 
       if (headerIndex === -1) {
@@ -63,7 +64,7 @@ const handleExcelUpload = (file, setRows, toast) => {
 
       const colIndex = {
         itemNo: header.findIndex((h) => h.includes("item")),
-        productCode: header.findIndex((h) => h.includes("product")),
+        productCode: header.findIndex((h) => h.includes("product") || h.includes("code")),
         description: header.findIndex((h) => h.includes("description")),
         qty: header.findIndex((h) => h.startsWith("qty") || h.includes("quantity")),
         unit: header.findIndex((h) => h === "unit" || h.includes("unit")),
@@ -96,10 +97,13 @@ const handleExcelUpload = (file, setRows, toast) => {
         const subtotalRaw = r[colIndex.subtotal]?.toString() || "";
         const subtotal = parseFloat(subtotalRaw.replace(/[^\d.]/g, "")) || 0;
 
-        if (qty === 0 && subtotal === 0) continue;
+        const unitRaw = r[colIndex.unit]?.toString() || "";
+        const unitValue = parseFloat(unitRaw.replace(/[^\d.]/g, "")) || 0;
 
-        // Compute unit price (if subtotal is per total quantity)
-        const unitPrice = qty > 0 ? subtotal / qty : subtotal;
+        if (qty === 0 && subtotal === 0 && unitValue === 0) continue;
+
+        // Compute unit price (prefer subtotal/qty when subtotal exists)
+        const unitPrice = subtotal > 0 ? (qty > 0 ? subtotal / qty : subtotal) : unitValue;
 
         products.push(
           buildRow({
