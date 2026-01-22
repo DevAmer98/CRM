@@ -31,24 +31,52 @@ function ensureCustomDir() {
   }
 }
 
-function getSavedTemplateBuffer(companyProfile = "SMART_VISION") {
+function getSavedTemplateBuffer(templateFile) {
   ensureCustomDir();
-  const customPath = path.join(
-    CUSTOM_TEMPLATE_DIR,
-    pickTemplate(companyProfile)
-  );
+  const customPath = path.join(CUSTOM_TEMPLATE_DIR, templateFile);
   if (fs.existsSync(customPath)) {
     return { buffer: fs.readFileSync(customPath), templateFile: path.basename(customPath) };
   }
   return null;
 }
 
+function hasDiscount(payload) {
+  const num = (v) => Number(String(v || "0").replace(/[^\d.-]/g, "")) || 0;
+  const discountPer =
+    num(payload?.discount_per) ||
+    num(payload?.DiscountPer) ||
+    num(payload?.TotalDiscountPct) ||
+    num(payload?.totalDiscount);
+  const discountAmount =
+    num(payload?.discount_amount) || num(payload?.DiscountAmount);
+  const subtotal = num(payload?.Subtotal) || num(payload?.subtotal);
+  const subtotalAfter =
+    num(payload?.total_after) ||
+    num(payload?.TotalAfter) ||
+    num(payload?.SubtotalAfterTotalDiscount);
+  const totalPrice =
+    num(payload?.totalPrice) || num(payload?.TotalPrice) || num(payload?.NetPrice);
+
+  return (
+    discountPer > 0 ||
+    discountAmount > 0 ||
+    (subtotalAfter > 0 && subtotalAfter < subtotal) ||
+    (subtotalAfter > 0 && totalPrice > 0 && subtotalAfter < totalPrice)
+  );
+}
+
+function pickTemplateForPayload(payload) {
+  const companyProfile = payload?.CompanyProfile || "SMART_VISION";
+  if (companyProfile !== "SMART_VISION") return pickTemplate(companyProfile);
+  if (!hasDiscount(payload)) return pickTemplate(companyProfile);
+  return "SVS_Quotation_Discount.docx";
+}
+
 /* ---------- Render DOCX buffer only ---------- */
 async function buildDocxBuffer(payload) {
-  const companyProfile = payload?.CompanyProfile || "SMART_VISION";
-  const templateFile = pickTemplate(companyProfile);
+  const templateFile = pickTemplateForPayload(payload);
 
-  const saved = getSavedTemplateBuffer(companyProfile);
+  const saved = getSavedTemplateBuffer(templateFile);
   if (saved) {
     const rendered = await renderDocxBuffer(saved.buffer, payload);
     const normalized = await normalizeDocx(rendered);
@@ -274,7 +302,7 @@ async function renderDocxBuffer(templateBuffer, data) {
 async function docxToPdfBytes(payload) {
   const companyProfile = payload?.CompanyProfile || "SMART_VISION";
   const templateFile = pickTemplate(companyProfile);
-  const saved = getSavedTemplateBuffer(companyProfile);
+  const saved = getSavedTemplateBuffer(templateFile);
 
   const templatePath = path.join(process.cwd(), "templates", templateFile);
   if (!saved && !fs.existsSync(templatePath)) {
