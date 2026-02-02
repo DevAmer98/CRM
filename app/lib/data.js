@@ -372,6 +372,81 @@ export const fetchAllSales = async () => {
   }
 };
 
+export const fetchSalesByUserRoles = async () => {
+  try {
+    await connectToDB();
+
+    const allowedRoles = [ROLES.SALES_USER, ROLES.SALES_ADMIN];
+    const [sales, users] = await Promise.all([
+      Sale.find({}),
+      User.find({ role: { $in: allowedRoles } }).populate('employee', 'name'),
+    ]);
+
+    const normalizeText = (value) => String(value || '').trim().toLowerCase();
+    const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
+
+    const allowedEmailSet = new Set(
+      users.map((user) => normalizeText(user?.email)).filter(Boolean)
+    );
+    const allowedPhoneSet = new Set(
+      users.map((user) => normalizePhone(user?.phone)).filter(Boolean)
+    );
+    const allowedNameSet = new Set(
+      users
+        .flatMap((user) => [
+          normalizeText(user?.username),
+          normalizeText(user?.employee?.name),
+        ])
+        .filter(Boolean)
+    );
+
+    const userByEmail = new Map(
+      users.map((user) => [normalizeText(user?.email), user]).filter(([email]) => email)
+    );
+    const userByPhone = new Map(
+      users.map((user) => [normalizePhone(user?.phone), user]).filter(([phone]) => phone)
+    );
+    const userByName = new Map(
+      users
+        .flatMap((user) => [
+          [normalizeText(user?.username), user],
+          [normalizeText(user?.employee?.name), user],
+        ])
+        .filter(([name]) => name)
+    );
+
+    const filteredSales = sales
+      .filter((sale) => {
+        const saleEmail = normalizeText(sale?.email);
+        const salePhone = normalizePhone(sale?.phone);
+        const saleName = normalizeText(sale?.name);
+
+        return (
+          allowedEmailSet.has(saleEmail) ||
+          allowedPhoneSet.has(salePhone) ||
+          allowedNameSet.has(saleName)
+        );
+      })
+      .map((sale) => {
+        const saleObj = sale.toObject();
+        const matchedUser =
+          userByEmail.get(normalizeText(saleObj?.email)) ||
+          userByPhone.get(normalizePhone(saleObj?.phone)) ||
+          userByName.get(normalizeText(saleObj?.name));
+
+        return {
+          ...saleObj,
+          role: matchedUser?.role || '',
+        };
+      });
+
+    return filteredSales;
+  } catch (err) {
+    console.log('Error in fetchSalesByUserRoles:', err);
+    throw new Error('Failed to fetch sales by roles!');
+  }
+};
+
 
 export const fetchAllSupliers = async () => {
   try {
