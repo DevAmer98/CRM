@@ -632,7 +632,7 @@ const cocSchema = new Schema(
     quotation: {
       type: Schema.Types.ObjectId,
       ref: 'Quotation', 
-      required: true,
+      required: false,
     },
     deliveryLocation: {
       type: String,

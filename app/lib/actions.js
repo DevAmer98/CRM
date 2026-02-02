@@ -2490,9 +2490,12 @@ export const addCoc = async (formData) => {
       throw new Error('Client not found');
     }
 
-    const quotation = await Quotation.findById(quotationId);
-    if (!quotation) {
-      throw new Error('Quotation not found');
+    let quotation = null;
+    if (quotationId) {
+      quotation = await Quotation.findById(quotationId);
+      if (!quotation) {
+        throw new Error('Quotation not found');
+      }
     }
 
     const year = new Date().getFullYear();
@@ -2514,7 +2517,7 @@ if (latestCoc) {
 
     const newCoc = new Coc({
       client: client._id,
-      quotation: quotation._id,
+      quotation: quotation ? quotation._id : null,
       sale: sale._id,
       jobOrder: jobOrder._id,
       products,

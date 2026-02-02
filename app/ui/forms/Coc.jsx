@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation';
   const cocSchema = z.object({
     saleId: z.string().min(1, "Sale Representative is required"),
     clientId: z.string().min(1, "Client is required"),
-    quotationId: z.string().min(1, "Quotation is required"),
+    quotationId: z.string().optional(),
     jobOrderId: z.string().min(1, "Job Order is required"),
     products: z.array(productSchema).min(1, "Add at least one product"),
     deliveryLocation: z.string().optional(),
@@ -32,7 +32,6 @@ const AddCoc = () => {
 
   const [clientsWithInfo, setClientsWithInfo] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
-  const [selectedQuotation, setSelectedQuotation] = useState('');
   const [sales, setSales] = useState([]); 
   const [jobOrders, setjobOrders] = useState([]); 
   const [rows, setRows] = React.useState([{ number: 1, productCode: '', qty: '', description: '' }]);
@@ -99,41 +98,10 @@ const AddCoc = () => {
     </>
   );
 
-  const renderQuotationOptions = () => {
-    const selectedClientData = clientsWithInfo.find(c => c._id === selectedClient);
-   
-
-    return (
-      <>
-        <option value="">Select Quotation</option>
-        {selectedClientData?.quotations.map((quotation) => {
-          const labelParts = [
-            quotation.quotationId,
-            quotation.projectName && quotation.projectName !== quotation.quotationId
-              ? quotation.projectName
-              : null,
-          ].filter(Boolean);
-
-          return (
-            <option key={quotation._id} value={quotation._id}>
-              {labelParts.join(' - ')}
-            </option>
-          );
-        })}
-      </>
-    );
-  };
-
   const handleClientChange = (e) => {
     const newClient = e.target.value;
     setSelectedClient(newClient);
-    setSelectedQuotation(''); 
   };
-
-  const handleQuotationChange = (e) => {
-    const newQuotation = e.target.value;
-    setSelectedQuotation(newQuotation);
-  }; 
 
  
 
@@ -272,10 +240,16 @@ const AddCoc = () => {
     setError(null);
  
     const locationValue = event.target.deliveryLocation.value.trim();
+    const selectedOrder = jobOrders.find((order) => order._id === event.target.jobOrderId.value);
+    const quotationRef = selectedOrder?.quotation;
+    const derivedQuotationId =
+      (typeof quotationRef === 'object'
+        ? quotationRef?._id?.toString?.()
+        : quotationRef?.toString?.()) || '';
 
     const formData = {
       clientId: event.target.clientId.value,
-      quotationId: event.target.quotationId.value,
+      quotationId: derivedQuotationId || undefined,
       saleId: event.target.saleId.value,
       jobOrderId: event.target.jobOrderId.value,
       deliveryLocation: locationValue === '' ? undefined : locationValue,
@@ -332,16 +306,6 @@ const AddCoc = () => {
           {renderClientOptions()}
         </select>
         </div>
-          </div>
-          <div className={styles.selectContainer}>                
-          <div className={styles.inputContainer}>
-          <label htmlFor="adminName" className={styles.label}>
-                  Quotation Number:
-                </label>
-        <select name="quotationId" onChange={handleQuotationChange} value={selectedQuotation}>
-          {renderQuotationOptions()}
-          </select>
-          </div>
           </div>
 
           <div className={styles.inputContainer}>
