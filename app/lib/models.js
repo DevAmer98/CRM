@@ -634,6 +634,14 @@ const cocSchema = new Schema(
       ref: 'Quotation', 
       required: false,
     },
+    projectReference: {
+      type: String,
+      required: false,
+    },
+    projectAddress: {
+      type: String,
+      required: false,
+    },
     deliveryLocation: {
       type: String,
       required: false

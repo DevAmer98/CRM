@@ -22,8 +22,9 @@ import { useRouter } from 'next/navigation';
     clientId: z.string().min(1, "Client is required"),
     quotationId: z.string().optional(),
     jobOrderId: z.string().min(1, "Job Order is required"),
+    projectReference: z.string().optional(),
+    projectAddress: z.string().optional(),
     products: z.array(productSchema).min(1, "Add at least one product"),
-    deliveryLocation: z.string().optional(),
   });
 
 
@@ -44,6 +45,7 @@ const AddCoc = () => {
   const [error, setError] = useState(null);
   const [jobOrderProducts, setJobOrderProducts] = useState([]);
   const [selectedJobOrder, setSelectedJobOrder] = useState('');
+  const [projectReference, setProjectReference] = useState('');
   const buildApiUrl = (path) => {
     const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
     return base ? `${base}${path}` : path;
@@ -81,31 +83,12 @@ const AddCoc = () => {
     fetchClientsWithQuotations();
   }, []);
 
-  const renderClientOptions = () => (
-    <>
-      <option value="">Select Client</option>
-      {filteredClients.map((client) => {
-        const quotationIds = Array.isArray(client.quotations)
-          ? client.quotations
-              .map((quotation) => quotation?.quotationId)
-              .filter(Boolean)
-          : [];
-
-        const suffix = quotationIds.length ? ` (${quotationIds.join(', ')})` : '';
-
-        return (
-          <option key={client._id.toString()} value={client._id.toString()}>
-            {client.name}
-            {suffix}
-          </option>
-        );
-      })}
-    </>
-  );
-
-  const handleClientChange = (e) => {
-    const newClient = e.target.value;
-    setSelectedClient(newClient);
+  const getClientLabel = (client) => {
+    const quotationIds = Array.isArray(client?.quotations)
+      ? client.quotations.map((quotation) => quotation?.quotationId).filter(Boolean)
+      : [];
+    const suffix = quotationIds.length ? ` (${quotationIds.join(', ')})` : '';
+    return `${client?.name || ''}${suffix}`;
   };
 
   const filteredClients = clientsWithInfo.filter((client) => {
@@ -132,6 +115,18 @@ const AddCoc = () => {
     const jobOrderId = String(jobOrder?.jobOrderId || '').toLowerCase();
     return jobOrderId.includes(query);
   });
+
+  const handleClientSearchChange = (value) => {
+    setClientSearch(value);
+    const matchedClient = clientsWithInfo.find((client) => getClientLabel(client) === value);
+    setSelectedClient(matchedClient?._id || '');
+  };
+
+  const handleSaleSearchChange = (value) => {
+    setSaleSearch(value);
+    const matchedSale = sales.find((sale) => String(sale?.name || '') === value);
+    setSelectedSale(matchedSale?._id || '');
+  };
 
  
 
@@ -212,10 +207,21 @@ const AddCoc = () => {
     }));
   };
 
-  const handleJobOrderChange = (e) => {
-    const newJobOrderId = e.target.value;
-    setSelectedJobOrder(newJobOrderId);
-    const selectedOrder = jobOrders.find((order) => order._id === newJobOrderId);
+  const getProjectReferenceFromOrder = (jobOrder) => {
+    const quotationRef = jobOrder?.quotation;
+    if (!quotationRef) return '';
+    if (typeof quotationRef === 'object') {
+      return quotationRef.quotationId || quotationRef.projectName || '';
+    }
+    return String(quotationRef);
+  };
+
+  const handleJobOrderSearchChange = (value) => {
+    setJobOrderSearch(value);
+    const selectedOrder = jobOrders.find((order) => String(order?.jobOrderId || '') === value);
+    const nextId = selectedOrder?._id || '';
+    setSelectedJobOrder(nextId);
+    setProjectReference(getProjectReferenceFromOrder(selectedOrder));
     setJobOrderProducts(normalizeJobOrderProducts(selectedOrder));
   };
 
@@ -269,8 +275,8 @@ const AddCoc = () => {
     event.preventDefault();
     setError(null);
  
-    const locationValue = event.target.deliveryLocation.value.trim();
-    const selectedOrder = jobOrders.find((order) => order._id === event.target.jobOrderId.value);
+    const addressValue = event.target.projectAddress.value.trim();
+    const selectedOrder = jobOrders.find((order) => order._id === selectedJobOrder);
     const quotationRef = selectedOrder?.quotation;
     const derivedQuotationId =
       (typeof quotationRef === 'object'
@@ -278,11 +284,12 @@ const AddCoc = () => {
         : quotationRef?.toString?.()) || '';
 
     const formData = {
-      clientId: event.target.clientId.value,
+      clientId: selectedClient,
       quotationId: derivedQuotationId || undefined,
-      saleId: event.target.saleId.value,
-      jobOrderId: event.target.jobOrderId.value,
-      deliveryLocation: locationValue === '' ? undefined : locationValue,
+      saleId: selectedSale,
+      jobOrderId: selectedJobOrder,
+      projectReference: projectReference.trim() === '' ? undefined : projectReference.trim(),
+      projectAddress: addressValue === '' ? undefined : addressValue,
       products: rows.map((row, index) => ({
         number: index + 1,
         productCode: row.productCode.trim(),
@@ -337,11 +344,15 @@ const AddCoc = () => {
             className={styles.input}
             placeholder="Search client..."
             value={clientSearch}
-            onChange={(e) => setClientSearch(e.target.value)}
+            onChange={(e) => handleClientSearchChange(e.target.value)}
+            list="client-options"
           />
-          <select name="clientId" onChange={handleClientChange} value={selectedClient}>
-          {renderClientOptions()}
-        </select>
+          <datalist id="client-options">
+            {filteredClients.map((client) => (
+              <option key={client._id} value={getClientLabel(client)} />
+            ))}
+          </datalist>
+          <input type="hidden" name="clientId" value={selectedClient} />
         </div>
           </div>
 
@@ -354,21 +365,15 @@ const AddCoc = () => {
             className={styles.input}
             placeholder="Search sales representative..."
             value={saleSearch}
-            onChange={(e) => setSaleSearch(e.target.value)}
+            onChange={(e) => handleSaleSearchChange(e.target.value)}
+            list="sales-options"
           />
-          <select
-            name='saleId'
-            className={styles.input}
-            value={selectedSale}
-            onChange={(e) => setSelectedSale(e.target.value)}
-          >
-          <option value="" disabled>Select Sales Representative</option>
-          {filteredSales.map((sale) => (
-              <option key={sale._id} value={sale._id}>
-                  {sale.name}
-              </option>
+          <datalist id="sales-options">
+            {filteredSales.map((sale) => (
+              <option key={sale._id} value={sale.name || ''} />
             ))}
-          </select>
+          </datalist>
+          <input type="hidden" name="saleId" value={selectedSale} />
           </div>
           <div className={styles.inputContainer}>
           <label htmlFor="jobOrderId" className={styles.label}>
@@ -379,21 +384,28 @@ const AddCoc = () => {
             className={styles.input}
             placeholder="Search job order..."
             value={jobOrderSearch}
-            onChange={(e) => setJobOrderSearch(e.target.value)}
+            onChange={(e) => handleJobOrderSearchChange(e.target.value)}
+            list="job-order-options"
           />
-          <select
-            name='jobOrderId'
-            className={styles.input}
-            value={selectedJobOrder}
-            onChange={handleJobOrderChange}
-          >
-          <option value="" disabled>Select Job Orders</option>
-          {filteredJobOrders.map((jobOrder) => (
-              <option key={jobOrder._id} value={jobOrder._id}>
-                  {jobOrder.jobOrderId}
-              </option>
+          <datalist id="job-order-options">
+            {filteredJobOrders.map((jobOrder) => (
+              <option key={jobOrder._id} value={jobOrder.jobOrderId || ''} />
             ))}
-          </select>
+          </datalist>
+          <input type="hidden" name="jobOrderId" value={selectedJobOrder} />
+          <div className={styles.inputContainer}>
+            <label htmlFor="projectReference" className={styles.label}>
+              Project Reference:
+            </label>
+            <input
+              type="text"
+              name="projectReference"
+              className={styles.input}
+              value={projectReference}
+              placeholder="Project Reference"
+              readOnly
+            />
+          </div>
           {jobOrderProducts.length > 0 && (
             <div className={styles.jobOrderTableContainer}>
               <p className={styles.title}>Job Order Products</p>
@@ -439,10 +451,10 @@ const AddCoc = () => {
           )}
           </div>
           <div className={styles.inputContainer}>
-          <label htmlFor="deliveryLocation" className={styles.label}>
-                Delivery Location:
+          <label htmlFor="projectAddress" className={styles.label}>
+                Project Address:
                 </label>
-          <input type='text' name='deliveryLocation' className={styles.input} placeholder='Delivery Location' />
+          <input type='text' name='projectAddress' className={styles.input} placeholder='Project Address' />
           </div>
           </div>
         </div>

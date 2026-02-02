@@ -2469,7 +2469,7 @@ export const deletePoApprove = async (formData) => {
 };
 
 export const addCoc = async (formData) => {
-  const { saleId, clientId,quotationId, jobOrderId, products, deliveryLocation} = formData;
+  const { saleId, clientId, quotationId, jobOrderId, products, projectReference, projectAddress, deliveryLocation } = formData;
 
   try {
     await connectToDB();
@@ -2515,13 +2515,20 @@ if (latestCoc) {
 }
     const customCocId = `SVSCOC-${year}-${sequenceNumber}`;
 
+    const normalizedProjectAddress =
+      (typeof projectAddress === 'string' && projectAddress.trim() !== '')
+        ? projectAddress.trim()
+        : (typeof deliveryLocation === 'string' ? deliveryLocation.trim() : '');
+
     const newCoc = new Coc({
       client: client._id,
       quotation: quotation ? quotation._id : null,
       sale: sale._id,
       jobOrder: jobOrder._id,
       products,
-      deliveryLocation,
+      projectReference: typeof projectReference === 'string' ? projectReference.trim() : '',
+      projectAddress: normalizedProjectAddress,
+      deliveryLocation: normalizedProjectAddress,
       cocId:customCocId,
       revisionNumber: 0,
         });
