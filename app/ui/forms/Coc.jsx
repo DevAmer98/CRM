@@ -108,9 +108,6 @@ const AddCoc = () => {
     setSelectedClient(newClient);
   };
 
-  const normalizeRole = (roleValue) => String(roleValue || '').replace(/\s+/g, '').toLowerCase();
-  const allowedSalesRoles = new Set(['salesuser', 'salesadmin']);
-
   const filteredClients = clientsWithInfo.filter((client) => {
     const query = clientSearch.trim().toLowerCase();
     if (!query) return true;
@@ -121,12 +118,7 @@ const AddCoc = () => {
     return clientName.includes(query) || quotationIds.some((quotationId) => quotationId.includes(query));
   });
 
-  const salesWithAllowedRoles = sales.filter((sale) => {
-    const role = normalizeRole(sale?.role || sale?.user?.role || sale?.employee?.role);
-    return allowedSalesRoles.has(role);
-  });
-
-  const filteredSales = salesWithAllowedRoles.filter((sale) => {
+  const filteredSales = sales.filter((sale) => {
     const query = saleSearch.trim().toLowerCase();
     if (!query) return true;
     const name = String(sale?.name || '').toLowerCase();

@@ -1,4 +1,4 @@
-import { fetchSalesByUserRoles } from '@/app/lib/data'; 
+import { fetchAllSales } from '@/app/lib/data'; 
 import { NextResponse } from 'next/server';
 
 
@@ -6,7 +6,7 @@ export const revalidate = 0;
 export async function GET(req, res) {
     try {
         console.log('API: GET /api/allSales called');
-        const sales = await fetchSalesByUserRoles(); 
+        const sales = await fetchAllSales(); 
        return NextResponse.json(sales);
     } catch (error) { 
         console.error(error);
