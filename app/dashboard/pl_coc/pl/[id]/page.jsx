@@ -28,8 +28,11 @@ const SinglePl = ({params}) => {
   const [isLoading, setLoading] = useState(true);
   const [isUploaded, setIsUploaded] = useState(false);
   const [formData, setFormData] = useState({ 
-    sale:'',
+    pickListId: '',
+    jobOrderId: '',
+    saleName: '',
     clientName: '',  
+    deliveryLocation: '',
     products: [],
   });
   const [rows, setRows] = useState([]);
@@ -63,7 +66,7 @@ const SinglePl = ({params}) => {
     if (!pl) return null;
 
     return {
-      PickListNumber: pl.pickListId,
+      PickListNumber: pl.pickListId || '',
       DeliveryLocation: pl.deliveryLocation?.toUpperCase() || '',
       ClientName: pl.client?.name?.toUpperCase() || '',
       ClientPhone: pl.client?.phone || '',
@@ -77,14 +80,14 @@ const SinglePl = ({params}) => {
       SaleAddress: pl.sale?.address?.toUpperCase() || '',
       Products: rows.map((product, index) => ({
         Number: (index + 1).toString().padStart(3, '0'),
-        ProductCode: product.productCode,
-        Qty: product.qty, 
+        ProductCode: product.productCode || '',
+        Qty: product.qty || '', 
         Description: splitDescriptionIntoLines(product.description || ''),
       })),
       CreatedAt: formatDateToLongUppercase(pl.createdAt),
-      PurchaseDate: pl.jobOrder?.poDate,
-      PurchaseId: pl.jobOrder?.poNumber,
-      JobOrderNumber: pl.jobOrder?.jobOrderId,
+      PurchaseDate: pl.jobOrder?.poDate || '',
+      PurchaseId: pl.jobOrder?.poNumber || '',
+      JobOrderNumber: pl.jobOrder?.jobOrderId || '',
     };
   };
 
@@ -237,21 +240,21 @@ const SinglePl = ({params}) => {
       useEffect(() => {
         if (pl) {
           setFormData({
-            pickListId: pl.pickListId,
-            jobOrderId:pl.jobOrder? pl.jobOrder.jobOrderId:'',
-            saleName:pl.sale ? pl.sale.name:'', 
+            pickListId: pl.pickListId || '',
+            jobOrderId: pl.jobOrder?.jobOrderId || '',
+            saleName: pl.sale?.name || '', 
             clientName: pl.client ? pl.client.name : '',
-            deliveryLocation:pl.deliveryLocation,
-            products: pl.products,
+            deliveryLocation: pl.deliveryLocation || '',
+            products: pl.products || [],
           });
     
-          const newRows = pl.products.map((product, index) => ({
+          const newRows = (pl.products || []).map((product, index) => ({
             _id: product._id,
             id: index + 1,
             number: index + 1,
-            productCode: product.productCode,
-            qty: product.qty,
-            description: product.description,
+            productCode: product.productCode || '',
+            qty: product.qty || '',
+            description: product.description || '',
           }));
           setRows(newRows);
         }
@@ -273,7 +276,7 @@ const SinglePl = ({params}) => {
  
 
   const addRow = () => {
-    const newRow = { id: rows.length + 1, number: rows.length + 1 };
+    const newRow = { id: rows.length + 1, number: rows.length + 1, productCode: '', qty: '', description: '' };
     setRows((prevRows) => [...prevRows, newRow]);
   };
 
@@ -322,7 +325,7 @@ const SinglePl = ({params}) => {
       <form onSubmit={handleSubmit}>
         <div className={styles.container}>
         <div className={styles.container}>
-        PickList ID: {formData.pickListId}
+        PickList ID: {formData.pickListId || ''}
       </div>
         <div className={styles.buttonRow}>
           <button
@@ -399,7 +402,13 @@ const SinglePl = ({params}) => {
                 <label htmlFor="deliveryLocation" className={styles.label}>
                 Delivery Location:
                 </label>
-            <input type='text' name='deliveryLocation' className={styles.input} placeholder={pl.deliveryLocation} />
+            <input
+              type="text"
+              name="deliveryLocation"
+              className={styles.input}
+              value={formData.deliveryLocation || ''}
+              onChange={(e) => handleInputChange('deliveryLocation', e.target.value)}
+            />
             </div>
           </div>
         </div>
@@ -429,8 +438,8 @@ const SinglePl = ({params}) => {
                     <td>
                       <input
                         className={styles.input1}
-                        placeholder={row.productCode}
-                        value={row.productCode}
+                        placeholder={row.productCode || ''}
+                        value={row.productCode || ''}
                         onChange={(e) => handleRowInputChange(index, 'productCode', e.target.value)}
                       />
                     </td>
@@ -439,16 +448,16 @@ const SinglePl = ({params}) => {
                     <td>
                       <input
                         className={styles.input1}
-                        placeholder={row.qty}
-                        value={row.qty}
+                        placeholder={row.qty || ''}
+                        value={row.qty || ''}
                         onChange={(e) => handleRowInputChange(index, 'qty', e.target.value)}
                       />
                     </td>
                     <td>
                       <textarea
                         className={`${styles.input1} ${styles.textarea}`}
-                        placeholder={row.description}
-                        value={row.description}
+                        placeholder={row.description || ''}
+                        value={row.description || ''}
                         onChange={(e) => handleRowInputChange(index, 'description', e.target.value)}
                       ></textarea>
                     </td>

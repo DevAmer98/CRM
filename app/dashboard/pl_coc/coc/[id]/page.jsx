@@ -12,8 +12,13 @@ const SingleCoc = ({params}) => {
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
-    sale:'',
-    projectLA: '',
+    cocId: '',
+    userName: '',
+    projectName: '',
+    clientName: '',
+    jobOrderId: '',
+    saleName: '',
+    deliveryLocation: '',
     products: [],
   });
   const [rows, setRows] = useState([]);
@@ -46,30 +51,30 @@ const SingleCoc = ({params}) => {
     if (!coc) return null;
 
     return {
-      CocNumber: coc.cocId,
-      ProjectName: coc.quotation?.projectName,
-      DeliveryLocation: coc.deliveryLocation,
-      ClientName: coc.client?.name,
-      userName: coc.user?.username,
-      ClientPhone: coc.client?.phone,
-      ClientEmail: coc.client?.email,
-      ClientAddress: coc.client?.address,
-      ClientContactMobile: coc.client?.contactMobile,
-      ClientContactName: coc.client?.contactName,
-      SaleName: coc.sale?.name,
-      SalePhone: coc.sale?.phone,
-      SaleEmail: coc.sale?.email,
-      SaleAddress: coc.sale?.address,
+      CocNumber: coc.cocId || '',
+      ProjectName: coc.quotation?.projectName || '',
+      DeliveryLocation: coc.deliveryLocation || '',
+      ClientName: coc.client?.name || '',
+      userName: coc.user?.username || '',
+      ClientPhone: coc.client?.phone || '',
+      ClientEmail: coc.client?.email || '',
+      ClientAddress: coc.client?.address || '',
+      ClientContactMobile: coc.client?.contactMobile || '',
+      ClientContactName: coc.client?.contactName || '',
+      SaleName: coc.sale?.name || '',
+      SalePhone: coc.sale?.phone || '',
+      SaleEmail: coc.sale?.email || '',
+      SaleAddress: coc.sale?.address || '',
       Products: rows.map((product, index) => ({
         Number: (index + 1).toString().padStart(3, '0'),
-        ProductCode: product.productCode,
-        Qty: product.qty,
-        Description: product.description,
+        ProductCode: product.productCode || '',
+        Qty: product.qty || '',
+        Description: product.description || '',
       })),
       CreatedAt: coc.createdAt ? new Date(coc.createdAt).toDateString().slice(4, 16) : '',
-      PurchaseDate: coc.jobOrder?.poDate,
-      PurchaseId: coc.jobOrder?.poNumber,
-      JobOrderNumber: coc.jobOrder?.jobOrderId,
+      PurchaseDate: coc.jobOrder?.poDate || '',
+      PurchaseId: coc.jobOrder?.poNumber || '',
+      JobOrderNumber: coc.jobOrder?.jobOrderId || '',
     };
   };
 
@@ -182,23 +187,23 @@ const SingleCoc = ({params}) => {
       useEffect(() => {
         if (coc) {
           setFormData({
-            cocId:coc.cocId,
-            userName:coc.user ? coc.user.username:'' ? coc.user.username : 'N/A', 
-            projectName:coc.jobOrder?.quotatopn?.projectName,
+            cocId: coc.cocId || '',
+            userName: coc.user?.username || '',
+            projectName: coc.jobOrder?.quotatopn?.projectName || '',
             clientName: coc.client ? coc.client.name : '',
-            jobOrderId:coc.jobOrder? coc.jobOrder.jobOrderId:'',
-            saleName:coc.sale ? coc.sale.name:'', 
-            deliveryLocation:coc.deliveryLocation,
-            products: coc.products,
+            jobOrderId: coc.jobOrder?.jobOrderId || '',
+            saleName: coc.sale?.name || '', 
+            deliveryLocation: coc.deliveryLocation || '',
+            products: coc.products || [],
           });
     
-          const newRows = coc.products.map((product, index) => ({
+          const newRows = (coc.products || []).map((product, index) => ({
             _id: product._id,
             id: index + 1,
             number: index + 1,
-            productCode: product.productCode,
-            qty: product.qty,
-            description: product.description,
+            productCode: product.productCode || '',
+            qty: product.qty || '',
+            description: product.description || '',
           }));
           setRows(newRows);
         }
@@ -220,7 +225,7 @@ const SingleCoc = ({params}) => {
  
 
   const addRow = () => {
-    const newRow = { id: rows.length + 1, number: rows.length + 1 };
+    const newRow = { id: rows.length + 1, number: rows.length + 1, productCode: '', qty: '', description: '' };
     setRows((prevRows) => [...prevRows, newRow]);
   };
 
@@ -249,9 +254,9 @@ const SingleCoc = ({params}) => {
     e.preventDefault();
 
     const rowInputs = rows.map((row) => ({
-      productCode: row.productCode,
-      qty: row.qty,
-      description: row.description,
+      productCode: row.productCode || '',
+      qty: row.qty || '',
+      description: row.description || '',
     }));
 
     await updateCoc({
@@ -269,29 +274,29 @@ const SingleCoc = ({params}) => {
       <form onSubmit={handleSubmit}>
         <div className={styles.container}>
         <div className={styles.container}>
-        Coc ID: {formData.cocId}
+        Coc ID: {formData.cocId || ''}
       </div>
         <div className={styles.buttonRow}>
           <button
             type="button"
-            className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
+            className={`${styles.DownloadButton} ${formData.userName?.trim() ? '' : styles.DisabledButton}`}
             onClick={previewCocPdfDocument}
-            disabled={!formData.userName || formData.userName.trim() === 'N/A'}
+            disabled={!formData.userName?.trim()}
           >
             Preview PDF
           </button>
           <button
             type="button"
-            className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
+            className={`${styles.DownloadButton} ${formData.userName?.trim() ? '' : styles.DisabledButton}`}
             onClick={downloadCocDocxDocument}
-            disabled={!formData.userName || formData.userName.trim() === 'N/A'}
+            disabled={!formData.userName?.trim()}
           >
             Download DOCX
           </button>
           <button type="button" 
-          className={`${styles.DownloadButton} ${formData.userName && formData.userName.trim() !== 'N/A' ? '' : styles.DisabledButton}`}
+          className={`${styles.DownloadButton} ${formData.userName?.trim() ? '' : styles.DisabledButton}`}
           onClick={downloadCocPdfDocument}
-          disabled={!formData.userName || formData.userName.trim() === 'N/A'}
+          disabled={!formData.userName?.trim()}
           >
              Download PDF
              </button>
@@ -306,7 +311,7 @@ const SingleCoc = ({params}) => {
             <input
               type="text"
               className={styles.input}
-              value={formData.userName}
+              value={formData.userName || ''}
               onChange={(e) => handleInputChange('userName', e.target.value)}
               readOnly 
             />
@@ -319,7 +324,7 @@ const SingleCoc = ({params}) => {
               type="text"
               className={styles.input}
               placeholder="Client Name"
-              value={formData.clientName}
+              value={formData.clientName || ''}
               onChange={(e) => handleInputChange('clientName', e.target.value)}
               readOnly 
             />
@@ -331,7 +336,7 @@ const SingleCoc = ({params}) => {
             <input
               className={styles.input}
               placeholder="Sale Representative Name"
-              value={formData.saleName}
+              value={formData.saleName || ''}
               onChange={(e) => handleInputChange('saleName', e.target.value)}
             />
             </div>
@@ -342,7 +347,7 @@ const SingleCoc = ({params}) => {
             <input
               className={styles.input}
               placeholder="Job Order"
-              value={formData.jobOrderId}
+              value={formData.jobOrderId || ''}
               onChange={(e) => handleInputChange('jobOrderId', e.target.value)}
               readOnly
             />
@@ -351,7 +356,13 @@ const SingleCoc = ({params}) => {
                 <label htmlFor="deliveryLocation" className={styles.label}>
                 Delivery Location:
                 </label>
-            <input type='text' name='deliveryLocation' className={styles.input} placeholder={coc.deliveryLocation} />
+            <input
+              type="text"
+              name="deliveryLocation"
+              className={styles.input}
+              value={formData.deliveryLocation || ''}
+              onChange={(e) => handleInputChange('deliveryLocation', e.target.value)}
+            />
             </div>
           </div>
         </div>
@@ -381,8 +392,8 @@ const SingleCoc = ({params}) => {
                     <td>
                       <input
                         className={styles.input1}
-                        placeholder={row.productCode}
-                        value={row.productCode}
+                        placeholder={row.productCode || ''}
+                        value={row.productCode || ''}
                         onChange={(e) => handleRowInputChange(index, 'productCode', e.target.value)}
                       />
                     </td>
@@ -391,16 +402,16 @@ const SingleCoc = ({params}) => {
                     <td>
                       <input
                         className={styles.input1}
-                        placeholder={row.qty}
-                        value={row.qty}
+                        placeholder={row.qty || ''}
+                        value={row.qty || ''}
                         onChange={(e) => handleRowInputChange(index, 'qty', e.target.value)}
                       />
                     </td>
                     <td>
                       <textarea
                         className={`${styles.input1} ${styles.textarea}`}
-                        placeholder={row.description}
-                        value={row.description}
+                        placeholder={row.description || ''}
+                        value={row.description || ''}
                         onChange={(e) => handleRowInputChange(index, 'description', e.target.value)}
                       ></textarea>
                     </td>

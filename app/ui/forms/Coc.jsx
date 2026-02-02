@@ -1,3 +1,4 @@
+//app/ui/forms/Coc.jsx
 "use client";
 import React, {useState, useEffect} from 'react'; 
 import { FaPlus, FaTrash } from 'react-icons/fa';
@@ -32,8 +33,12 @@ const AddCoc = () => {
 
   const [clientsWithInfo, setClientsWithInfo] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
   const [sales, setSales] = useState([]); 
+  const [selectedSale, setSelectedSale] = useState('');
+  const [saleSearch, setSaleSearch] = useState('');
   const [jobOrders, setjobOrders] = useState([]); 
+  const [jobOrderSearch, setJobOrderSearch] = useState('');
   const [rows, setRows] = React.useState([{ number: 1, productCode: '', qty: '', description: '' }]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,7 +84,7 @@ const AddCoc = () => {
   const renderClientOptions = () => (
     <>
       <option value="">Select Client</option>
-      {clientsWithInfo.map((client) => {
+      {filteredClients.map((client) => {
         const quotationIds = Array.isArray(client.quotations)
           ? client.quotations
               .map((quotation) => quotation?.quotationId)
@@ -102,6 +107,39 @@ const AddCoc = () => {
     const newClient = e.target.value;
     setSelectedClient(newClient);
   };
+
+  const normalizeRole = (roleValue) => String(roleValue || '').replace(/\s+/g, '').toLowerCase();
+  const allowedSalesRoles = new Set(['salesuser', 'salesadmin']);
+
+  const filteredClients = clientsWithInfo.filter((client) => {
+    const query = clientSearch.trim().toLowerCase();
+    if (!query) return true;
+    const clientName = String(client?.name || '').toLowerCase();
+    const quotationIds = Array.isArray(client?.quotations)
+      ? client.quotations.map((quotation) => String(quotation?.quotationId || '').toLowerCase())
+      : [];
+    return clientName.includes(query) || quotationIds.some((quotationId) => quotationId.includes(query));
+  });
+
+  const salesWithAllowedRoles = sales.filter((sale) => {
+    const role = normalizeRole(sale?.role || sale?.user?.role || sale?.employee?.role);
+    return allowedSalesRoles.has(role);
+  });
+
+  const filteredSales = salesWithAllowedRoles.filter((sale) => {
+    const query = saleSearch.trim().toLowerCase();
+    if (!query) return true;
+    const name = String(sale?.name || '').toLowerCase();
+    const email = String(sale?.email || '').toLowerCase();
+    return name.includes(query) || email.includes(query);
+  });
+
+  const filteredJobOrders = jobOrders.filter((jobOrder) => {
+    const query = jobOrderSearch.trim().toLowerCase();
+    if (!query) return true;
+    const jobOrderId = String(jobOrder?.jobOrderId || '').toLowerCase();
+    return jobOrderId.includes(query);
+  });
 
  
 
@@ -302,6 +340,13 @@ const AddCoc = () => {
           <label htmlFor="adminName" className={styles.label}>
                   Client Name:
                 </label>
+          <input
+            type="text"
+            className={styles.input}
+            placeholder="Search client..."
+            value={clientSearch}
+            onChange={(e) => setClientSearch(e.target.value)}
+          />
           <select name="clientId" onChange={handleClientChange} value={selectedClient}>
           {renderClientOptions()}
         </select>
@@ -312,9 +357,21 @@ const AddCoc = () => {
           <label htmlFor="saleId" className={styles.label}>
           Select Sales Representative:
                 </label>
-          <select name='saleId' className={styles.input}>
-          <option value="" disabled selected>Select Sales Representative</option>
-          {sales.map((sale) => (
+          <input
+            type="text"
+            className={styles.input}
+            placeholder="Search sales representative..."
+            value={saleSearch}
+            onChange={(e) => setSaleSearch(e.target.value)}
+          />
+          <select
+            name='saleId'
+            className={styles.input}
+            value={selectedSale}
+            onChange={(e) => setSelectedSale(e.target.value)}
+          >
+          <option value="" disabled>Select Sales Representative</option>
+          {filteredSales.map((sale) => (
               <option key={sale._id} value={sale._id}>
                   {sale.name}
               </option>
@@ -325,6 +382,13 @@ const AddCoc = () => {
           <label htmlFor="jobOrderId" className={styles.label}>
           Job Order Id:
                 </label>
+          <input
+            type="text"
+            className={styles.input}
+            placeholder="Search job order..."
+            value={jobOrderSearch}
+            onChange={(e) => setJobOrderSearch(e.target.value)}
+          />
           <select
             name='jobOrderId'
             className={styles.input}
@@ -332,7 +396,7 @@ const AddCoc = () => {
             onChange={handleJobOrderChange}
           >
           <option value="" disabled>Select Job Orders</option>
-          {jobOrders.map((jobOrder) => (
+          {filteredJobOrders.map((jobOrder) => (
               <option key={jobOrder._id} value={jobOrder._id}>
                   {jobOrder.jobOrderId}
               </option>
