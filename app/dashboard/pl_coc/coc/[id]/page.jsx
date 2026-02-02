@@ -15,6 +15,8 @@ const SingleCoc = ({params}) => {
     cocId: '',
     userName: '',
     projectName: '',
+    projectReference: '',
+    projectAddress: '',
     clientName: '',
     jobOrderId: '',
     saleName: '',
@@ -190,6 +192,8 @@ const SingleCoc = ({params}) => {
             cocId: coc.cocId || '',
             userName: coc.user?.username || '',
             projectName: coc.jobOrder?.quotatopn?.projectName || '',
+            projectReference: coc.projectReference || '',
+            projectAddress: coc.projectAddress || '',
             clientName: coc.client ? coc.client.name : '',
             jobOrderId: coc.jobOrder?.jobOrderId || '',
             saleName: coc.sale?.name || '', 
@@ -353,12 +357,24 @@ const SingleCoc = ({params}) => {
             />
             </div>
             <div className={styles.inputContainer}>
-                <label htmlFor="deliveryLocation" className={styles.label}>
-                Delivery Location:
+                <label htmlFor="projectReference" className={styles.label}>
+                Project Reference:
+                </label>
+            <input
+              className={styles.input}
+              placeholder="Project Reference"
+              value={formData.projectReference || ''}
+              onChange={(e) => handleInputChange('projectReference', e.target.value)}
+              readOnly
+            />
+            </div>
+            <div className={styles.inputContainer}>
+                <label htmlFor="projectAddress" className={styles.label}>
+                Project Address:
                 </label>
             <input
               type="text"
-              name="deliveryLocation"
+              name="projectAddress"
               className={styles.input}
               value={formData.deliveryLocation || ''}
               onChange={(e) => handleInputChange('deliveryLocation', e.target.value)}
