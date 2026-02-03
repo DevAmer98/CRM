@@ -10,14 +10,26 @@ import { addPickList } from '@/app/lib/actions';
 const AddPlPage = () => { 
   const [clientsWithInfo, setClientsWithInfo] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
+  const [clientSearch, setClientSearch] = useState('');
   const [sales, setSales] = useState([]);  
+  const [selectedSale, setSelectedSale] = useState('');
+  const [saleSearch, setSaleSearch] = useState('');
   const [jobOrders, setjobOrders] = useState([]);   
+  const [jobOrderSearch, setJobOrderSearch] = useState('');
   const [rows, setRows] = React.useState([{ number: 1, productCode: '', qty: '', description: '' }]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [jobOrderProducts, setJobOrderProducts] = useState([]);
   const [selectedJobOrder, setSelectedJobOrder] = useState('');
   const router = useRouter();
+  const selectedClientData = clientsWithInfo.find((client) => client._id === selectedClient);
+  const selectedSaleData = sales.find((sale) => sale._id === selectedSale);
+  const selectedJobOrderData = jobOrders.find((jobOrder) => jobOrder._id === selectedJobOrder);
+  const canSubmit =
+    !!selectedClient &&
+    !!selectedSale &&
+    !!selectedJobOrder &&
+    rows.some((row) => row.productCode.trim() && row.description.trim() && Number(row.qty) > 0);
 
   const buildApiUrl = (path) => {
     const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
@@ -55,61 +67,45 @@ const AddPlPage = () => {
     fetchClientsWithQuotations();
   }, []);
 
-  const renderClientOptions = () => (
-    <>
-      <option value="">Select Client</option>
-      {clientsWithInfo.map((client) => {
-        const quotationIds = Array.isArray(client.quotations)
-          ? client.quotations
-              .map((quotation) => quotation?.quotationId)
-              .filter(Boolean)
-          : [];
-
-        const suffix = quotationIds.length ? ` (${quotationIds.join(', ')})` : '';
-
-        return (
-          <option key={client._id.toString()} value={client._id.toString()}>
-            {client.name}
-            {suffix}
-          </option>
-        );
-      })}
-    </>
-  );
-
-  const renderQuotationOptions = () => {
-    const selectedClientData = clientsWithInfo.find(c => c._id === selectedClient);
-   
-
-    return (
-      <>
-        <option value="">Select Quotation</option>
-        {selectedClientData?.quotations.map((quotation) => {
-          const labelParts = [
-            quotation.quotationId,
-            quotation.projectName && quotation.projectName !== quotation.quotationId
-              ? quotation.projectName
-              : null,
-          ].filter(Boolean);
-
-          return (
-            <option key={quotation._id} value={quotation._id}>
-              {labelParts.join(' - ')}
-            </option>
-          );
-        })}
-      </>
-    );
+  const getClientLabel = (client) => {
+    return String(client?.name || '');
   };
 
-  const handleClientChange = (e) => {
-    const newClient = e.target.value;
-    setSelectedClient(newClient);
+  const filteredClients = clientsWithInfo.filter((client) => {
+    const query = clientSearch.trim().toLowerCase();
+    if (!query) return true;
+    const name = String(client?.name || '').toLowerCase();
+    const quotationIds = Array.isArray(client?.quotations)
+      ? client.quotations.map((quotation) => String(quotation?.quotationId || '').toLowerCase())
+      : [];
+    return name.includes(query) || quotationIds.some((quotationId) => quotationId.includes(query));
+  });
+
+  const filteredSales = sales.filter((sale) => {
+    const query = saleSearch.trim().toLowerCase();
+    if (!query) return true;
+    const name = String(sale?.name || '').toLowerCase();
+    const email = String(sale?.email || '').toLowerCase();
+    return name.includes(query) || email.includes(query);
+  });
+
+  const filteredJobOrders = jobOrders.filter((jobOrder) => {
+    const query = jobOrderSearch.trim().toLowerCase();
+    if (!query) return true;
+    const jobOrderId = String(jobOrder?.jobOrderId || '').toLowerCase();
+    return jobOrderId.includes(query);
+  });
+
+  const handleClientSearchChange = (value) => {
+    setClientSearch(value);
+    const matchedClient = clientsWithInfo.find((client) => getClientLabel(client) === value);
+    setSelectedClient(matchedClient?._id || '');
   };
 
-  const handleQuotationChange = (e) => {
-    const newQuotation = e.target.value;
-    setSelectedQuotation(newQuotation);
+  const handleSaleSearchChange = (value) => {
+    setSaleSearch(value);
+    const matchedSale = sales.find((sale) => String(sale?.name || '') === value);
+    setSelectedSale(matchedSale?._id || '');
   };
 
 
@@ -186,7 +182,17 @@ const AddPlPage = () => {
   const handleRowChange = (index, field, value) => {
     setRows((prev) =>
       prev.map((row, i) =>
-        i === index ? { ...row, [field]: field === 'qty' ? value.replace(/[^\d.]/g, '') : value } : row
+        i === index
+          ? {
+              ...row,
+              [field]:
+                field === 'qty'
+                  ? value.replace(/[^\d.]/g, '')
+                  : typeof value === 'string'
+                  ? value.toUpperCase()
+                  : value,
+            }
+          : row
       )
     );
   };
@@ -203,10 +209,11 @@ const AddPlPage = () => {
     }));
   };
 
-  const handleJobOrderChange = (e) => {
-    const newJobOrderId = e.target.value;
-    setSelectedJobOrder(newJobOrderId);
-    const selectedOrder = jobOrders.find((order) => order._id === newJobOrderId);
+  const handleJobOrderSearchChange = (value) => {
+    setJobOrderSearch(value);
+    const selectedOrder = jobOrders.find((order) => String(order?.jobOrderId || '') === value);
+    const nextId = selectedOrder?._id || '';
+    setSelectedJobOrder(nextId);
     setJobOrderProducts(normalizeJobOrderProducts(selectedOrder));
   };
 
@@ -263,15 +270,15 @@ const AddPlPage = () => {
     const locationValue = event.target.deliveryLocation.value.trim();
 
     const formValues = {
-      clientId: event.target.clientId.value,
-      saleId: event.target.saleId.value,
-      jobOrderId: event.target.jobOrderId.value,
-      deliveryLocation: locationValue === '' ? undefined : locationValue,
+      clientId: selectedClient,
+      saleId: selectedSale,
+      jobOrderId: selectedJobOrder,
+      deliveryLocation: locationValue === '' ? undefined : locationValue.toUpperCase(),
       products: rows.map((row, index) => ({
         number: index + 1,
-        productCode: row.productCode.trim(),
+        productCode: row.productCode.trim().toUpperCase(),
         qty: Number(row.qty),
-        description: row.description.trim(),
+        description: row.description.trim().toUpperCase(),
       })),
     };
   
@@ -306,53 +313,82 @@ const AddPlPage = () => {
       {!loading && !error && (
       <form onSubmit={handleSubmit}>
         <div className={styles.container}>
+          <div className={styles.quoteHeader}>
+            <span className={styles.quoteIdLabel}>Create Pick List</span>
+            <span className={styles.quoteIdValue}>
+              {selectedJobOrderData?.jobOrderId || "New"}
+            </span>
+          </div>
+          <div className={styles.contextChips}>
+            <span className={styles.contextChip}>
+              Client: {selectedClientData?.name || "Not selected"}
+            </span>
+            <span className={styles.contextChip}>
+              Sale: {selectedSaleData?.name || "Not selected"}
+            </span>
+            <span className={styles.contextChip}>
+              Job Order: {selectedJobOrderData?.jobOrderId || "Not selected"}
+            </span>
+          </div>
           <div className={styles.form1}>
           <div className={styles.selectContainer}>                
           <div className={styles.inputContainer}>
           <label htmlFor="adminName" className={styles.label}>
                   Client Name:
                 </label>
-          <select name="clientId" onChange={handleClientChange} value={selectedClient}>
-          {renderClientOptions()}
-        </select>
+          <input
+            type="text"
+            className={styles.input}
+            placeholder="Search Client..."
+            value={clientSearch}
+            onChange={(e) => handleClientSearchChange(e.target.value)}
+            list="client-options"
+          />
+          <datalist id="client-options">
+            {filteredClients.map((client) => (
+              <option key={client._id} value={getClientLabel(client)} />
+            ))}
+          </datalist>
+          <input type="hidden" name="clientId" value={selectedClient} />
         </div>
-          </div>
-          <div className={styles.selectContainer}>                
-          <div className={styles.inputContainer}>
-    
-      
-          </div>
           </div>
           <div className={styles.inputContainer}>
                 <label htmlFor="saleId" className={styles.label}>
-                Select Sales Representative:
+                Sale Representative Name:
                 </label>
-          <select name='saleId' className={styles.input}>
-          <option value="" disabled selected>Select Sales Representative</option>
-          {sales.map((sale) => (
-              <option key={sale._id} value={sale._id}>
-                  {sale.name}
-              </option>
+          <input
+            type="text"
+            className={styles.input}
+            placeholder="Search Sale Representative..."
+            value={saleSearch}
+            onChange={(e) => handleSaleSearchChange(e.target.value)}
+            list="sales-options"
+          />
+          <datalist id="sales-options">
+            {filteredSales.map((sale) => (
+              <option key={sale._id} value={sale.name || ''} />
             ))}
-          </select>
+          </datalist>
+          <input type="hidden" name="saleId" value={selectedSale} />
           </div>
           <div className={styles.inputContainer}>
                 <label htmlFor="jobOrderId" className={styles.label}>
-                Job Order Id:
+                Job Order ID:
                 </label>
-          <select
-            name='jobOrderId'
+          <input
+            type="text"
             className={styles.input}
-            value={selectedJobOrder}
-            onChange={handleJobOrderChange}
-          >
-          <option value="" disabled>Select Job Orders</option>
-          {jobOrders.map((jobOrder) => (
-              <option key={jobOrder._id} value={jobOrder._id}>
-                  {jobOrder.jobOrderId}
-              </option>
+            placeholder="Search Job Order..."
+            value={jobOrderSearch}
+            onChange={(e) => handleJobOrderSearchChange(e.target.value)}
+            list="job-order-options"
+          />
+          <datalist id="job-order-options">
+            {filteredJobOrders.map((jobOrder) => (
+              <option key={jobOrder._id} value={jobOrder.jobOrderId || ''} />
             ))}
-          </select>
+          </datalist>
+          <input type="hidden" name="jobOrderId" value={selectedJobOrder} />
           {jobOrderProducts.length > 0 && (
             <div className={styles.jobOrderTableContainer}>
               <p className={styles.title}>Job Order Products</p>
@@ -482,8 +518,15 @@ const AddPlPage = () => {
 
         <div className={styles.container}>
           <div className={styles.form1}>
-
-            <button type="submit">Submit</button>
+            <div className={styles.submitRow}>
+              <button
+                type="submit"
+                className={styles.submitInlineButton}
+                disabled={!canSubmit}
+              >
+                Create Pick List
+              </button>
+            </div>
           </div>
         </div>
         

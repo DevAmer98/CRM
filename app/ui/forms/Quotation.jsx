@@ -189,10 +189,16 @@ const AddQuotation = () => {
   const [companyProfile, setCompanyProfile] = useState('SMART_VISION');
   const [selectedRows, setSelectedRows] = useState([])
   const [sharedPriceValue, setSharedPriceValue] = useState('')
+  const [saleSearch, setSaleSearch] = useState('')
+  const [selectedSaleId, setSelectedSaleId] = useState('')
+  const [clientSearch, setClientSearch] = useState('')
+  const [selectedClientId, setSelectedClientId] = useState('')
 
 
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, '').trim()
   const clampPct = (n) => Math.min(Math.max(Number(n) || 0, 0), 100)
+  const getClientLabel = (client) => String(client?.name || '')
+  const getSaleLabel = (sale) => String(sale?.name || '')
 
   const getRowLineTotal = (row) => {
     if (
@@ -233,6 +239,35 @@ const AddQuotation = () => {
   /* ---------- Handlers ---------- */
   const handleRowInputChange = (index, field, value) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)))
+  }
+
+  const filteredClients = clients.filter((client) => {
+    const query = clientSearch.trim().toLowerCase()
+    if (!query) return true
+    const name = String(client?.name || '').toLowerCase()
+    const email = String(client?.email || '').toLowerCase()
+    const phone = String(client?.phone || '').toLowerCase()
+    return name.includes(query) || email.includes(query) || phone.includes(query)
+  })
+
+  const filteredSales = sales.filter((sale) => {
+    const query = saleSearch.trim().toLowerCase()
+    if (!query) return true
+    const name = String(sale?.name || '').toLowerCase()
+    const email = String(sale?.email || '').toLowerCase()
+    return name.includes(query) || email.includes(query)
+  })
+
+  const handleClientSearchChange = (value) => {
+    setClientSearch(value)
+    const matched = clients.find((client) => getClientLabel(client) === value)
+    setSelectedClientId(matched?._id || '')
+  }
+
+  const handleSaleSearchChange = (value) => {
+    setSaleSearch(value)
+    const matched = sales.find((sale) => getSaleLabel(sale) === value)
+    setSelectedSaleId(matched?._id || '')
   }
 
   const toggleRowSelection = (index) => {
@@ -417,17 +452,37 @@ const cleanQuillHtml = (html) => {
         <div className={styles.form1}>
           <div className={styles.inputContainer}>
             <label className={styles.label}>Sale Representative:</label>
-            <select name="saleId" className={styles.input} defaultValue="">
-              <option value="" disabled>Select Sale Representative</option>
-              {sales.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
-            </select>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="Search sales representative..."
+              value={saleSearch}
+              onChange={(e) => handleSaleSearchChange(e.target.value)}
+              list="sales-options"
+            />
+            <datalist id="sales-options">
+              {filteredSales.map((sale) => (
+                <option key={sale._id} value={getSaleLabel(sale)} />
+              ))}
+            </datalist>
+            <input type="hidden" name="saleId" value={selectedSaleId} />
           </div>
           <div className={styles.inputContainer}>
             <label className={styles.label}>Client:</label>
-            <select name="clientId" className={styles.input} defaultValue="">
-              <option value="" disabled>Select Client</option>
-              {clients.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
-            </select>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="Search client..."
+              value={clientSearch}
+              onChange={(e) => handleClientSearchChange(e.target.value)}
+              list="client-options"
+            />
+            <datalist id="client-options">
+              {filteredClients.map((client) => (
+                <option key={client._id} value={getClientLabel(client)} />
+              ))}
+            </datalist>
+            <input type="hidden" name="clientId" value={selectedClientId} />
           </div>
           <div className={styles.inputContainer}>
             <label className={styles.label}>Project Name:</label>

@@ -777,6 +777,245 @@
 .previewFooter { display:flex; justify-content:flex-end; gap:8px; padding:10px 14px; border-top:1px solid #eee; }
 .previewLoading, .previewError { padding:16px; }
 
+/* Quotation details page refinements */
+.quotationPage {
+  padding-bottom: 20px;
+}
+
+.quotationForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quoteHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.quoteIdLabel {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.quoteIdValue {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.quoteActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.contextChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+
+.contextChip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #cbd5e1;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quoteDetailsGrid {
+  margin-top: 12px;
+}
+
+.onlyOfficeRow {
+  margin-top: 8px;
+}
+
+.totalDiscountInput {
+  margin-top: 12px;
+}
+
+.discountInputRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.discountInputRow .input {
+  flex: 1;
+}
+
+.discountInputRow .select {
+  min-width: 120px;
+}
+
+.totalsCard {
+  gap: 8px;
+  align-items: center;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.totalsCard p {
+  margin: 0;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.quotationPage .DownloadButton {
+  width: auto;
+  margin: 0;
+  padding: 10px 16px;
+  margin-left: 0;
+}
+
+.previewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.previewCard {
+  background: #fff;
+  width: min(1120px, 100%);
+  height: min(90vh, 860px);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+}
+
+.previewToolbar {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.previewClose {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  color: #475569;
+}
+
+.previewClose:hover {
+  color: #0f172a;
+}
+
+.previewContent {
+  flex: 1;
+}
+
+.descOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.descCard {
+  background: #0f172a;
+  color: #e5e7eb;
+  width: min(1000px, 100%);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.descTitle {
+  color: #fff;
+  margin: 0;
+}
+
+.descActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.descCancel,
+.descSave {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.descCancel {
+  background: #334155;
+  color: #e5e7eb;
+}
+
+.descSave {
+  background: #2563eb;
+  color: #fff;
+}
+
+.submitRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.submitInlineButton {
+  width: auto !important;
+  min-width: 140px;
+  padding: 10px 18px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #0f766e, #0ea5a4) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.submitInlineButton:hover {
+  filter: brightness(1.05);
+}
+
+.submitInlineButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
 /* Template designer */
 .templateCard {
   margin-top: 12px;

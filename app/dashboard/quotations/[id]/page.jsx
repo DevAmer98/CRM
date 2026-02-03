@@ -51,6 +51,7 @@ const [richDescValue, setRichDescValue] = useState("");
         warranty: "",
     totalPrice: "",
     totalDiscount: 0, // NEW: subtotal discount %
+    totalDiscountType: "PERCENT",
     companyProfile: "SMART_VISION",
   });
 
@@ -83,6 +84,10 @@ const [richDescValue, setRichDescValue] = useState("");
 
   // ---------- helpers ----------
   const clampPct = (n) => Math.min(Math.max(Number(n || 0), 0), 100); // NEW
+  const toNumber = (value) => {
+    const num = Number(String(value ?? "").replace(/[^\d.]/g, ""));
+    return Number.isFinite(num) ? num : 0;
+  };
 
   const formatCurrency = (value) => {
     const n = Number(value || 0);
@@ -181,8 +186,19 @@ const [richDescValue, setRichDescValue] = useState("");
       return acc + getRowLineTotal(r);
     }, 0);
 
-    const totalDiscPct = clampPct(formData.totalDiscount); // NEW
-    const subtotalAfterTotalDiscount = subtotal * (1 - totalDiscPct / 100); // NEW
+    const discountType = formData.totalDiscountType || "PERCENT";
+    const rawDiscount = formData.totalDiscount;
+    const totalDiscPct =
+      discountType === "AMOUNT"
+        ? subtotal > 0
+          ? (Math.min(Math.max(toNumber(rawDiscount), 0), subtotal) / subtotal) * 100
+          : 0
+        : clampPct(String(rawDiscount).replace("%", ""));
+    const discountAmount =
+      discountType === "AMOUNT"
+        ? Math.min(Math.max(toNumber(rawDiscount), 0), subtotal)
+        : subtotal * (totalDiscPct / 100);
+    const subtotalAfterTotalDiscount = Math.max(0, subtotal - discountAmount); // NEW
 
     const vatRate = selectedCurrency === "USD" ? 0 : 0.15;
     const vatAmount = subtotalAfterTotalDiscount * vatRate; // NEW
@@ -191,11 +207,12 @@ const [richDescValue, setRichDescValue] = useState("");
     return {
       subtotal: Number(subtotal.toFixed(2)),                                // NEW
       subtotalAfterTotalDiscount: Number(subtotalAfterTotalDiscount.toFixed(2)), // NEW
+      discountAmount: Number(discountAmount.toFixed(2)),
       vatAmount: Number(vatAmount.toFixed(2)),
       totalUnitPriceWithVAT: Number(total.toFixed(2)),
       totalDiscountPct: totalDiscPct, // for display/debug if needed
     };
-  }, [rows, selectedCurrency, formData.totalDiscount]);
+  }, [rows, selectedCurrency, formData.totalDiscount, formData.totalDiscountType]);
 
   // ---------- Build data for document preview/upload (SECTIONS) ----------
   const buildDocumentData = (mode = "word-to-pdf") => {
@@ -580,6 +597,7 @@ return payload;
       excluding: quotation.excluding || "",
       totalPrice: quotation.totalPrice || "",
       totalDiscount: Number(quotation.totalDiscount || 0), // NEW
+      totalDiscountType: "PERCENT",
       companyProfile: quotation.companyProfile || "SMART_VISION",
     });
 
@@ -842,11 +860,23 @@ return payload;
   };
 
   const handleInputChange = (fieldName, value) => {
-  setFormData((prev) => ({
-    ...prev,
-    [fieldName]: typeof value === "string" ? value.toUpperCase() : value,
-  }));
-};
+    if (fieldName === "totalDiscount") {
+      const cleaned =
+        formData.totalDiscountType === "PERCENT"
+          ? String(value).replace(/[^\d.%]/g, "")
+          : String(value).replace(/[^\d.]/g, "");
+      setFormData((prev) => ({
+        ...prev,
+        totalDiscount: cleaned,
+      }));
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: typeof value === "string" ? value.toUpperCase() : value,
+    }));
+  };
 
   const loadOnlyOfficeScript = () =>
     new Promise((resolve, reject) => {
@@ -965,7 +995,7 @@ return payload;
       saleId: formData.saleId,
       products: rowInputs,
       currency: selectedCurrency, // NEW: keep currency on update as well
-      totalDiscount: clampPct(formData.totalDiscount), // NEW
+      totalDiscount: totals.totalDiscountPct, // normalized percentage
       // you can send breakdowns too if your action supports them:
       subtotal: totals.subtotal,
       subtotalAfterTotalDiscount: totals.subtotalAfterTotalDiscount,
@@ -1006,7 +1036,7 @@ return payload;
       saleId: formData.saleId,
       products: rowInputs,
       currency: selectedCurrency,
-      totalDiscount: clampPct(formData.totalDiscount), // NEW
+      totalDiscount: totals.totalDiscountPct, // normalized percentage
       subtotal: totals.subtotal,                       // NEW
       subtotalAfterTotalDiscount: totals.subtotalAfterTotalDiscount, // NEW
       vatAmount: totals.vatAmount,                     // NEW
@@ -1097,12 +1127,15 @@ return payload;
   const sharedGroupSeen = new Set();
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
+    <div className={styles.quotationPage}>
+      <form onSubmit={handleSubmit} className={styles.quotationForm}>
         <div className={styles.container}>
-          <div>Quotation ID: {formData.quotationId}</div>
+          <div className={styles.quoteHeader}>
+            <span className={styles.quoteIdLabel}>Quotation ID</span>
+            <span className={styles.quoteIdValue}>{formData.quotationId}</span>
+          </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+          <div className={styles.quoteActionRow}>
             <button type="button" className={styles.DownloadButton} onClick={handleEdit}>
               Edit
             </button>
@@ -1147,7 +1180,7 @@ return payload;
             </button>
           </div>
 
-          <div className={styles.form1} style={{ marginTop: 12 }}>
+          <div className={`${styles.form1} ${styles.quoteDetailsGrid}`}>
             <input type="hidden" name="id" value={params.id} />
             <div className={styles.inputContainer}>
               <label className={styles.label}>Admin Name:</label>
@@ -1259,7 +1292,7 @@ return payload;
                 </select>
               </div>
             </div>
-            <div style={{ marginTop: 8 }}>
+            <div className={styles.onlyOfficeRow}>
               <button type="button" className={styles.DownloadButton} onClick={openOnlyOfficeEditor}>
                 Edit template (OnlyOffice)
               </button>
@@ -1519,27 +1552,41 @@ return payload;
               </div>
             )}
 
-            {/* NEW: Total Discount % on subtotal */}
-            <div className={styles.inputContainer} style={{ marginTop: 12 }}>
-              <label className={styles.label}>Total Discount % (optional):</label>
-              <input
-                className={styles.input}
-                placeholder="0"
-                value={formData.totalDiscount}
-                onChange={(e) => handleInputChange("totalDiscount", e.target.value)}
-              />
+            {/* Total discount can be percent or fixed amount */}
+            <div className={`${styles.inputContainer} ${styles.totalDiscountInput}`}>
+              <label className={styles.label}>Total Discount (optional):</label>
+              <div className={styles.discountInputRow}>
+                <input
+                  className={styles.input}
+                  placeholder={formData.totalDiscountType === "PERCENT" ? "0 or 10%" : "0.00"}
+                  value={formData.totalDiscount}
+                  onChange={(e) => handleInputChange("totalDiscount", e.target.value)}
+                />
+                <select
+                  className={styles.select}
+                  value={formData.totalDiscountType || "PERCENT"}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      totalDiscountType: e.target.value,
+                      totalDiscount: "",
+                    }))
+                  }
+                >
+                  <option value="PERCENT">%</option>
+                  <option value="AMOUNT">Amount</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
         <div className={styles.container}>
-          <div className={styles.form5}>
+          <div className={`${styles.form5} ${styles.totalsCard}`}>
             {/* CHANGED: use new totals */}
             <p>Subtotal (after line discounts): {formatCurrency(totals.subtotal)}</p>
-            <p>
-              Subtotal after Total Discount ({formatCurrency(formData.totalDiscount)}%):{" "}
-              {formatCurrency(totals.subtotalAfterTotalDiscount)}
-            </p>
+            <p>Discount: {formatCurrency(totals.discountAmount)} ({formatCurrency(totals.totalDiscountPct)}%)</p>
+            <p>Subtotal after Total Discount: {formatCurrency(totals.subtotalAfterTotalDiscount)}</p>
             <p>VAT ({selectedCurrency === "USD" ? "0%" : "15%"}): {formatCurrency(totals.vatAmount)}</p>
             <p>Total (Incl. VAT): {formatCurrency(totals.totalUnitPriceWithVAT)}</p>
           </div>
@@ -1596,7 +1643,11 @@ return payload;
               />
             </div>
 
-            <button type="submit">Update</button>
+            <div className={styles.submitRow}>
+              <button type="submit" className={styles.submitInlineButton}>
+                Update
+              </button>
+            </div>
           </div>
         </div>
       </form>
@@ -1611,29 +1662,13 @@ return payload;
             }
             setPdfUrl(null);
           }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
+          className={styles.previewOverlay}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff",
-              width: "80%",
-              height: "80%",
-              borderRadius: 8,
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
-            }}
+            className={styles.previewCard}
           >
-            <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", display: "flex", gap: 8 }}>
+            <div className={styles.previewToolbar}>
               <button
                 className={styles.DownloadButton}
                 onClick={() => {
@@ -1671,13 +1706,13 @@ return payload;
                   }
                   setPdfUrl(null);
                 }}
-                style={{ marginLeft: "auto" }}
+                className={styles.previewClose}
               >
                 ✖
               </button>
             </div>
 
-            <div style={{ flex: 1 }}>
+            <div className={styles.previewContent}>
               {pdfUrl ? (
                 <iframe title="Quotation Preview" src={pdfUrl} width="100%" height="100%" style={{ border: "none" }} />
               ) : (
@@ -1692,32 +1727,13 @@ return payload;
 {isDescPopupOpen && (
   <div
     onClick={() => setIsDescPopupOpen(false)}
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.7)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 2000,
-    }}
+    className={styles.descOverlay}
   >
     <div
       onClick={(e) => e.stopPropagation()}
-      style={{
-        background: "#0f172a",
-        color: "#e5e7eb",
-        width: "80%",
-        maxWidth: "1000px",
-        borderRadius: "10px",
-        padding: "24px",
-        boxShadow: "0 0 40px rgba(0,0,0,0.5)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
+      className={styles.descCard}
     >
-      <h2 style={{ color: "#fff", margin: 0 }}>Edit Product Description</h2>
+      <h2 className={styles.descTitle}>Edit Product Description</h2>
 
   
 
@@ -1736,17 +1752,10 @@ return payload;
   }}
 />
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+      <div className={styles.descActions}>
         <button
           onClick={() => setIsDescPopupOpen(false)}
-          style={{
-            padding: "8px 14px",
-            background: "#334155",
-            color: "#e5e7eb",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
+          className={styles.descCancel}
         >
           Cancel
         </button>
@@ -1756,14 +1765,7 @@ return payload;
               handleRowInputChange(activeDescIndex, "description", richDescValue);
             setIsDescPopupOpen(false);
           }}
-          style={{
-            padding: "8px 14px",
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
+          className={styles.descSave}
         >
           Save
         </button>

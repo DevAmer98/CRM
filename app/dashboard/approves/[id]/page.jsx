@@ -5,8 +5,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { FaPlus, FaTrash, FaTag, FaEdit, FaUnlink } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { updateQuotationApprove } from "@/app/lib/actions";
-import { buildQuotationPayload } from "@/app/lib/buildQuotationPayload";
 import { decodeHtmlEntities } from "@/app/lib/richTextUtils";
+import { UNIT_MERGE_CONT_TOKEN, UNIT_MERGE_START_TOKEN } from "@/app/lib/sharedPriceTokens";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
@@ -36,6 +36,7 @@ const SingleApprovePage = ({ params }) => {
     paymentDelivery: "",
     validityPeriod: "",
     note: "",
+    warranty: "",
     excluding: "",
     totalDiscount: 0,
   });
@@ -44,6 +45,8 @@ const SingleApprovePage = ({ params }) => {
   const [showTitles, setShowTitles] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [sharedPriceValue, setSharedPriceValue] = useState("");
+  const [synologyUploading, setSynologyUploading] = useState(false);
+  const [synologyStatus, setSynologyStatus] = useState("");
 
   // ---------- helpers ----------
   const clampPct = (n) => Math.min(Math.max(Number(n || 0), 0), 100);
@@ -51,6 +54,15 @@ const SingleApprovePage = ({ params }) => {
     new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
       Number(v || 0)
     );
+  const currencyFields = (currency) => {
+    const isSAR = currency === "SAR";
+    return {
+      isSAR,
+      CurrencyWrap: isSAR ? "" : "(USD)",
+      CurrencyNote: isSAR ? "" : "All prices in USD",
+      CurrencySymbol: isSAR ? "" : "$",
+    };
+  };
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, "").trim();
 
   const sharedGroupMeta = useMemo(() => {
@@ -294,6 +306,7 @@ function wrapDesc(text, maxLen = 40) {
       paymentDelivery: quotation.paymentDelivery || "",
       validityPeriod: quotation.validityPeriod || "",
       note: quotation.note || "",
+      warranty: quotation.warranty || "",
       excluding: quotation.excluding || "",
       totalDiscount: Number(quotation.totalDiscount || 0),
     });
@@ -477,35 +490,159 @@ function wrapDesc(text, maxLen = 40) {
   };
 
   // ---------- document builder ----------
-  const buildDocumentData = () => {
-    const adminName = 
-      users?.find((u) => u._id === formData.user)?.username || "N/A";
-    const data = buildQuotationPayload(quotation, selectedCurrency, adminName);
+  const buildDocumentData = (mode = "word-to-pdf") => {
+    const createdAt = new Date(quotation?.updatedAt || quotation?.createdAt || Date.now());
+    const formatReadableDate = (dateInput) =>
+      new Date(dateInput || Date.now())
+        .toLocaleDateString("en-US", { year: "numeric", month: "long", day: "2-digit" })
+        .toUpperCase();
 
-    data.Sections?.forEach((section) => {
-      section.Items?.forEach((item) => {
-        item.DescriptionRich = wrapDesc(
-          item.DescriptionRich || item.Description || ""
-        );
+    const clientForDoc = quotation?.client || {};
+    const saleForDoc = quotation?.sale || {};
+    const adminName =
+      users?.find((u) => u._id === formData.user)?.username ||
+      quotation?.user?.employee?.name ||
+      quotation?.user?.username ||
+      "N/A";
+    const companyProfile = quotation?.companyProfile || "SMART_VISION";
+    const companyLabel = companyProfile === "ARABIC_LINE" ? "ArabicLine" : "Smart Vision";
+    const templateId = companyProfile === "ARABIC_LINE" ? "quotation-arabic-line" : "quotation-v1";
+    const cf = currencyFields(selectedCurrency);
+    const vatRate = selectedCurrency === "USD" ? 0 : 15;
+
+    const Sections = [];
+    const sharedGroupTracker = new Map();
+    let currentSection = null;
+    let lastTitle = "";
+    let globalRowCounter = 0;
+
+    rows.forEach((r, idx) => {
+      let startNew = false;
+      let title = "";
+      if (showTitles[idx]) {
+        const norm = (r.titleAbove || "").trim();
+        if (norm && norm !== lastTitle) {
+          startNew = true;
+          title = norm;
+          lastTitle = norm;
+        }
+      }
+      if (startNew || !currentSection) {
+        sharedGroupTracker.clear();
+        currentSection = {
+          Title: title,
+          TitleRow: title ? [{ Title: title }] : [],
+          Items: [],
+          __counter: 0,
+        };
+        Sections.push(currentSection);
+      }
+
+      currentSection.__counter += 1;
+      globalRowCounter += 1;
+
+      const qty = Number(r.qty || 0);
+      const unit = Number(r.unit || 0);
+      const rowSubtotal = getRowLineTotal(r);
+      const descLines = wrapDesc(r.description || "");
+
+      const sharedGroupId = (r.sharedGroupId || "").trim();
+      const sharedGroupPrice =
+        r.sharedGroupPrice !== null && r.sharedGroupPrice !== undefined
+          ? Number(r.sharedGroupPrice)
+          : undefined;
+      const hasSharedPrice = !!sharedGroupId && Number.isFinite(sharedGroupPrice);
+      const seenCount = hasSharedPrice ? sharedGroupTracker.get(sharedGroupId) || 0 : 0;
+      const isFirstSharedRow = hasSharedPrice && seenCount === 0;
+      if (hasSharedPrice) sharedGroupTracker.set(sharedGroupId, seenCount + 1);
+
+      currentSection.Items.push({
+        Number: String(globalRowCounter).padStart(3, "0"),
+        ProductCode: (r.productCode || "—").toUpperCase(),
+        DescriptionRich: descLines,
+        DescriptionLines: descLines.join("\n"),
+        Description: cleanHTML(r.description || "").toUpperCase(),
+        Qty: qty,
+        Unit: hasSharedPrice
+          ? isFirstSharedRow
+            ? `${formatCurrency(sharedGroupPrice)}${UNIT_MERGE_START_TOKEN}`
+            : `${formatCurrency(sharedGroupPrice)}${UNIT_MERGE_CONT_TOKEN}`
+          : formatCurrency(unit),
+        UnitPrice: hasSharedPrice
+          ? isFirstSharedRow
+            ? `${formatCurrency(rowSubtotal)}${UNIT_MERGE_START_TOKEN}`
+            : `${formatCurrency(rowSubtotal)}${UNIT_MERGE_CONT_TOKEN}`
+          : formatCurrency(rowSubtotal),
       });
     });
 
-    // Fields matching PDF detection logic
     const subtotal = totals.subtotal;
-    const subtotalAfter = totals.subtotalAfterTotalDiscount;
-    const totalPrice = totals.total;
-    const discountPct = clampPct(formData.totalDiscount);
-    const discountAmt = subtotal - subtotalAfter;
+    const subtotalAfterTotalDiscount = totals.subtotalAfterTotalDiscount;
+    const netPrice = totals.total;
+    const vatPrice = totals.vatAmount;
+    const totalDiscountPct = clampPct(formData.totalDiscount);
 
-    data.discountPer = discountPct;
-    data.discountAmount = discountAmt;
-    data.Subtotal = subtotal;
-    data.SubtotalAfterTotalDiscount = subtotalAfter;
-    data.TotalPrice = subtotal;
-    data.NetPrice = totalPrice;
-    data.TotalDiscountPct = discountPct;
+    return {
+      renderMode: mode,
+      templateId,
 
-    return data;
+      QuotationNumber: (formData.quotationId || "").toUpperCase(),
+      AdminName: adminName.toUpperCase(),
+      ClientName: (formData.clientName || clientForDoc.name || "").toUpperCase(),
+      CreatedAt: formatReadableDate(createdAt),
+      ProjectName: (formData.projectName || "").toUpperCase(),
+      ProjectLA: (formData.projectLA || "").toUpperCase(),
+      SaleName: (saleForDoc.name || "").toUpperCase(),
+      ClientContactName: (clientForDoc.contactName || "").toUpperCase(),
+      userName: (quotation?.user?.username || "").toUpperCase(),
+      ClientPhone: (clientForDoc.phone || "").toUpperCase(),
+      UserPhone: (saleForDoc.phone || "").toUpperCase(),
+      UserEmail: saleForDoc.email || "",
+      UserAddress: (saleForDoc.address || "").toUpperCase(),
+      ClientContactMobile: (clientForDoc.contactMobile || "").toUpperCase(),
+      ClientEmail: clientForDoc.email || "",
+      ClientAddress: (clientForDoc.address || "").toUpperCase(),
+
+      CompanyProfile: companyProfile,
+      CompanyName: companyLabel.toUpperCase(),
+
+      Currency: (selectedCurrency || "").toUpperCase(),
+
+      TotalPrice: formatCurrency(subtotal),
+      TotalDiscountPct: totalDiscountPct,
+      SubtotalAfterTotalDiscount: formatCurrency(subtotalAfterTotalDiscount),
+      VatRate: vatRate,
+      VatPrice: formatCurrency(vatPrice),
+      NetPrice: formatCurrency(netPrice),
+
+      CurrencyWrap: (cf.CurrencyWrap || "").toUpperCase(),
+      CurrencyNote: (cf.CurrencyNote || "").toUpperCase(),
+      CurrencySymbol: (cf.CurrencySymbol || "").toUpperCase(),
+      IsSAR: cf.isSAR,
+      IsUSD: !cf.isSAR,
+
+      TotalAfter: formatCurrency(subtotalAfterTotalDiscount),
+
+      discountPer: totalDiscountPct > 0 ? `${clampPct(totalDiscountPct)}%` : "0%",
+      discountAmount:
+        totalDiscountPct > 0
+          ? formatCurrency(subtotal - subtotalAfterTotalDiscount)
+          : formatCurrency(0),
+
+      ValidityPeriod: (formData.validityPeriod || "No Validity Period").toUpperCase(),
+      PaymentTerm: (formData.paymentTerm || "No Payment Term").toUpperCase(),
+      PaymentDelivery: (formData.paymentDelivery || "No Delivery Term").toUpperCase(),
+      Note: formData.note && formData.note.trim() !== "" ? formData.note.toUpperCase() : undefined,
+      Warranty:
+        formData.warranty && formData.warranty.trim() !== ""
+          ? formData.warranty.toUpperCase()
+          : undefined,
+      Excluding:
+        formData.excluding && formData.excluding.trim() !== ""
+          ? formData.excluding.toUpperCase()
+          : undefined,
+      Sections,
+    };
   };
 
   const downloadDoc = async (endpoint, ext) => {
@@ -533,12 +670,47 @@ function wrapDesc(text, maxLen = 40) {
     }
   };
 
+  const uploadQuotationDocument = async () => {
+    try {
+      const data = buildDocumentData();
+      const res = await fetch(`${domain}/api/loadQuoToSynology`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`Server responded with status: ${res.status}, message: ${t}`);
+      }
+      alert("PDF uploaded successfully!");
+    } catch (err) {
+      console.error("Upload error:", err);
+      alert((err && err.message) || "Upload failed.");
+      throw err;
+    }
+  };
+
+  const uploadPdfToSynology = async () => {
+    if (synologyUploading) return;
+    setSynologyUploading(true);
+    setSynologyStatus("Uploading...");
+    try {
+      await uploadQuotationDocument();
+      setSynologyStatus("Uploaded to Synology");
+    } catch {
+      setSynologyStatus("Upload failed");
+    } finally {
+      setSynologyUploading(false);
+    }
+  };
+
   // ---------- render ----------
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error loading approval: {error}</div>;
   if (!quotation) return null;
 
   const sharedGroupSeen = new Set();
+  const canGenerateDocs = rows.length > 0 && !!formData.user;
 
   return (
     <div>
@@ -555,18 +727,29 @@ function wrapDesc(text, maxLen = 40) {
           >
             <button
               type="button"
-              className={styles.DownloadButton}
+              className={`${styles.DownloadButton} ${canGenerateDocs ? "" : styles.DisabledButton}`}
               onClick={() => downloadDoc("loadQuoWord", "docx")}
+              disabled={!canGenerateDocs}
             >
               Download WORD
             </button>
             <button
               type="button"
-              className={styles.DownloadButton}
+              className={`${styles.DownloadButton} ${canGenerateDocs ? "" : styles.DisabledButton}`}
               onClick={() => downloadDoc("loadQuoPdf", "pdf")}
+              disabled={!canGenerateDocs}
             >
               Download PDF
             </button>
+            <button
+              type="button"
+              className={`${styles.DownloadButton} ${canGenerateDocs ? "" : styles.DisabledButton}`}
+              onClick={uploadPdfToSynology}
+              disabled={!canGenerateDocs || synologyUploading}
+            >
+              {synologyUploading ? "Uploading..." : "Upload To Synology"}
+            </button>
+            {synologyStatus ? <span>{synologyStatus}</span> : null}
           </div>
 
           <div className={styles.form1} style={{ marginTop: 12 }}>
