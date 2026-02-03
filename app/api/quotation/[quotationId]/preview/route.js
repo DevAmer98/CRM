@@ -31,11 +31,37 @@ function ensureCustomDir() {
   }
 }
 
+function isRenderableTemplateBuffer(buffer) {
+  try {
+    const zip = new PizZip(buffer);
+    const xml = zip.file("word/document.xml")?.asText() || "";
+    const plain = xml
+      .replace(/<[^>]+>/g, "")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&");
+    const hasQuotationToken = plain.includes("{QuotationNumber}");
+    const hasLoopToken =
+      plain.includes("{#Sections}") || plain.includes("{#Items}");
+    return hasQuotationToken && hasLoopToken;
+  } catch {
+    return false;
+  }
+}
+
 function getSavedTemplateBuffer(templateFile) {
   ensureCustomDir();
   const customPath = path.join(CUSTOM_TEMPLATE_DIR, templateFile);
   if (fs.existsSync(customPath)) {
-    return { buffer: fs.readFileSync(customPath), templateFile: path.basename(customPath) };
+    const buffer = fs.readFileSync(customPath);
+    if (!isRenderableTemplateBuffer(buffer)) {
+      console.warn(
+        "⚠️ Ignoring custom template because it appears to be a filled document (tokens missing):",
+        customPath
+      );
+      return null;
+    }
+    return { buffer, templateFile: path.basename(customPath) };
   }
   return null;
 }

@@ -417,9 +417,12 @@ const quotationSchema = new Schema(
         productCode: { type: String },
         unitPrice: { type: Number },          // store the discounted line total
         unit: { type: Number },
+        unitType: { type: String },
         qty: { type: Number },
         description: { type: String },
         titleAbove: { type: String },
+        subtitleAbove: { type: String },
+        isSubtitleOnly: { type: Boolean, default: false },
         discount: { type: Number, min: 0, max: 100 }, // NEW: per-line discount %
         sharedGroupId: { type: String },
         sharedGroupPrice: { type: Number },

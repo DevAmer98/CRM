@@ -212,6 +212,86 @@
   color: #ffffff;
 }
 
+.titleToggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.titleToggleButton:hover {
+  background: rgba(245, 158, 11, 0.22);
+  color: #fef3c7;
+}
+
+.titleToggleButtonActive {
+  background: #d97706;
+  border-color: #b45309;
+  color: #ffffff;
+}
+
+.subtitleToggleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  border: 1px solid #0ea5e9;
+  background: rgba(14, 165, 233, 0.12);
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.subtitleToggleButton:hover {
+  background: rgba(14, 165, 233, 0.22);
+  color: #e0f2fe;
+}
+
+.subtitleToggleButtonActive {
+  background: #0284c7;
+  border-color: #0369a1;
+  color: #ffffff;
+}
+
+.addSubtitleButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 62px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #0f766e;
+  border-radius: 9999px;
+  background: #0d9488;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.addSubtitleButton:hover {
+  background: #0f766e;
+  border-color: #115e59;
+}
+
 /* Make the + icon button feel consistent in the same row */
 .iconButton.addButton {
   width: 36px;

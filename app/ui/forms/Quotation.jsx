@@ -16,8 +16,12 @@ const buildRow = (overrides = {}) => ({
   productCode: '',
   qty: 0,
   unit: 0,
+  unitType: '',
   discount: 0,
   description: '',
+  titleAbove: '',
+  subtitleAbove: '',
+  isSubtitleOnly: false,
   sharedGroupId: null,
   sharedGroupPrice: null,
   ...overrides,
@@ -35,85 +39,128 @@ const handleExcelUpload = (file, setRows, toast) => {
     try {
       const data = new Uint8Array(e.target.result);
       const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
-      // 🔍 1️⃣ Find header row (accept price subtotal or unit price)
-      const headerIndex = rows.findIndex((r) => {
-        const text = r.join(" ").toLowerCase();
-        const hasDesc = text.includes("description") || text.includes("product");
-        const hasQty = text.includes("qty") || text.includes("quantity");
-        const hasPrice =
-          text.includes("sub-total") ||
-          text.includes("subtotal") ||
-          text.includes("rate") ||
-          text.includes("price") ||
-          text.includes("amount") ||
-          text.includes("unit");
-        return hasDesc && hasQty && hasPrice;
-      });
-
-      if (headerIndex === -1) {
-        toast.error("Could not detect a valid product header row.");
-        console.warn("HEADER SEARCH FAILED", rows.slice(0, 10));
-        return;
-      }
-
-      // 🧭 2️⃣ Map header columns dynamically
-      const header = rows[headerIndex].map((h) => h.toString().toLowerCase().trim());
-
-      const colIndex = {
-        itemNo: header.findIndex((h) => h.includes("item")),
-        productCode: header.findIndex((h) => h.includes("product") || h.includes("code")),
-        description: header.findIndex((h) => h.includes("description")),
-        qty: header.findIndex((h) => h.startsWith("qty") || h.includes("quantity")),
-        unit: header.findIndex((h) => h === "unit" || h.includes("unit")),
-        subtotal: header.findIndex(
-          (h) =>
-            h.includes("sub-total") ||
-            h.includes("subtotal") ||
-            h.includes("rate") ||
-            h.includes("price") ||
-            h.includes("amount")
-        ),
-      };
-
-      // 🧩 3️⃣ Extract product rows after the header
       const products = [];
-      for (let i = headerIndex + 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r || r.every((v) => !v)) continue;
+      let parsedSheets = 0;
 
-        const desc = (r[colIndex.description] || "").toString().trim();
-        if (!desc) continue;
+      for (const sheetName of workbook.SheetNames) {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
 
-        // skip irrelevant lines like "Included", "Notes", "Division"
-        const skipWords = ["included", "note", "division", "page"];
-        if (skipWords.some((w) => desc.toLowerCase().includes(w))) continue;
+        // 🔍 Find header row per sheet
+        const headerIndex = rows.findIndex((r) => {
+          const text = r.join(" ").toLowerCase();
+          const hasDesc = text.includes("description") || text.includes("product");
+          const hasQty = text.includes("qty") || text.includes("quantity");
+          const hasPrice =
+            text.includes("sub-total") ||
+            text.includes("subtotal") ||
+            text.includes("rate") ||
+            text.includes("price") ||
+            text.includes("amount") ||
+            text.includes("unit");
+          return hasDesc && hasQty && hasPrice;
+        });
+        if (headerIndex === -1) continue;
 
-        const qtyRaw = r[colIndex.qty]?.toString() || "";
-        const qty = parseFloat(qtyRaw.replace(/[^\d.]/g, "")) || 0;
+        const header = rows[headerIndex].map((h) => h.toString().toLowerCase().trim());
+        const colIndex = {
+          itemNo: header.findIndex((h) => h.includes("item")),
+          productCode: header.findIndex((h) => h.includes("product") || h.includes("code")),
+          description: header.findIndex((h) => h.includes("description")),
+          qty: header.findIndex((h) => h.startsWith("qty") || h.includes("quantity")),
+          uom: header.findIndex(
+            (h) => h === "uom" || h === "unit" || h.includes("unit of measure")
+          ),
+          unitPrice: header.findIndex(
+            (h) => h.includes("unit price") || h === "price" || h.includes("rate")
+          ),
+          total: header.findIndex(
+            (h) =>
+              h.includes("sub-total") ||
+              h.includes("subtotal") ||
+              h === "total" ||
+              h.includes("amount")
+          ),
+        };
 
-        const subtotalRaw = r[colIndex.subtotal]?.toString() || "";
-        const subtotal = parseFloat(subtotalRaw.replace(/[^\d.]/g, "")) || 0;
+        const sheetProducts = [];
+        for (let i = headerIndex + 1; i < rows.length; i++) {
+          const r = rows[i];
+          if (!r || r.every((v) => !v)) continue;
 
-        const unitRaw = r[colIndex.unit]?.toString() || "";
-        const unitValue = parseFloat(unitRaw.replace(/[^\d.]/g, "")) || 0;
+          const desc = (r[colIndex.description] || "").toString().trim();
+          if (!desc) continue;
 
-        if (qty === 0 && subtotal === 0 && unitValue === 0) continue;
+          const skipWords = ["included", "note", "division", "page"];
+          if (skipWords.some((w) => desc.toLowerCase().includes(w))) continue;
 
-        // Compute unit price (prefer subtotal/qty when subtotal exists)
-        const unitPrice = subtotal > 0 ? (qty > 0 ? subtotal / qty : subtotal) : unitValue;
+          const itemNoRaw = (r[colIndex.itemNo] || "").toString().trim();
+          const normalizedItemNo = itemNoRaw.replace(/\s+/g, "").replace(/\.+$/g, "");
+          const itemLevel = normalizedItemNo
+            ? normalizedItemNo.split(".").filter(Boolean).length
+            : 0;
 
-        products.push(
-          buildRow({
-            productCode: r[colIndex.productCode]?.toString().trim() || "",
-            description: desc,
-            qty,
-            unit: unitPrice || 0,
-            discount: 0,
-          })
-        );
+          const qtyRaw = r[colIndex.qty]?.toString() || "";
+          const qty = parseFloat(qtyRaw.replace(/[^\d.]/g, "")) || 0;
+
+          const unitPriceRaw = r[colIndex.unitPrice]?.toString() || "";
+          const unitPriceValue = parseFloat(unitPriceRaw.replace(/[^\d.]/g, "")) || 0;
+
+          const totalRaw = r[colIndex.total]?.toString() || "";
+          const totalValue = parseFloat(totalRaw.replace(/[^\d.]/g, "")) || 0;
+
+          const rawUom = (r[colIndex.uom] || "").toString().trim();
+          const normalizedUom = rawUom.toUpperCase();
+          const unitType = UNIT_OPTIONS.find((u) => u.toUpperCase() === normalizedUom) || "";
+          const hasNumericValues = qty > 0 || unitPriceValue > 0 || totalValue > 0;
+
+          if (!hasNumericValues) {
+            if (itemLevel === 1) {
+              sheetProducts.push(
+                buildRow({
+                  titleAbove: desc,
+                  isSubtitleOnly: true,
+                })
+              );
+              continue;
+            }
+            if (itemLevel >= 2) {
+              sheetProducts.push(
+                buildRow({
+                  subtitleAbove: desc,
+                  isSubtitleOnly: true,
+                })
+              );
+              continue;
+            }
+            continue;
+          }
+
+          const unitPrice =
+            unitPriceValue > 0
+              ? unitPriceValue
+              : totalValue > 0
+              ? qty > 0
+                ? totalValue / qty
+                : totalValue
+              : 0;
+
+          sheetProducts.push(
+            buildRow({
+              productCode: r[colIndex.productCode]?.toString().trim() || "",
+              description: desc,
+              qty,
+              unit: unitPrice || 0,
+              unitType,
+              discount: 0,
+            })
+          );
+        }
+
+        if (sheetProducts.length) {
+          parsedSheets += 1;
+          products.push(...sheetProducts);
+        }
       }
 
       if (!products.length) {
@@ -122,7 +169,7 @@ const handleExcelUpload = (file, setRows, toast) => {
       }
 
       setRows(products);
-      toast.success(`Loaded ${products.length} products successfully!`);
+      toast.success(`Loaded ${products.length} products from ${parsedSheets} sheet(s)!`);
     } catch (err) {
       console.error("EXCEL PARSE ERROR", err);
       toast.error("Failed to parse Excel file. Please check format.");
@@ -137,15 +184,19 @@ const COMPANY_OPTIONS = [
   { value: 'SMART_VISION', label: 'Smart Vision' },
   { value: 'ARABIC_LINE', label: 'ArabicLine' },
 ];
+const UNIT_OPTIONS = ['m', 'm2', 'm3', 'PCS', 'LM', 'L/S', 'Roll', 'EA', 'Trip'];
 
 /* ---------------- Schema ---------------- */
 const productSchema = z.object({
   productCode: z.string().optional(),
   unitPrice: z.number().optional(),
   unit: z.number().optional(),
+  unitType: z.string().optional(),
+  isSubtitleOnly: z.boolean().optional(),
   qty: z.number().optional(),
   description: z.string().optional(),
   titleAbove: z.string().optional(),
+  subtitleAbove: z.string().optional(),
   discount: z.number().min(0).max(100).optional(),
   sharedGroupId: z.string().nullable().optional(),
   sharedGroupPrice: z.number().nullable().optional(),
@@ -179,6 +230,7 @@ const AddQuotation = () => {
   const [rows, setRows] = useState([buildRow()])
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const [showTitles, setShowTitles] = useState([false])
+  const [showSubtitles, setShowSubtitles] = useState([false])
   const [isDescPopupOpen, setIsDescPopupOpen] = useState(false)
   const [activeDescIndex, setActiveDescIndex] = useState(null)
   const [richDescValue, setRichDescValue] = useState('')
@@ -344,6 +396,13 @@ const cleanQuillHtml = (html) => {
   const addRow = () => {
     setRows((prev) => [...prev, buildRow()])
     setShowTitles((prev) => [...prev, false])
+    setShowSubtitles((prev) => [...prev, false])
+    setSelectedRows([])
+  }
+  const addSubtitleRow = () => {
+    setRows((prev) => [...prev, buildRow({ isSubtitleOnly: true })])
+    setShowTitles((prev) => [...prev, false])
+    setShowSubtitles((prev) => [...prev, true])
     setSelectedRows([])
   }
 
@@ -351,11 +410,15 @@ const cleanQuillHtml = (html) => {
     const updated = rows.filter((_, i) => i !== index)
     setRows(updated)
     setShowTitles((prev) => prev.filter((_, i) => i !== index))
+    setShowSubtitles((prev) => prev.filter((_, i) => i !== index))
     setSelectedRows([])
   }
 
   const toggleTitleForRow = (index) => {
     setShowTitles((prev) => prev.map((v, i) => (i === index ? !v : v)))
+  }
+  const toggleSubtitleForRow = (index) => {
+    setShowSubtitles((prev) => prev.map((v, i) => (i === index ? !v : v)))
   }
 
   /* ---------- Calculations ---------- */
@@ -389,19 +452,37 @@ const cleanQuillHtml = (html) => {
     let currentSectionTitle
     rows.forEach((row, i) => {
       if (showTitles[i]) {
-        const raw = form[`titleAbove${i}`]?.value ?? ''
-        const cleaned = raw.trim()
+        const cleaned = String(row.titleAbove || '').trim()
         currentSectionTitle = cleaned || undefined
       }
+      const subtitleCleaned = String(row.subtitleAbove || '').trim()
       const lineTotal = getRowLineTotal(row)
+      const hasLineContent =
+        !!String(row.productCode || '').trim() ||
+        !!String(row.description || '').trim() ||
+        Number(row.qty || 0) > 0 ||
+        Number(row.unit || 0) > 0
+
+      if (row.isSubtitleOnly && !hasLineContent) {
+        products.push({
+          number: i + 1,
+          titleAbove: currentSectionTitle,
+          subtitleAbove: showSubtitles[i] ? (subtitleCleaned || undefined) : undefined,
+          isSubtitleOnly: true,
+        })
+        return
+      }
       products.push({
         number: i + 1,
         productCode: row.productCode,
         unit: Number(row.unit || 0),
+        unitType: row.unitType || undefined,
+        isSubtitleOnly: false,
         qty: Number(row.qty || 0),
         unitPrice: Number(lineTotal.toFixed(2)),
         description: row.description || '',
         titleAbove: currentSectionTitle,
+        subtitleAbove: showSubtitles[i] ? (subtitleCleaned || undefined) : undefined,
         discount: row.discount || undefined,
         sharedGroupId: row.sharedGroupId || undefined,
         sharedGroupPrice:
@@ -535,7 +616,8 @@ const cleanQuillHtml = (html) => {
                 <td>Code</td>
                 <td>Description</td>
                 <td>Qty</td>
-                <td>Unit</td>
+                <td>UOM</td>
+                <td>Unit Price</td>
                 <td>Discount %</td>
                 <td>Total</td>
                 <td>Actions</td>
@@ -545,7 +627,10 @@ const cleanQuillHtml = (html) => {
             {rows.map((r, i) => (
   <React.Fragment key={i}>
     {showTitles[i] && (
-      <tr><td colSpan={9}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" /></td></tr>
+      <tr><td colSpan={10}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" value={r.titleAbove || ''} onChange={(e) => handleRowInputChange(i, 'titleAbove', e.target.value)} /></td></tr>
+    )}
+    {showSubtitles[i] && (
+      <tr><td colSpan={10}><input name={`subtitleAbove${i}`} className={styles.titleInput} placeholder="Section subtitle" value={r.subtitleAbove || ''} onChange={(e) => handleRowInputChange(i, 'subtitleAbove', e.target.value)} /></td></tr>
     )}
     <tr>
       <td>
@@ -591,6 +676,20 @@ const cleanQuillHtml = (html) => {
 
       </td>
       <td><input type="number" className={styles.input1} value={r.qty} onChange={(e) => handleRowInputChange(i, 'qty', e.target.value)} /></td>
+      <td>
+        <select
+          className={styles.input1}
+          value={r.unitType || ''}
+          onChange={(e) => handleRowInputChange(i, 'unitType', e.target.value)}
+        >
+          <option value="">-</option>
+          {UNIT_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </td>
       <td><input type="number" className={styles.input1} value={r.unit} onChange={(e) => handleRowInputChange(i, 'unit', e.target.value)} /></td>
       <td><input type="number" className={styles.input1} value={r.discount} onChange={(e) => handleRowInputChange(i, 'discount', e.target.value)} /></td>
       <td>
@@ -604,10 +703,18 @@ const cleanQuillHtml = (html) => {
   <button
     type="button"
     title="Add Section Title Above"
-    className={`${styles.iconButton} ${showTitles[i] ? styles.titleActive : ''}`}
+    className={`${styles.titleToggleButton} ${showTitles[i] ? styles.titleToggleButtonActive : ''}`}
     onClick={() => toggleTitleForRow(i)}
   >
     <FaTag />
+  </button>
+  <button
+    type="button"
+    title="Add Section Subtitle Above"
+    className={`${styles.subtitleToggleButton} ${showSubtitles[i] ? styles.subtitleToggleButtonActive : ''}`}
+    onClick={() => toggleSubtitleForRow(i)}
+  >
+    SUB
   </button>
 
   {/* Add or Delete Row */}
@@ -628,6 +735,16 @@ const cleanQuillHtml = (html) => {
       title="Remove Product"
     >
       <FaTrash />
+    </button>
+  )}
+  {i === rows.length - 1 && (
+    <button
+      type="button"
+      className={styles.addSubtitleButton}
+      onClick={addSubtitleRow}
+      title="Add Subtitle Row"
+    >
+      +SUB
     </button>
   )}
   {r.sharedGroupId && (
@@ -792,7 +909,8 @@ const cleanQuillHtml = (html) => {
         (importedRows) => {
           if (!Array.isArray(importedRows)) return
           setRows(importedRows)
-          setShowTitles(new Array(importedRows.length).fill(false))
+          setShowTitles(importedRows.map((row) => !!String(row?.titleAbove || '').trim()))
+          setShowSubtitles(importedRows.map((row) => !!String(row?.subtitleAbove || '').trim()))
           setSelectedRows([])
         },
         toast

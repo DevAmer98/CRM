@@ -1752,6 +1752,7 @@ function normalizeSectionTitles(products = []) {
   let last;
   for (const p of products) {
     const norm = (p?.titleAbove ?? "").trim();
+    const subtitleNorm = (p?.subtitleAbove ?? "").trim();
     const title = norm && norm !== last ? norm : undefined; // boundary only
     out.push({
       ...p,
@@ -1762,6 +1763,8 @@ function normalizeSectionTitles(products = []) {
       sharedGroupPrice:
         p?.sharedGroupPrice != null ? Number(p.sharedGroupPrice) : undefined,
       titleAbove: title,
+      subtitleAbove: subtitleNorm || undefined,
+      isSubtitleOnly: Boolean(p?.isSubtitleOnly),
     });
     if (title) last = title;
   }
@@ -2317,8 +2320,18 @@ export const editQuotation = async (formData) => {
             !Number.isNaN(p.sharedGroupPrice));
         const hasTitle =
           typeof p.titleAbove === "string" && p.titleAbove.trim() !== "";
+        const hasSubtitle =
+          typeof p.subtitleAbove === "string" && p.subtitleAbove.trim() !== "";
 
-        return hasDescription || hasCode || hasQty || hasUnit || hasSharedPrice || hasTitle;
+        return (
+          hasDescription ||
+          hasCode ||
+          hasQty ||
+          hasUnit ||
+          hasSharedPrice ||
+          hasTitle ||
+          hasSubtitle
+        );
       });
 
       quotation.products = filteredProducts;

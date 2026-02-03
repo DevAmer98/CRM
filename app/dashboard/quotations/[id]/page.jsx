@@ -17,6 +17,7 @@ const COMPANY_OPTIONS = [
   { value: "SMART_VISION", label: "Smart Vision" },
   { value: "ARABIC_LINE", label: "ArabicLine" },
 ];
+const UNIT_OPTIONS = ["m", "m2", "m3", "PCS", "LM", "L/S", "Roll", "EA", "Trip"];
 
 const SingleQuotation = ({ params }) => {
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
@@ -58,6 +59,7 @@ const [richDescValue, setRichDescValue] = useState("");
   // table rows + title toggles
   const [rows, setRows] = useState([]);
   const [showTitles, setShowTitles] = useState([]);
+  const [showSubtitles, setShowSubtitles] = useState([]);
   const [draggingIndex, setDraggingIndex] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
   const [sharedPriceValue, setSharedPriceValue] = useState("");
@@ -216,6 +218,8 @@ const [richDescValue, setRichDescValue] = useState("");
 
   // ---------- Build data for document preview/upload (SECTIONS) ----------
   const buildDocumentData = (mode = "word-to-pdf") => {
+    const resolvedQuotationNumber =
+      quotation?.quotationId || formData.quotationId || params.id || "";
     if (!rows || rows.length === 0) throw new Error("No product rows available.");
     if (!formData || !quotation) throw new Error("Missing required form data or quotation details.");
 
@@ -316,6 +320,9 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
     let currentSection = null;
     let lastTitle = "";
     let globalRowCounter = 0;
+    let sectionCounter = 0;
+    let subtitleCounter = 0;
+    let itemCounter = 0;
 
     rows.forEach((r, globalIdx) => {
       // section boundary
@@ -332,23 +339,71 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
       if (startNew || !currentSection) {
         // A new title boundary should restart shared-price merges
         sharedGroupTracker.clear();
+        if (startNew) {
+          sectionCounter += 1;
+          subtitleCounter = 0;
+          itemCounter = 0;
+        }
+        const numberedTitle =
+          startNew && sectionCounter > 0 ? `${sectionCounter} ${title}`.trim() : title;
         currentSection = {
-          Title: title,
-          TitleRow: title ? [{ Title: title }] : [],
+          Title: numberedTitle,
+          TitleRow: numberedTitle ? [{ Title: numberedTitle }] : [],
           Items: [],
           __counter: 0,
         };
         Sections.push(currentSection);
       }
 
-      // per-section numbering 001, 002, ...
-      currentSection.__counter += 1;
-      globalRowCounter += 1;
-
       // line totals with discount
       const qty = Number(r.qty || 0);
       const unit = Number(r.unit || 0);
+      const unitType = (r.unitType || "").trim();
       const rowSubtotal = getRowLineTotal(r);
+      const subtitle = (r.subtitleAbove || "").trim();
+
+      if (subtitle) {
+        subtitleCounter += 1;
+        itemCounter = 0;
+        const subtitleNumber =
+          sectionCounter > 0
+            ? `${sectionCounter}.${subtitleCounter}`
+            : String(subtitleCounter);
+        currentSection.Items.push({
+          Number: subtitleNumber,
+          ProductCode: "",
+          DescriptionRich: [subtitle.toUpperCase()],
+          DescriptionLines: subtitle.toUpperCase(),
+          Description: subtitle.toUpperCase(),
+          Subtitle: subtitle,
+          Qty: "",
+          QtyDisplay: "",
+          UnitType: "",
+          Unit: "",
+          UnitPrice: "",
+        });
+      }
+
+      const hasLineContent =
+        !!String(r.productCode || "").trim() ||
+        !!String(r.description || "").trim() ||
+        qty > 0 ||
+        unit > 0 ||
+        rowSubtotal > 0;
+      if (r.isSubtitleOnly && !hasLineContent) {
+        return;
+      }
+
+      // per-section hierarchical numbering
+      currentSection.__counter += 1;
+      globalRowCounter += 1;
+      itemCounter += 1;
+      const rowNumber =
+        sectionCounter > 0
+          ? subtitleCounter > 0
+            ? `${sectionCounter}.${subtitleCounter}.${itemCounter}`
+            : `${sectionCounter}.${itemCounter}`
+          : String(globalRowCounter).padStart(3, "0");
 
       const sharedGroupId = (r.sharedGroupId || "").trim();
       const sharedGroupPrice =
@@ -377,16 +432,20 @@ const normalized = cleanHTML(String(text)).replace(/\r\n?/g, "\n");
         : formatCurrency(rowSubtotal);
       const descLines = wrapDesc(r.description);
 
+      const qtyDisplay = unitType ? `${qty} ${unitType}` : String(qty);
       currentSection.Items.push({
-        Number: String(globalRowCounter).padStart(3, "0"),
+        Number: rowNumber,
         ProductCode: (r.productCode || "—").toUpperCase(),
         // Docx template expects an array for looping; keep a joined string too for single token use.
         DescriptionRich: descLines,
         DescriptionLines: descLines.join("\n"),
         Description: cleanHTML(r.description || "").toUpperCase(),
+        Subtitle: (r.subtitleAbove || "").trim() || "—",
 
 
-        Qty: qty,
+        Qty: qtyDisplay,
+        QtyDisplay: qtyDisplay,
+        UnitType: unitType,
         Unit: unitDisplay,
         UnitPrice: subtotalDisplay,
       });
@@ -423,7 +482,7 @@ const payload = {
   renderMode: mode,
   templateId,
 
-  QuotationNumber: (formData.quotationId || "").toUpperCase(),
+  QuotationNumber: String(resolvedQuotationNumber).toUpperCase(),
   AdminName: (
     quotation.user?.employee?.name ||
     quotation.user?.username ||
@@ -509,7 +568,10 @@ return payload;
   useEffect(() => {
     const getQuotationById = async () => {
       try {
-        const res = await fetch(`/api/quotation/${params.id}`, { method: "GET" });
+        const res = await fetch(`/api/quotation/${params.id}`, {
+          method: "GET",
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         console.groupCollapsed("[QUOTE] raw quotation from API");
@@ -605,6 +667,7 @@ return payload;
 
     const newRows = [];
     const initialShow = [];
+    const initialShowSubtitles = [];
     let prev = undefined;
 
     (quotation.products || []).forEach((product, index) => {
@@ -618,9 +681,12 @@ return payload;
         productCode: product.productCode || "",
         unitPrice: Number(product.unitPrice || 0), // row subtotal (we still recompute below)
         unit: product.unit || "", // unit price
+        unitType: product.unitType || "",
+        isSubtitleOnly: Boolean(product.isSubtitleOnly),
         qty: product.qty || "",
         description: product.description || "",
         titleAbove: isBoundary ? norm : "", // only keep value where a section starts
+        subtitleAbove: product.subtitleAbove || "",
         discount: Number(product.discount || 0), // NEW
         sharedGroupId: product.sharedGroupId || null,
         sharedGroupPrice:
@@ -631,6 +697,7 @@ return payload;
       });
 
       initialShow.push(isBoundary);
+      initialShowSubtitles.push(!!(product.subtitleAbove || "").trim());
       if (isBoundary) prev = norm;
     });
 
@@ -651,6 +718,7 @@ return payload;
 
     setRows(newRows);
     setShowTitles(initialShow);
+    setShowSubtitles(initialShowSubtitles);
     setSelectedRows([]);
   }, [quotation]);
 
@@ -665,12 +733,38 @@ return payload;
       unit: "",
       discount: 0, // NEW
       unitPrice: 0,
+      unitType: "",
+      isSubtitleOnly: false,
       titleAbove: "",
+      subtitleAbove: "",
       sharedGroupId: null,
       sharedGroupPrice: null,
     };
     setRows((prev) => [...prev, newRow]);
     setShowTitles((prev) => [...prev, false]);
+    setShowSubtitles((prev) => [...prev, false]);
+    setSelectedRows((prev) => prev.map((i) => i));
+  };
+  const addSubtitleRow = () => {
+    const newRow = {
+      id: rows.length + 1,
+      number: rows.length + 1,
+      productCode: "",
+      description: "",
+      qty: "",
+      unit: "",
+      discount: 0,
+      unitPrice: 0,
+      unitType: "",
+      isSubtitleOnly: true,
+      titleAbove: "",
+      subtitleAbove: "",
+      sharedGroupId: null,
+      sharedGroupPrice: null,
+    };
+    setRows((prev) => [...prev, newRow]);
+    setShowTitles((prev) => [...prev, false]);
+    setShowSubtitles((prev) => [...prev, true]);
     setSelectedRows((prev) => prev.map((i) => i));
   };
 
@@ -679,6 +773,7 @@ return payload;
     const renumbered = updated.map((r, i) => ({ ...r, id: i + 1, number: i + 1 }));
     setRows(renumbered);
     setShowTitles((prev) => prev.filter((_, i) => i !== index));
+    setShowSubtitles((prev) => prev.filter((_, i) => i !== index));
     setSelectedRows((prev) => prev.filter((i) => i !== index).map((i) => (i > index ? i - 1 : i)));
   };
 
@@ -691,6 +786,12 @@ return payload;
       return updated.map((row, idx) => ({ ...row, id: idx + 1, number: idx + 1 }));
     });
     setShowTitles((prevShow) => {
+      const updated = [...prevShow];
+      const [movedFlag] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, movedFlag);
+      return updated;
+    });
+    setShowSubtitles((prevShow) => {
       const updated = [...prevShow];
       const [movedFlag] = updated.splice(fromIndex, 1);
       updated.splice(toIndex, 0, movedFlag);
@@ -736,6 +837,9 @@ return payload;
 
   const toggleTitleForRow = (index) => {
     setShowTitles((prev) => prev.map((v, i) => (i === index ? !v : v)));
+  };
+  const toggleSubtitleForRow = (index) => {
+    setShowSubtitles((prev) => prev.map((v, i) => (i === index ? !v : v)));
   };
 
   const toggleRowSelection = (index) => {
@@ -800,7 +904,7 @@ return payload;
   const numericFields = ["qty", "unit", "discount"];
   const clean = numericFields.includes(fieldName)
     ? String(value).replace(/[^\d.]/g, "")
-    : typeof value === "string"
+    : fieldName === "productCode" && typeof value === "string"
     ? value.toUpperCase()
     : value;
 
@@ -829,6 +933,11 @@ return payload;
   const handleTitleChange = (index, value) => {
     setRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, titleAbove: value } : row))
+    );
+  };
+  const handleSubtitleChange = (index, value) => {
+    setRows((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, subtitleAbove: value } : row))
     );
   };
 
@@ -947,6 +1056,7 @@ return payload;
 
     rows.forEach((row, index) => {
       let emitTitle;
+      let emitSubtitle;
       if (showTitles[index]) {
         const norm = (row.titleAbove || "").trim();
         if (norm && norm !== last) {
@@ -956,16 +1066,36 @@ return payload;
           emitTitle = undefined; // same as last -> don't repeat
         }
       }
+      if (showSubtitles[index]) {
+        const norm = (row.subtitleAbove || "").trim();
+        emitSubtitle = norm || undefined;
+      }
 
       // NOTE: server may recompute totals;
       // we still send discount and raw inputs.
+      const hasLineContent =
+        !!String(row.productCode || "").trim() ||
+        !!String(row.description || "").trim() ||
+        Number(row.qty || 0) > 0 ||
+        Number(row.unit || 0) > 0;
+      if (row.isSubtitleOnly && !hasLineContent) {
+        out.push({
+          titleAbove: emitTitle,
+          subtitleAbove: emitSubtitle,
+          isSubtitleOnly: true,
+        });
+        return;
+      }
       out.push({
         productCode: row.productCode,
         unitPrice: Number(row.unitPrice || 0), // discounted line total
         unit: Number(row.unit || 0),
+        unitType: row.unitType || undefined,
+        isSubtitleOnly: false,
         qty: Number(row.qty || 0),
         description: row.description,
         titleAbove: emitTitle,        // ONLY first row of section carries the title
+        subtitleAbove: emitSubtitle,
         discount: Number(row.discount || 0), // NEW
         sharedGroupId: row.sharedGroupId || undefined,
         sharedGroupPrice:
@@ -1088,7 +1218,9 @@ return payload;
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `Quotation_${formData.quotationId || params.id}.docx`;
+      const fileQuotationNumber =
+        quotation?.quotationId || formData.quotationId || params.id;
+      a.download = `Quotation_${fileQuotationNumber}.docx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1306,7 +1438,8 @@ return payload;
                   <td>Product Code</td>
                   <td>Description</td>
                   <td>Qty</td>
-                  <td>Unit</td>
+                  <td>UOM</td>
+                  <td>Unit Price</td>
                   <td>Discount %</td> {/* NEW */}
                   <td>Total Price</td>
                   <td>Actions</td>
@@ -1329,13 +1462,26 @@ return payload;
                     {/* Title input row (togglable) */}
                     {showTitles[index] && (
                       <tr className={`${styles.row} ${styles.titleRow}`}>
-                        <td colSpan={9} className={styles.titleRowCell}> {/* CHANGED colSpan */}
+                        <td colSpan={10} className={styles.titleRowCell}> {/* CHANGED colSpan */}
                           <input
                             type="text"
                             placeholder='Section title above this product (e.g., "Electrical Works")'
                             className={styles.titleInput}
                             value={row.titleAbove}
                             onChange={(e) => handleTitleChange(index, e.target.value)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    {showSubtitles[index] && (
+                      <tr className={`${styles.row} ${styles.titleRow}`}>
+                        <td colSpan={10} className={styles.titleRowCell}>
+                          <input
+                            type="text"
+                            placeholder='Section subtitle above this product'
+                            className={styles.titleInput}
+                            value={row.subtitleAbove}
+                            onChange={(e) => handleSubtitleChange(index, e.target.value)}
                           />
                         </td>
                       </tr>
@@ -1401,6 +1547,20 @@ return payload;
                         />
                       </td>
                       <td>
+                        <select
+                          className={styles.input1}
+                          value={row.unitType || ""}
+                          onChange={(e) => handleRowInputChange(index, "unitType", e.target.value)}
+                        >
+                          <option value="">-</option>
+                          {UNIT_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
                         <input
                           className={styles.input1}
                           placeholder="Unit Price"
@@ -1437,14 +1597,28 @@ return payload;
                         {/* Section title toggle */}
                         <button
                           type="button"
-                          className={`${styles.titleButton} ${
-                            showTitles[index] ? styles.titleButtonActive : ""
+                          className={`${styles.titleToggleButton} ${
+                            showTitles[index] ? styles.titleToggleButtonActive : ""
                           }`}
                           onClick={() => toggleTitleForRow(index)}
                           title={showTitles[index] ? "Hide title" : "Add title above row"}
                         >
                           <FaTag size={12} />
                           {showTitles[index] ? "Title" : "Title"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.subtitleToggleButton} ${
+                            showSubtitles[index] ? styles.subtitleToggleButtonActive : ""
+                          }`}
+                          onClick={() => toggleSubtitleForRow(index)}
+                          title={
+                            showSubtitles[index]
+                              ? "Hide subtitle"
+                              : "Add subtitle above row"
+                          }
+                        >
+                          SUB
                         </button>
 
                         {/* Drag handle */}
@@ -1481,14 +1655,24 @@ return payload;
 
                         {/* Only the last row shows the add button */}
                         {index === rows.length - 1 && (
-                          <button
-                            type="button"
-                            className={`${styles.iconButton} ${styles.addButton}`}
-                            onClick={addRow}
-                            title="Add new product"
-                          >
-                            <FaPlus />
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className={`${styles.iconButton} ${styles.addButton}`}
+                              onClick={addRow}
+                              title="Add new product"
+                            >
+                              <FaPlus />
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.addSubtitleButton}
+                              onClick={addSubtitleRow}
+                              title="Add subtitle row"
+                            >
+                              +SUB
+                            </button>
+                          </>
                         )}
                       </td>
                     </tr>

@@ -53,6 +53,9 @@ export function buildQuotationPayload(q) {
   let current = null;
   let lastTitle = "";
   let globalRowCounter = 0;
+  let sectionCounter = 0;
+  let subtitleCounter = 0;
+  let itemCounter = 0;
 
   (q.products || []).forEach((p) => {
     const title = (p.titleAbove || "").trim();
@@ -61,7 +64,16 @@ export function buildQuotationPayload(q) {
     if (title && title !== lastTitle) {
       // Reset shared-price continuation when a title splits the table
       sharedGroupTracker.clear();
-      current = { Title: title, TitleRow: [{ Title: title }], Items: [], __counter: 0 };
+      sectionCounter += 1;
+      subtitleCounter = 0;
+      itemCounter = 0;
+      const numberedTitle = `${sectionCounter} ${title}`.trim();
+      current = {
+        Title: numberedTitle,
+        TitleRow: [{ Title: numberedTitle }],
+        Items: [],
+        __counter: 0,
+      };
       Sections.push(current);
       lastTitle = title;
     }
@@ -72,15 +84,57 @@ export function buildQuotationPayload(q) {
       Sections.push(current);
     }
 
-    current.__counter += 1;
-    globalRowCounter += 1;
-
     const qty = Number(p.qty || 0);
     const unit = Number(p.unit || 0);
+    const unitType = (p.unitType || "").trim();
+    const isSubtitleOnly = Boolean(p.isSubtitleOnly);
     const rowSubtotal = p.unitPrice != null ? Number(p.unitPrice) : unit * qty;
 
     const cleanDescription = richTextToPlainText(p.description || "");
+    const subtitle = (p.subtitleAbove || "").trim();
     const lines = wrapDesc(cleanDescription);
+
+    if (subtitle) {
+      subtitleCounter += 1;
+      itemCounter = 0;
+      const subtitleNumber =
+        sectionCounter > 0
+          ? `${sectionCounter}.${subtitleCounter}`
+          : String(subtitleCounter);
+      current.Items.push({
+        Number: subtitleNumber,
+        ProductCode: "",
+        DescriptionLines: subtitle.toUpperCase(),
+        DescriptionRich: [subtitle.toUpperCase()],
+        Description: subtitle.toUpperCase(),
+        Subtitle: subtitle,
+        Qty: "",
+        QtyDisplay: "",
+        UnitType: "",
+        Unit: "",
+        UnitPrice: "",
+      });
+    }
+
+    const hasLineContent =
+      !!String(p.productCode || "").trim() ||
+      !!String(cleanDescription || "").trim() ||
+      qty > 0 ||
+      unit > 0 ||
+      Number.isFinite(rowSubtotal) && rowSubtotal > 0;
+    if (isSubtitleOnly && !hasLineContent) {
+      return;
+    }
+
+    current.__counter += 1;
+    globalRowCounter += 1;
+    itemCounter += 1;
+    const rowNumber =
+      sectionCounter > 0
+        ? subtitleCounter > 0
+          ? `${sectionCounter}.${subtitleCounter}.${itemCounter}`
+          : `${sectionCounter}.${itemCounter}`
+        : String(globalRowCounter).padStart(3, "0");
 
     const sharedGroupId = (p.sharedGroupId || "").trim();
     const sharedGroupPrice =
@@ -106,8 +160,9 @@ export function buildQuotationPayload(q) {
         : fmt(rowSubtotal)
       : fmt(rowSubtotal);
 
+    const qtyDisplay = unitType ? `${qty} ${unitType}` : String(qty);
     current.Items.push({
-      Number: String(globalRowCounter).padStart(3, "0"),
+      Number: rowNumber,
       ProductCode: (p.productCode || "—").toUpperCase(),
 
       // Use this token in the DOCX description cell
@@ -116,8 +171,11 @@ export function buildQuotationPayload(q) {
       // Optional extras (kept if you ever switch to looping)
       DescriptionRich: lines,
       Description: (cleanDescription || "—").toUpperCase(),
+      Subtitle: subtitle || "—",
 
-      Qty: qty,
+      Qty: qtyDisplay,
+      QtyDisplay: qtyDisplay,
+      UnitType: unitType,
       Unit: unitDisplay,
       UnitPrice: subtotalDisplay,
     });
