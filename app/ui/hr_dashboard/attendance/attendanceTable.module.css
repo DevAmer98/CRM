@@ -1,0 +1,236 @@
+.container {
+  background-color: var(--bgSoft, #0f172a);
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+  box-shadow: var(--shadow-sm, 0 6px 14px rgba(0,0,0,0.15));
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.headline {
+  max-width: 560px;
+}
+
+.title {
+  margin: 0;
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 1.55rem;
+}
+
+.subtitle {
+  color: #94a3b8;
+  margin: 6px 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.dateWrap {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 6px;
+  color: #94a3b8;
+}
+
+.dateInput,
+.selectInput {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 9px 10px;
+}
+
+.selectInput {
+  min-width: 180px;
+}
+
+.dateInput:focus,
+.selectInput:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
+}
+
+.downloadButton {
+  padding: 10px 16px;
+  background-color: #5d57c9;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: .2px;
+  transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  white-space: nowrap;
+}
+
+.downloadButton:hover {
+  background-color: var(--primary, #22d3ee);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.25);
+}
+
+.statsGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  margin-bottom: 16px;
+}
+
+.statCard {
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px dashed #334155;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.statLabel {
+  color: #94a3b8;
+  font-size: .8rem;
+  margin: 0;
+}
+
+.statValue {
+  color: #e2e8f0;
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 4px 0 0;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.chartCard {
+  background: var(--bgSoft, #0f172a);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+}
+
+.chartCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(103, 232, 249, 0.25);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.25);
+  background: rgba(15,23,42,0.9);
+}
+
+.trendCard {
+  grid-column: 1 / -1;
+}
+
+.chartTitle {
+  color: #e2e8f0;
+  font-weight: 600;
+  font-size: 1rem;
+  margin: 0 0 10px;
+}
+
+.chartWrap {
+  min-height: 270px;
+}
+
+.loading,
+.error {
+  margin: 10px 0;
+}
+
+.error {
+  color: #fca5a5;
+}
+
+.tableWrap {
+  grid-column: 1 / -1;
+  background: var(--bgSoft, #0f172a);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+  overflow-x: auto;
+  padding: 8px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.table th {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.table td {
+  color: #e2e8f0;
+}
+
+.table tr:hover td {
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.empty {
+  color: #94a3b8;
+  text-align: center;
+}
+
+@media (max-width: 1200px) {
+  .statsGrid {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
+  .contentGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    flex-direction: column;
+  }
+
+  .actions {
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .downloadButton {
+    width: 100%;
+  }
+}

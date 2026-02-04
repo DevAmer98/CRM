@@ -48,7 +48,7 @@ const menuItems = [
     },
      {
       title: "Attendance",
-      path: "/",
+      path: "/hr_dashboard/attendance",
       roles: [ROLES.ADMIN]
     },
      {

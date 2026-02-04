@@ -12,7 +12,11 @@ const HR = () => {
       userCount: null,
       clientCount: null,
       supplierCount: null
-    }); 
+    });
+    const [attendanceSummary, setAttendanceSummary] = useState({
+      totalPresent: 0,
+      averageAttendance: 0
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [roleStats, setRoleStats] = useState([]);
@@ -26,13 +30,18 @@ const HR = () => {
         try {
           const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
           console.log(process.env.NEXT_PUBLIC_API_URL);
-          const [userRes, clientRes, supplierRes] = await Promise.all([
+          const attendancePromise = fetch(`${domain}/api/attendance/summary`, { cache: 'no-store' })
+            .then(async res => (res.ok ? res.json() : null))
+            .catch(() => null);
+
+          const [userRes, clientRes, supplierRes, attendanceData] = await Promise.all([
             fetch(`${domain}/api/allUsersCount`, { cache: 'no-store' }),
             fetch(`${domain}/api/allClientsCount`, { cache: 'no-store' }),
-            fetch(`${domain}/api/allSuppliersCount`, { cache: 'no-store' })
+            fetch(`${domain}/api/allSuppliersCount`, { cache: 'no-store' }),
+            attendancePromise
           ]);
     
-          // Check if all responses are OK
+          // Check core dashboard APIs first
           if (!userRes.ok || !clientRes.ok || !supplierRes.ok) {
             throw new Error('HTTP error when fetching counts');
           }
@@ -50,6 +59,10 @@ const HR = () => {
             clientCount: clientData.count,
             supplierCount: supplierData.count
           });
+          setAttendanceSummary({
+            totalPresent: attendanceData?.totalPresent || 0,
+            averageAttendance: attendanceData?.averageAttendance || 0
+          });
 
 
           const roleRes = await fetch(`${domain}/api/userRoleStats`, { cache: 'no-store' });
@@ -66,6 +79,32 @@ const HR = () => {
       };
     
       fetchCounts();
+    }, []);
+
+    useEffect(() => {
+      const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+
+      const refreshAttendance = async () => {
+        try {
+          const res = await fetch(`${domain}/api/attendance/summary`, { cache: 'no-store' });
+          if (!res.ok) return;
+          const attendanceData = await res.json();
+          setAttendanceSummary({
+            totalPresent: attendanceData?.totalPresent || 0,
+            averageAttendance: attendanceData?.averageAttendance || 0
+          });
+        } catch (e) {
+          // Keep previous values on transient network errors
+        }
+      };
+
+      const source = new EventSource(`/api/attendance/stream`);
+      const onAttendance = () => refreshAttendance();
+      source.addEventListener('attendance', onAttendance);
+      return () => {
+        source.removeEventListener('attendance', onAttendance);
+        source.close();
+      };
     }, []);
   
 
@@ -175,8 +214,8 @@ const formatRoleName = (role) => {
               <p>Loading Projects...</p>
             )}
              {counts.clientCount !== null ? (
-              <Card
-                key="total-client-card"
+             <Card
+                key="employee-exits-card"
                 title="Employee Exits"
                 number={counts.clientCount}
                 detailText={`${counts.clientCount} registered overdue projects`}
@@ -186,20 +225,20 @@ const formatRoleName = (role) => {
             )}
              {counts.clientCount !== null ? (
               <Card
-                key="total-client-card"
+                key="today-attendance-card"
                 title="Today Attendance"
-                number={counts.clientCount}
-                detailText={`${counts.clientCount} registered overdue projects`}
+                number={attendanceSummary.totalPresent}
+                detailText={`${attendanceSummary.totalPresent} employees checked in`}
               />
             ) : (
               <p>Loading Projects...</p>
             )}
              {counts.clientCount !== null ? (
               <Card
-                key="total-client-card"
+                key="average-attendance-card"
                 title="Average Attendance"
-                number={counts.clientCount}
-                detailText={`${counts.clientCount} registered overdue projects`}
+                number={attendanceSummary.averageAttendance}
+                detailText={`7-day average attendance`}
               />
             ) : (
               <p>Loading Projects...</p>

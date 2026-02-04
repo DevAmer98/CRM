@@ -928,6 +928,37 @@ const departmentSchema = new mongoose.Schema({
   ],
 }, { timestamps: true });
 
+const attendanceEventSchema = new mongoose.Schema(
+  {
+    personName: { type: String, required: true },
+    personId: { type: String, default: '' },
+    personKey: { type: String, required: true, index: true },
+    confidence: { type: Number, default: 0 },
+    eventAt: { type: Date, required: true, index: true },
+    date: { type: String, required: true, index: true },
+    time: { type: String, required: true },
+    libId: { type: Number },
+    verifyMode: { type: Number }
+  },
+  { timestamps: true }
+);
+
+const attendanceDailySchema = new mongoose.Schema(
+  {
+    personName: { type: String, required: true },
+    personId: { type: String, default: '' },
+    personKey: { type: String, required: true, index: true },
+    date: { type: String, required: true, index: true },
+    firstIn: { type: Date, required: true },
+    lastOut: { type: Date, required: true },
+    firstConfidence: { type: Number, default: 0 },
+    lastConfidence: { type: Number, default: 0 }
+  },
+  { timestamps: true }
+);
+
+attendanceDailySchema.index({ personKey: 1, date: 1 }, { unique: true });
+
 
 
 
@@ -952,6 +983,8 @@ export const Leave = mongoose.models.Leave || mongoose.model("Leave", leaveSchem
 export const Shift = mongoose.models.Shift || mongoose.model("Shift", shiftSchema)
 export const Lead = mongoose.models.Lead || mongoose.model("Lead", leadSchema)
 export const Department = mongoose.models.Department || mongoose.model("Department", departmentSchema)
+export const AttendanceEvent = mongoose.models.AttendanceEvent || mongoose.model("AttendanceEvent", attendanceEventSchema)
+export const AttendanceDaily = mongoose.models.AttendanceDaily || mongoose.model("AttendanceDaily", attendanceDailySchema)
 
 
  

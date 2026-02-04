@@ -78,7 +78,7 @@ const Sidebar = ({ session }) => {
         },
         {
           title: "Attendance",
-          path: "/",
+          path: "/hr_dashboard/attendance",
           icon: <Clock />,
           roles: [ROLES.HR_ADMIN]
         },
