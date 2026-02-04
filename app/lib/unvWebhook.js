@@ -1,5 +1,4 @@
 import { formatDateKey, formatDateTimeLocal, upsertAttendanceRecord } from '@/app/lib/attendance';
-import { publishAttendanceEvent } from '@/app/lib/attendanceEvents';
 
 export const UNV_ACK = {
   Response: {
@@ -48,12 +47,6 @@ export async function handleUnvWebhook(request, pathname = '') {
     };
 
     await upsertAttendanceRecord(record);
-    publishAttendanceEvent({
-      personName: record.personName,
-      personId: record.personId,
-      date: record.date,
-      time: record.time
-    });
     console.log(`✅ STORED: ${record.personName} @ ${record.time} (${record.confidence}%)`);
     return { ack: UNV_ACK, stored: true };
   } catch (error) {
