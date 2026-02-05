@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const app = express();
 const PORT = Number(process.env.ATTENDANCE_PORT || 9000);
 const MONGO_URI = process.env.MONGO;
+const ATTENDANCE_TIMEZONE = process.env.ATTENDANCE_TIMEZONE || 'Asia/Riyadh';
 const accessEvents = [];
 
 const attendanceEventSchema = new mongoose.Schema(
@@ -63,16 +64,37 @@ function ensureMongoConnected() {
   return mongoConnectPromise;
 }
 
-function pad2(value) {
-  return String(value).padStart(2, '0');
+const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: ATTENDANCE_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+const dateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: ATTENDANCE_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+});
+
+function toPartsMap(formatter, date) {
+  return Object.fromEntries(
+    formatter.formatToParts(date).map(part => [part.type, part.value])
+  );
 }
 
 function formatDateTimeLocal(date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+  const parts = toPartsMap(dateTimeFormatter, date);
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 function formatDateKey(date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  const parts = toPartsMap(dateKeyFormatter, date);
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 async function persistAttendance(record) {

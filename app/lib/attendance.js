@@ -1,16 +1,38 @@
 import { AttendanceDaily, AttendanceEvent } from '@/app/lib/models';
 import { connectToDB } from '@/app/lib/utils';
 
-function pad2(value) {
-  return String(value).padStart(2, '0');
+const ATTENDANCE_TIMEZONE = process.env.ATTENDANCE_TIMEZONE || 'Asia/Riyadh';
+const dateKeyFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: ATTENDANCE_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+});
+const dateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: ATTENDANCE_TIMEZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+});
+
+function toPartsMap(formatter, date) {
+  return Object.fromEntries(
+    formatter.formatToParts(date).map(part => [part.type, part.value])
+  );
 }
 
 export function formatDateKey(date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  const parts = toPartsMap(dateKeyFormatter, date);
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 export function formatDateTimeLocal(date) {
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+  const parts = toPartsMap(dateTimeFormatter, date);
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 export async function upsertAttendanceRecord(record) {
