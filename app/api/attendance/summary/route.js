@@ -29,6 +29,7 @@ export async function GET(request) {
   const searchDate = request.nextUrl.searchParams.get('date');
   const searchFrom = request.nextUrl.searchParams.get('from');
   const searchTo = request.nextUrl.searchParams.get('to');
+  const includeRangeRows = request.nextUrl.searchParams.get('includeRangeRows') === '1';
   const today = formatDateKey(new Date());
   const date = isDateKey(searchDate) ? searchDate : today;
 
@@ -44,9 +45,13 @@ export async function GET(request) {
       from = to;
       to = swap;
     }
+    const rangeDates = dateRangeKeys(from, to);
 
-    const [rowsForDate, employees] = await Promise.all([
+    const [rowsForDate, rowsForRange, employees] = await Promise.all([
       AttendanceDaily.find({ date }).lean(),
+      includeRangeRows
+        ? AttendanceDaily.find({ date: { $in: rangeDates } }).lean()
+        : Promise.resolve([]),
       Employee.find({})
         .select('name employeeNo department')
         .populate({ path: 'department', select: 'name' })
@@ -62,23 +67,28 @@ export async function GET(request) {
       employeeByName.set(normalizeName(emp.name), emp);
     });
 
-    const rows = rowsForDate
-      .map(row => ({
-        ...row,
-        employee:
-          employeeById.get(String(row.personId || '')) ||
-          employeeByNo.get(String(row.personId || '')) ||
-          employeeByName.get(normalizeName(row.personName))
-      }))
-      .map(row => ({
-        personName: row.personName,
-        department: row.employee?.department?.name || 'Unassigned',
-        firstIn: formatDateTimeLocal(new Date(row.firstIn)),
-        lastOut: formatDateTimeLocal(new Date(row.lastOut))
-      }))
-      .sort((a, b) => a.personName.localeCompare(b.personName));
+    const mapRows = sourceRows =>
+      sourceRows
+        .map(row => ({
+          ...row,
+          employee:
+            employeeById.get(String(row.personId || '')) ||
+            employeeByNo.get(String(row.personId || '')) ||
+            employeeByName.get(normalizeName(row.personName))
+        }))
+        .map(row => ({
+          date: row.date,
+          personName: row.personName,
+          department: row.employee?.department?.name || 'Unassigned',
+          firstIn: formatDateTimeLocal(new Date(row.firstIn)),
+          lastOut: formatDateTimeLocal(new Date(row.lastOut))
+        }));
 
-    const rangeDates = dateRangeKeys(from, to);
+    const rows = mapRows(rowsForDate)
+      .sort((a, b) => a.personName.localeCompare(b.personName));
+    const rangeRows = mapRows(rowsForRange).sort(
+      (a, b) => a.date.localeCompare(b.date) || a.personName.localeCompare(b.personName)
+    );
 
     const countsByDay = await AttendanceDaily.aggregate([
       { $match: { date: { $in: rangeDates } } },
@@ -104,7 +114,8 @@ export async function GET(request) {
       averageAttendance,
       trend,
       departments,
-      rows
+      rows,
+      rangeRows: includeRangeRows ? rangeRows : undefined
     });
   } catch (error) {
     return NextResponse.json(

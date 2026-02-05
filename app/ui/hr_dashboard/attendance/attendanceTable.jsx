@@ -178,40 +178,73 @@ export default function AttendanceTable() {
   };
 
   const handleDownloadExcel = async () => {
-    const XLSX = await import('xlsx');
+    try {
+      const XLSX = await import('xlsx');
+      const params = new URLSearchParams({
+        date,
+        from: fromDate,
+        to: toDate,
+        includeRangeRows: '1'
+      });
 
-    const detailRows = (filteredRows || []).map(row => ({
-      Employee: row.personName || '',
-      Department: row.department || '',
-      'First Attendance': row.firstIn || '',
-      Leaving: row.lastOut || ''
-    }));
+      const res = await fetch(`/api/attendance/summary?${params.toString()}`, {
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error(`Failed to load range export data (${res.status})`);
+      const payload = await res.json();
 
-    const workbook = XLSX.utils.book_new();
-    const detailsSheet = XLSX.utils.json_to_sheet(
-      detailRows.length
-        ? detailRows
-        : [
-            {
-              Employee: '',
-              Department: '',
-              'First Attendance': '',
-              Leaving: ''
-            }
-          ]
-    );
-    const summarySheet = XLSX.utils.json_to_sheet([
-      { Metric: 'Date', Value: date },
-      { Metric: 'Department Filter', Value: selectedDepartment },
-      { Metric: 'Displayed Attendance', Value: filteredRows.length },
-      { Metric: 'Average Attendance (Range)', Value: data.averageAttendance || 0 },
-      { Metric: 'Trend From', Value: fromDate },
-      { Metric: 'Trend To', Value: toDate }
-    ]);
+      const sourceRows = Array.isArray(payload.rangeRows)
+        ? payload.rangeRows
+        : (data.rows || []).map(row => ({ ...row, date }));
+      const exportRows = sourceRows;
 
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
-    XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Attendance');
-    XLSX.writeFile(workbook, `attendance-report-${date}.xlsx`);
+      const detailRows = exportRows.map(row => ({
+        Date: row.date || '',
+        Employee: row.personName || '',
+        'First Attendance': row.firstIn || '',
+        Leaving: row.lastOut || ''
+      }));
+
+      const workbook = XLSX.utils.book_new();
+      const detailsSheet = XLSX.utils.json_to_sheet(
+        detailRows.length
+          ? detailRows
+          : [
+              {
+                Date: '',
+                Employee: '',
+                'First Attendance': '',
+                Leaving: ''
+              }
+            ]
+      );
+      const summarySheet = XLSX.utils.json_to_sheet([
+        { Metric: 'Selected Date', Value: payload.date || date },
+        { Metric: 'Exported Rows', Value: exportRows.length },
+        { Metric: 'Average Attendance (Range)', Value: payload.averageAttendance || 0 },
+        { Metric: 'Trend From', Value: payload.from || fromDate },
+        { Metric: 'Trend To', Value: payload.to || toDate }
+      ]);
+      const trendSheet = XLSX.utils.json_to_sheet(
+        Array.isArray(payload.trend) && payload.trend.length
+          ? payload.trend.map(item => ({
+              Date: item.date,
+              Attendance: item.count
+            }))
+          : [{ Date: '', Attendance: '' }]
+      );
+
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+      XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Attendance');
+      XLSX.utils.book_append_sheet(workbook, trendSheet, 'Trend');
+      const exportName =
+        (payload.from || fromDate) === (payload.to || toDate)
+          ? `attendance-report-${payload.from || fromDate}.xlsx`
+          : `attendance-report-${payload.from || fromDate}-to-${payload.to || toDate}.xlsx`;
+      XLSX.writeFile(workbook, exportName);
+    } catch (err) {
+      setError(err.message || 'Failed to download Excel');
+    }
   };
 
   return (
