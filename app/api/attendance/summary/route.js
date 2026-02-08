@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { AttendanceDaily, Employee } from '@/app/lib/models';
+import { AttendanceDaily, Employee, Shift } from '@/app/lib/models';
 import { connectToDB } from '@/app/lib/utils';
 import { formatDateKey, formatDateTimeLocal } from '@/app/lib/attendance';
 
@@ -12,6 +12,13 @@ function isDateKey(value) {
 
 function normalizeName(value) {
   return String(value || '').trim().toLowerCase();
+}
+
+function timeToMinutes(value) {
+  if (!value || typeof value !== 'string') return null;
+  const [h, m] = value.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
 }
 
 function dateRangeKeys(from, to) {
@@ -47,7 +54,7 @@ export async function GET(request) {
     }
     const rangeDates = dateRangeKeys(from, to);
 
-    const [rowsForDate, rowsForRange, employees] = await Promise.all([
+    const [rowsForDate, rowsForRange, employees, shiftsForDate] = await Promise.all([
       AttendanceDaily.find({ date }).lean(),
       includeRangeRows
         ? AttendanceDaily.find({ date: { $in: rangeDates } }).lean()
@@ -55,7 +62,8 @@ export async function GET(request) {
       Employee.find({})
         .select('name employeeNo department')
         .populate({ path: 'department', select: 'name' })
-        .lean()
+        .lean(),
+      Shift.find({ date }).select('employee startTime').lean()
     ]);
 
     const employeeById = new Map();
@@ -65,6 +73,18 @@ export async function GET(request) {
       employeeById.set(String(emp._id), emp);
       if (emp.employeeNo) employeeByNo.set(String(emp.employeeNo), emp);
       employeeByName.set(normalizeName(emp.name), emp);
+    });
+
+    const shiftStartByEmployeeId = new Map();
+    shiftsForDate.forEach(shift => {
+      const key = String(shift.employee || '');
+      if (!key) return;
+      const startMinutes = timeToMinutes(shift.startTime);
+      if (!Number.isFinite(startMinutes)) return;
+      const existing = shiftStartByEmployeeId.get(key);
+      if (!existing || startMinutes < existing.startMinutes) {
+        shiftStartByEmployeeId.set(key, { startTime: shift.startTime, startMinutes });
+      }
     });
 
     const mapRows = sourceRows =>
@@ -79,7 +99,13 @@ export async function GET(request) {
         .map(row => ({
           date: row.date,
           personName: row.personName,
+          employeeId: row.employee?._id ? String(row.employee._id) : '',
+          employeeNo: row.employee?.employeeNo ? String(row.employee.employeeNo) : '',
           department: row.employee?.department?.name || 'Unassigned',
+          scheduledStart:
+            row.date === date && row.employee?._id
+              ? shiftStartByEmployeeId.get(String(row.employee._id))?.startTime || ''
+              : '',
           firstIn: formatDateTimeLocal(new Date(row.firstIn)),
           lastOut: formatDateTimeLocal(new Date(row.lastOut))
         }));

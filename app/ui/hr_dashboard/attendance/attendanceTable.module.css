@@ -93,7 +93,7 @@
 .statsGrid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   margin-bottom: 16px;
 }
 
@@ -152,6 +152,67 @@
 
 .chartWrap {
   min-height: 270px;
+}
+
+.policyCard {
+  grid-column: 1 / -1;
+  background: var(--bgSoft, #0f172a);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.policyHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.rulesGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.ruleHeaderRow {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(80px, 1fr)) auto;
+  gap: 8px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 2px;
+}
+
+.ruleRow {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(3, minmax(80px, 1fr)) auto;
+  gap: 8px;
+}
+
+.ruleInput {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #e2e8f0;
+  padding: 8px 9px;
+}
+
+.removeRule {
+  border: 1px solid #7f1d1d;
+  background: rgba(127, 29, 29, 0.35);
+  color: #fecaca;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.removeRule:disabled {
+  opacity: .55;
+  cursor: not-allowed;
 }
 
 .loading,
@@ -228,6 +289,14 @@
 
   .statsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .ruleRow {
+    grid-template-columns: 1fr;
+  }
+
+  .ruleHeaderRow {
+    display: none;
   }
 
   .downloadButton {

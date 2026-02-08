@@ -15,6 +15,14 @@ import {
 } from 'recharts';
 import styles from './attendanceTable.module.css';
 
+const LATE_RULES_STORAGE_KEY = 'attendance_late_rules_v1';
+const defaultLateRules = [
+  { id: 'r1', label: 'Minor delay', fromMinutes: 1, toMinutes: 15, deductionAmount: 0 },
+  { id: 'r2', label: 'Late', fromMinutes: 16, toMinutes: 30, deductionAmount: 25 },
+  { id: 'r3', label: 'Very late', fromMinutes: 31, toMinutes: 60, deductionAmount: 50 },
+  { id: 'r4', label: 'Critical late', fromMinutes: 61, toMinutes: 1000, deductionAmount: 100 }
+];
+
 function toDateKey(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -28,12 +36,87 @@ function daysBack(dateKey, days) {
   return toDateKey(d);
 }
 
+function parseHHMMToMinutes(value) {
+  if (!value || typeof value !== 'string') return null;
+  const [h, m] = value.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
+}
+
+function parseDateTimeToMinutes(value) {
+  if (!value || typeof value !== 'string') return null;
+  const timePart = value.split(' ')[1];
+  if (!timePart) return null;
+  const [h, m] = timePart.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+  return h * 60 + m;
+}
+
+function formatMinutes(value) {
+  if (!Number.isFinite(value) || value <= 0) return '0m';
+  const h = Math.floor(value / 60);
+  const m = value % 60;
+  if (!h) return `${m}m`;
+  if (!m) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
+function normalizeRules(rules) {
+  if (!Array.isArray(rules)) return defaultLateRules;
+  const cleaned = rules
+    .map((rule, index) => ({
+      id: rule?.id || `rule-${index}-${Date.now()}`,
+      label: String(rule?.label || `Rule ${index + 1}`).trim(),
+      fromMinutes: Number(rule?.fromMinutes || 0),
+      toMinutes: Number(rule?.toMinutes || 0),
+      deductionAmount: Number(rule?.deductionAmount || 0)
+    }))
+    .filter(rule => Number.isFinite(rule.fromMinutes) && Number.isFinite(rule.toMinutes))
+    .sort((a, b) => a.fromMinutes - b.fromMinutes);
+  return cleaned.length ? cleaned : defaultLateRules;
+}
+
+function evaluateAttendanceRow(row, rules) {
+  const scheduled = parseHHMMToMinutes(row.scheduledStart);
+  const actual = parseDateTimeToMinutes(row.firstIn);
+  if (!Number.isFinite(scheduled) || !Number.isFinite(actual)) {
+    return {
+      ...row,
+      lateMinutes: null,
+      lateLabel: 'No shift',
+      deductionAmount: 0
+    };
+  }
+
+  const lateMinutes = Math.max(0, actual - scheduled);
+  if (lateMinutes <= 0) {
+    return {
+      ...row,
+      lateMinutes,
+      lateLabel: 'On time',
+      deductionAmount: 0
+    };
+  }
+
+  const matchedRule = rules.find(
+    rule => lateMinutes >= rule.fromMinutes && lateMinutes <= rule.toMinutes
+  );
+
+  return {
+    ...row,
+    lateMinutes,
+    lateLabel: matchedRule?.label || 'Late',
+    deductionAmount: matchedRule ? Number(matchedRule.deductionAmount || 0) : 0
+  };
+}
+
 export default function AttendanceTable() {
   const today = toDateKey(new Date());
   const [date, setDate] = useState(today);
   const [fromDate, setFromDate] = useState(daysBack(today, 29));
   const [toDate, setToDate] = useState(today);
   const [selectedDepartment, setSelectedDepartment] = useState('All');
+  const [lateRules, setLateRules] = useState(defaultLateRules);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -97,12 +180,40 @@ export default function AttendanceTable() {
     }
   }, [data.departments, selectedDepartment]);
 
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LATE_RULES_STORAGE_KEY);
+      if (!saved) return;
+      setLateRules(normalizeRules(JSON.parse(saved)));
+    } catch (err) {
+      console.error('Failed to load late rules:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LATE_RULES_STORAGE_KEY, JSON.stringify(lateRules));
+    } catch (err) {
+      console.error('Failed to save late rules:', err);
+    }
+  }, [lateRules]);
+
   const filteredRows = useMemo(() => {
     if (selectedDepartment === 'All') return data.rows;
     return data.rows.filter(row => row.department === selectedDepartment);
   }, [data.rows, selectedDepartment]);
 
   const hasRows = useMemo(() => filteredRows.length > 0, [filteredRows]);
+  const evaluatedRows = useMemo(
+    () => filteredRows.map(row => evaluateAttendanceRow(row, lateRules)),
+    [filteredRows, lateRules]
+  );
+
+  const lateSummary = useMemo(() => {
+    const lateCount = evaluatedRows.filter(row => Number(row.lateMinutes) > 0).length;
+    const totalDeduction = evaluatedRows.reduce((sum, row) => sum + Number(row.deductionAmount || 0), 0);
+    return { lateCount, totalDeduction };
+  }, [evaluatedRows]);
 
   const insights = useMemo(() => {
     const parseToHour = value => {
@@ -196,13 +307,18 @@ export default function AttendanceTable() {
       const sourceRows = Array.isArray(payload.rangeRows)
         ? payload.rangeRows
         : (data.rows || []).map(row => ({ ...row, date }));
-      const exportRows = sourceRows;
+      const exportRows = sourceRows.map(row => evaluateAttendanceRow(row, lateRules));
 
       const detailRows = exportRows.map(row => ({
         Date: row.date || '',
         Employee: row.personName || '',
+        Department: row.department || '',
+        'Scheduled Start': row.scheduledStart || '',
         'First Attendance': row.firstIn || '',
-        Leaving: row.lastOut || ''
+        Leaving: row.lastOut || '',
+        Status: row.lateLabel || '',
+        'Late By': Number.isFinite(row.lateMinutes) ? formatMinutes(row.lateMinutes) : '',
+        Deduction: Number(row.deductionAmount || 0).toFixed(2)
       }));
 
       const workbook = XLSX.utils.book_new();
@@ -221,6 +337,8 @@ export default function AttendanceTable() {
       const summarySheet = XLSX.utils.json_to_sheet([
         { Metric: 'Selected Date', Value: payload.date || date },
         { Metric: 'Exported Rows', Value: exportRows.length },
+        { Metric: 'Late Employees (Selected Date)', Value: lateSummary.lateCount },
+        { Metric: 'Total Deduction (Selected Date)', Value: Number(lateSummary.totalDeduction).toFixed(2) },
         { Metric: 'Average Attendance (Range)', Value: payload.averageAttendance || 0 },
         { Metric: 'Trend From', Value: payload.from || fromDate },
         { Metric: 'Trend To', Value: payload.to || toDate }
@@ -245,6 +363,45 @@ export default function AttendanceTable() {
     } catch (err) {
       setError(err.message || 'Failed to download Excel');
     }
+  };
+
+  const addLateRule = () => {
+    const maxTo = lateRules.reduce((max, rule) => Math.max(max, Number(rule.toMinutes || 0)), 0);
+    const nextFrom = maxTo + 1;
+    setLateRules(prev => [
+      ...prev,
+      {
+        id: `rule-${Date.now()}`,
+        label: `Rule ${prev.length + 1}`,
+        fromMinutes: nextFrom,
+        toMinutes: nextFrom + 14,
+        deductionAmount: 0
+      }
+    ]);
+  };
+
+  const updateRule = (id, field, value) => {
+    setLateRules(prev =>
+      normalizeRules(
+        prev.map(rule =>
+          rule.id === id
+            ? {
+                ...rule,
+                [field]:
+                  field === 'label'
+                    ? value
+                    : Number.isFinite(Number(value))
+                      ? Number(value)
+                      : 0
+              }
+            : rule
+        )
+      )
+    );
+  };
+
+  const removeRule = id => {
+    setLateRules(prev => normalizeRules(prev.filter(rule => rule.id !== id)));
   };
 
   return (
@@ -314,16 +471,20 @@ export default function AttendanceTable() {
           <p className={styles.statValue}>{filteredRows.length}</p>
         </div>
         <div className={styles.statCard}>
-          <p className={styles.statLabel}>Average Attendance (Range)</p>
-          <p className={styles.statValue}>{data.averageAttendance}</p>
-        </div>
-        <div className={styles.statCard}>
           <p className={styles.statLabel}>Earliest Arrival</p>
           <p className={styles.statValue}>{insights.earliest}</p>
         </div>
         <div className={styles.statCard}>
           <p className={styles.statLabel}>Latest Leaving</p>
           <p className={styles.statValue}>{insights.latest}</p>
+        </div>
+        <div className={styles.statCard}>
+          <p className={styles.statLabel}>Late Employees</p>
+          <p className={styles.statValue}>{lateSummary.lateCount}</p>
+        </div>
+        <div className={styles.statCard}>
+          <p className={styles.statLabel}>Total Deduction</p>
+          <p className={styles.statValue}>{lateSummary.totalDeduction.toFixed(2)}</p>
         </div>
       </div>
 
@@ -415,29 +576,101 @@ export default function AttendanceTable() {
             </div>
           </div>
 
+          <div className={styles.policyCard}>
+            <div className={styles.policyHead}>
+              <h3 className={styles.chartTitle}>Late Policy Rules (Minutes)</h3>
+              <button type="button" className={styles.downloadButton} onClick={addLateRule}>
+                Add Rule
+              </button>
+            </div>
+            <p className={styles.subtitle}>
+              Define late ranges and salary deduction per range. Rules are saved in your browser.
+            </p>
+            <div className={styles.rulesGrid}>
+              <div className={styles.ruleHeaderRow}>
+                <span>Rule Name</span>
+                <span>From (min)</span>
+                <span>To (min)</span>
+                <span>Deduction</span>
+                <span>Action</span>
+              </div>
+              {lateRules.map(rule => (
+                <div className={styles.ruleRow} key={rule.id}>
+                  <input
+                    className={styles.ruleInput}
+                    value={rule.label}
+                    onChange={e => updateRule(rule.id, 'label', e.target.value)}
+                    placeholder="Label"
+                  />
+                  <input
+                    className={styles.ruleInput}
+                    type="number"
+                    min="0"
+                    value={rule.fromMinutes}
+                    onChange={e => updateRule(rule.id, 'fromMinutes', e.target.value)}
+                    placeholder="From"
+                  />
+                  <input
+                    className={styles.ruleInput}
+                    type="number"
+                    min="0"
+                    value={rule.toMinutes}
+                    onChange={e => updateRule(rule.id, 'toMinutes', e.target.value)}
+                    placeholder="To"
+                  />
+                  <input
+                    className={styles.ruleInput}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={rule.deductionAmount}
+                    onChange={e => updateRule(rule.id, 'deductionAmount', e.target.value)}
+                    placeholder="Deduction"
+                  />
+                  <button
+                    type="button"
+                    className={styles.removeRule}
+                    onClick={() => removeRule(rule.id)}
+                    disabled={lateRules.length <= 1}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
                   <th>Employee</th>
                   <th>Department</th>
+                  <th>Shift Start</th>
                   <th>First Attendance</th>
                   <th>Leaving</th>
+                  <th>Status</th>
+                  <th>Late By</th>
+                  <th>Deduction</th>
                 </tr>
               </thead>
               <tbody>
                 {hasRows ? (
-                  filteredRows.map(row => (
+                  evaluatedRows.map(row => (
                     <tr key={`${row.personName}-${row.firstIn}-${row.lastOut}`}>
                       <td>{row.personName}</td>
                       <td>{row.department || 'Unassigned'}</td>
+                      <td>{row.scheduledStart || '-'}</td>
                       <td>{row.firstIn || '-'}</td>
                       <td>{row.lastOut || '-'}</td>
+                      <td>{row.lateLabel || '-'}</td>
+                      <td>{Number.isFinite(row.lateMinutes) ? formatMinutes(row.lateMinutes) : '-'}</td>
+                      <td>{Number(row.deductionAmount || 0).toFixed(2)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className={styles.empty}>
+                    <td colSpan={8} className={styles.empty}>
                       No attendance records for this date and filter.
                     </td>
                   </tr>
