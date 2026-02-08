@@ -1,3 +1,4 @@
+//app/ui/hr_dashboard/attendance/attendanceTable.jsx
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -36,6 +37,17 @@ function daysBack(dateKey, days) {
   return toDateKey(d);
 }
 
+function dateRangeKeys(from, to) {
+  const result = [];
+  const cursor = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  while (cursor <= end) {
+    result.push(toDateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
+}
+
 function parseHHMMToMinutes(value) {
   if (!value || typeof value !== 'string') return null;
   const [h, m] = value.split(':').map(Number);
@@ -59,6 +71,23 @@ function formatMinutes(value) {
   if (!h) return `${m}m`;
   if (!m) return `${h}h`;
   return `${h}h ${m}m`;
+}
+
+function makeUniqueSheetName(name, used) {
+  let base = String(name || 'Employee').trim() || 'Employee';
+  base = base.replace(/[\[\]\*\?\/\\:]/g, ' ').replace(/'/g, '').trim();
+  if (!base) base = 'Employee';
+  if (base.length > 31) base = base.slice(0, 31);
+  let candidate = base;
+  let counter = 1;
+  while (used.has(candidate)) {
+    const suffix = ` ${counter}`;
+    const maxLength = 31 - suffix.length;
+    candidate = `${base.slice(0, Math.max(1, maxLength))}${suffix}`;
+    counter += 1;
+  }
+  used.add(candidate);
+  return candidate;
 }
 
 function normalizeRules(rules) {
@@ -309,9 +338,153 @@ export default function AttendanceTable() {
         : (data.rows || []).map(row => ({ ...row, date }));
       const exportRows = sourceRows.map(row => evaluateAttendanceRow(row, lateRules));
 
+      const attendanceIndex = new Set();
+      const exceptionsByEmployee = new Map();
+
+      const ensureEmployeeBucket = (key, info) => {
+        if (!exceptionsByEmployee.has(key)) {
+          exceptionsByEmployee.set(key, {
+            employeeId: info.employeeId || '',
+            employeeNo: info.employeeNo || '',
+            name: info.name || 'Unknown',
+            department: info.department || 'Unassigned',
+            lateCount: 0,
+            absentCount: 0,
+            totalDeduction: 0,
+            rows: []
+          });
+        }
+        return exceptionsByEmployee.get(key);
+      };
+
+      exportRows.forEach(row => {
+        if (row.employeeId && row.date) {
+          attendanceIndex.add(`${row.date}::${row.employeeId}`);
+        }
+
+        if (!Number.isFinite(row.lateMinutes) || row.lateMinutes <= 0) return;
+
+        const key = row.employeeId || `name:${row.personName || 'Unknown'}`;
+        const bucket = ensureEmployeeBucket(key, {
+          employeeId: row.employeeId,
+          employeeNo: row.employeeNo,
+          name: row.personName,
+          department: row.department
+        });
+
+        bucket.lateCount += 1;
+        bucket.totalDeduction += Number(row.deductionAmount || 0);
+        bucket.rows.push({
+          Date: row.date || '',
+          Status: 'Late',
+          Department: row.department || 'Unassigned',
+          'Scheduled Start': row.scheduledStart || '',
+          'First Attendance': row.firstIn || '',
+          'Late By': Number.isFinite(row.lateMinutes) ? formatMinutes(row.lateMinutes) : '',
+          Deduction: Number(row.deductionAmount || 0).toFixed(2)
+        });
+      });
+
+      const rangeShifts = Array.isArray(payload.rangeShifts) ? payload.rangeShifts : [];
+      const rangeEmployees = Array.isArray(payload.rangeEmployees) ? payload.rangeEmployees : [];
+      const rangeFrom = payload.from || fromDate;
+      const rangeTo = payload.to || toDate;
+      const rangeDates = dateRangeKeys(rangeFrom, rangeTo);
+
+      const attendanceByEmployeeDate = new Map();
+      exportRows.forEach(row => {
+        if (!row.employeeId || !row.date) return;
+        attendanceByEmployeeDate.set(`${row.date}::${row.employeeId}`, row);
+      });
+
+      const shiftByEmployeeDate = new Map();
+      rangeShifts.forEach(shift => {
+        if (!shift.employeeId || !shift.date) return;
+        const key = `${shift.date}::${shift.employeeId}`;
+        shiftByEmployeeDate.set(key, shift);
+        if (attendanceIndex.has(key)) return;
+
+        const bucket = ensureEmployeeBucket(shift.employeeId, {
+          employeeId: shift.employeeId,
+          employeeNo: shift.employeeNo,
+          name: shift.employeeName,
+          department: shift.department
+        });
+
+        bucket.absentCount += 1;
+        bucket.rows.push({
+          Date: shift.date || '',
+          Status: 'Absent',
+          Department: shift.department || 'Unassigned',
+          'Scheduled Start': shift.startTime || '',
+          'First Attendance': '',
+          'Late By': '',
+          Deduction: ''
+        });
+      });
+
+      exceptionsByEmployee.forEach(bucket => {
+        bucket.rows.sort((a, b) => String(a.Date).localeCompare(String(b.Date)));
+      });
+
+      const perEmployeeDaily = rangeEmployees.map(emp => {
+        const rows = rangeDates.map(dateKey => {
+          const lookupKey = `${dateKey}::${emp.employeeId}`;
+          const attendance = attendanceByEmployeeDate.get(lookupKey);
+          if (attendance) {
+            return {
+              Date: dateKey,
+              Status: attendance.lateLabel || 'On time',
+              Department: emp.department || 'Unassigned',
+              'Scheduled Start': attendance.scheduledStart || '',
+              'First Attendance': attendance.firstIn || '',
+              Leaving: attendance.lastOut || '',
+              'Late By': Number.isFinite(attendance.lateMinutes)
+                ? formatMinutes(attendance.lateMinutes)
+                : '',
+              Deduction: Number(attendance.deductionAmount || 0).toFixed(2)
+            };
+          }
+
+          const shift = shiftByEmployeeDate.get(lookupKey);
+          if (shift) {
+            return {
+              Date: dateKey,
+              Status: 'Absent',
+              Department: emp.department || 'Unassigned',
+              'Scheduled Start': shift.startTime || '',
+              'First Attendance': '',
+              Leaving: '',
+              'Late By': '',
+              Deduction: ''
+            };
+          }
+
+          return {
+            Date: dateKey,
+            Status: 'No shift',
+            Department: emp.department || 'Unassigned',
+            'Scheduled Start': '',
+            'First Attendance': '',
+            Leaving: '',
+            'Late By': '',
+            Deduction: ''
+          };
+        });
+
+        return {
+          employeeId: emp.employeeId,
+          employeeNo: emp.employeeNo,
+          name: emp.name || `Employee ${emp.employeeNo || emp.employeeId}`,
+          department: emp.department || 'Unassigned',
+          rows
+        };
+      });
+
       const detailRows = exportRows.map(row => ({
         Date: row.date || '',
         Employee: row.personName || '',
+        'Employee No': row.employeeNo || '',
         Department: row.department || '',
         'Scheduled Start': row.scheduledStart || '',
         'First Attendance': row.firstIn || '',
@@ -355,6 +528,42 @@ export default function AttendanceTable() {
       XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
       XLSX.utils.book_append_sheet(workbook, detailsSheet, 'Attendance');
       XLSX.utils.book_append_sheet(workbook, trendSheet, 'Trend');
+
+      const exceptionsSummary = Array.from(exceptionsByEmployee.values()).map(bucket => ({
+        Employee: bucket.name,
+        'Employee No': bucket.employeeNo,
+        Department: bucket.department,
+        'Late Count': bucket.lateCount,
+        'Absent Count': bucket.absentCount,
+        'Total Deduction': bucket.totalDeduction.toFixed(2)
+      }));
+      const exceptionsSummarySheet = XLSX.utils.json_to_sheet(
+        exceptionsSummary.length
+          ? exceptionsSummary
+          : [
+              {
+                Employee: '',
+                'Employee No': '',
+                Department: '',
+                'Late Count': '',
+                'Absent Count': '',
+                'Total Deduction': ''
+              }
+            ]
+      );
+      XLSX.utils.book_append_sheet(workbook, exceptionsSummarySheet, 'Late & Absent');
+
+      const usedSheetNames = new Set(['Summary', 'Attendance', 'Trend', 'Late & Absent']);
+      perEmployeeDaily.forEach(bucket => {
+        const sheet = XLSX.utils.json_to_sheet(
+          bucket.rows.length
+            ? bucket.rows
+            : [{ Date: '', Status: '', Department: '', 'Scheduled Start': '', 'First Attendance': '' }]
+        );
+        const sheetName = makeUniqueSheetName(bucket.name, usedSheetNames);
+        XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+      });
+
       const exportName =
         (payload.from || fromDate) === (payload.to || toDate)
           ? `attendance-report-${payload.from || fromDate}.xlsx`

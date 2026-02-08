@@ -54,7 +54,7 @@ export async function GET(request) {
     }
     const rangeDates = dateRangeKeys(from, to);
 
-    const [rowsForDate, rowsForRange, employees, shiftsForDate] = await Promise.all([
+    const [rowsForDate, rowsForRange, employees, shiftsForRange] = await Promise.all([
       AttendanceDaily.find({ date }).lean(),
       includeRangeRows
         ? AttendanceDaily.find({ date: { $in: rangeDates } }).lean()
@@ -63,7 +63,9 @@ export async function GET(request) {
         .select('name employeeNo department')
         .populate({ path: 'department', select: 'name' })
         .lean(),
-      Shift.find({ date }).select('employee startTime').lean()
+      Shift.find(includeRangeRows ? { date: { $in: rangeDates } } : { date })
+        .select('employee date startTime')
+        .lean()
     ]);
 
     const employeeById = new Map();
@@ -75,15 +77,21 @@ export async function GET(request) {
       employeeByName.set(normalizeName(emp.name), emp);
     });
 
-    const shiftStartByEmployeeId = new Map();
-    shiftsForDate.forEach(shift => {
-      const key = String(shift.employee || '');
-      if (!key) return;
+    const shiftStartByEmployeeDate = new Map();
+    shiftsForRange.forEach(shift => {
+      const employeeId = String(shift.employee || '');
+      if (!employeeId || !shift.date) return;
       const startMinutes = timeToMinutes(shift.startTime);
       if (!Number.isFinite(startMinutes)) return;
-      const existing = shiftStartByEmployeeId.get(key);
+      const key = `${shift.date}::${employeeId}`;
+      const existing = shiftStartByEmployeeDate.get(key);
       if (!existing || startMinutes < existing.startMinutes) {
-        shiftStartByEmployeeId.set(key, { startTime: shift.startTime, startMinutes });
+        shiftStartByEmployeeDate.set(key, {
+          employeeId,
+          date: shift.date,
+          startTime: shift.startTime,
+          startMinutes
+        });
       }
     });
 
@@ -103,8 +111,9 @@ export async function GET(request) {
           employeeNo: row.employee?.employeeNo ? String(row.employee.employeeNo) : '',
           department: row.employee?.department?.name || 'Unassigned',
           scheduledStart:
-            row.date === date && row.employee?._id
-              ? shiftStartByEmployeeId.get(String(row.employee._id))?.startTime || ''
+            row.employee?._id && row.date
+              ? shiftStartByEmployeeDate.get(`${row.date}::${String(row.employee._id)}`)?.startTime ||
+                ''
               : '',
           firstIn: formatDateTimeLocal(new Date(row.firstIn)),
           lastOut: formatDateTimeLocal(new Date(row.lastOut))
@@ -131,6 +140,29 @@ export async function GET(request) {
       a.localeCompare(b)
     );
 
+    const rangeShifts = includeRangeRows
+      ? Array.from(shiftStartByEmployeeDate.values()).map(shift => {
+          const employee = employeeById.get(String(shift.employeeId));
+          return {
+            date: shift.date,
+            employeeId: shift.employeeId,
+            employeeNo: employee?.employeeNo ? String(employee.employeeNo) : '',
+            employeeName: employee?.name || '',
+            department: employee?.department?.name || 'Unassigned',
+            startTime: shift.startTime
+          };
+        })
+      : undefined;
+
+    const rangeEmployees = includeRangeRows
+      ? employees.map(emp => ({
+          employeeId: String(emp._id),
+          employeeNo: emp.employeeNo ? String(emp.employeeNo) : '',
+          name: emp.name || '',
+          department: emp.department?.name || 'Unassigned'
+        }))
+      : undefined;
+
     return NextResponse.json({
       success: true,
       date,
@@ -141,7 +173,9 @@ export async function GET(request) {
       trend,
       departments,
       rows,
-      rangeRows: includeRangeRows ? rangeRows : undefined
+      rangeRows: includeRangeRows ? rangeRows : undefined,
+      rangeShifts,
+      rangeEmployees
     });
   } catch (error) {
     return NextResponse.json(

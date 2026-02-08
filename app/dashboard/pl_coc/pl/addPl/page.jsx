@@ -1,3 +1,4 @@
+//app/dashboard/pl_coc/pl/addPl/page.jsx
 "use client";
 import React, {useState, useEffect} from 'react'; 
 import { FaPlus, FaTrash } from 'react-icons/fa';
@@ -16,7 +17,7 @@ const AddPlPage = () => {
   const [saleSearch, setSaleSearch] = useState('');
   const [jobOrders, setjobOrders] = useState([]);   
   const [jobOrderSearch, setJobOrderSearch] = useState('');
-  const [rows, setRows] = React.useState([{ number: 1, productCode: '', qty: '', description: '' }]);
+  const [rows, setRows] = React.useState([{ number: 1, productCode: '', qty: '', description: '', sourceKey: null }]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [jobOrderProducts, setJobOrderProducts] = useState([]);
@@ -163,7 +164,7 @@ const AddPlPage = () => {
     setRows((prev) => {
       const nextRows = [
         ...prev,
-        { number: prev.length + 1, productCode: '', qty: '', description: '' },
+        { number: prev.length + 1, productCode: '', qty: '', description: '', sourceKey: null },
       ];
       return nextRows.map((row, idx) => ({ ...row, number: idx + 1 }));
     });
@@ -173,7 +174,7 @@ const AddPlPage = () => {
     setRows((prev) => {
       const updatedRows = prev.filter((_, i) => i !== index);
       if (!updatedRows.length) {
-        return [{ number: 1, productCode: '', qty: '', description: '' }];
+        return [{ number: 1, productCode: '', qty: '', description: '', sourceKey: null }];
       }
       return updatedRows.map((row, i) => ({ ...row, number: i + 1 }));
     });
@@ -217,18 +218,11 @@ const AddPlPage = () => {
     setJobOrderProducts(normalizeJobOrderProducts(selectedOrder));
   };
 
-  const handleSelectProduct = (product) => {
+  const handleSelectProduct = (product, sourceIndex) => {
+    const sourceKey = `${selectedJobOrder || 'job'}:${sourceIndex}`;
     setRows((prev) => {
-      const alreadyAdded = prev.some(
-        (row) =>
-          row.productCode === (product.productCode || '') &&
-          row.description === (product.description || '')
-      );
-
-      if (alreadyAdded) {
-        toast.error('Product already added!');
-        return prev;
-      }
+      const alreadyAdded = prev.some((row) => row.sourceKey === sourceKey);
+      if (alreadyAdded) return prev;
 
       const emptyIndex = prev.findIndex(
         (row) =>
@@ -244,6 +238,7 @@ const AddPlPage = () => {
           productCode: product.productCode || '',
           description: product.description || '',
           qty: product.qty ?? '',
+          sourceKey,
         };
         return updatedRows.map((row, idx) => ({ ...row, number: idx + 1 }));
       }
@@ -255,6 +250,7 @@ const AddPlPage = () => {
           productCode: product.productCode || '',
           description: product.description || '',
           qty: product.qty ?? '',
+          sourceKey,
         },
       ];
       return nextRows.map((row, idx) => ({ ...row, number: idx + 1 }));
@@ -404,11 +400,8 @@ const AddPlPage = () => {
                 </thead>
                 <tbody>
                   {jobOrderProducts.map((product, index) => {
-                    const isAdded = rows.some(
-                      (row) =>
-                        row.productCode === (product.productCode || '') &&
-                        row.description === (product.description || '')
-                    );
+                    const sourceKey = `${selectedJobOrder || 'job'}:${index}`;
+                    const isAdded = rows.some((row) => row.sourceKey === sourceKey);
                     return (
                       <tr key={`${product.productCode}-${index}`}>
                         <td>{(index + 1).toString().padStart(3, '0')}</td>
@@ -419,7 +412,7 @@ const AddPlPage = () => {
                           <button
                             type="button"
                             className={`${styles.selectButton} ${isAdded ? styles.DisabledButton : ''}`}
-                            onClick={() => handleSelectProduct(product)}
+                            onClick={() => handleSelectProduct(product, index)}
                             disabled={isAdded}
                           >
                             {isAdded ? 'Added' : 'Add'}
