@@ -86,6 +86,13 @@ useEffect(() => {
   };
 }, []);
 
+useEffect(() => {
+  const interval = setInterval(() => {
+    reloadTasks();
+  }, 5000);
+  return () => clearInterval(interval);
+}, []);
+
     
   
     useEffect(() => {
