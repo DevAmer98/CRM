@@ -22,6 +22,8 @@ const Navbar = () => {
   const [replyTasks, setReplyTasks] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [approvalError, setApprovalError] = useState("");
+  const [leaveCount, setLeaveCount] = useState(0);
+  const [leaveError, setLeaveError] = useState("");
   const [selectedTask, setSelectedTask] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
@@ -36,9 +38,10 @@ const Navbar = () => {
   const isApprovalViewer = ["admin", "superadmin", "super_admin", "hradmin", "hr_admin"].includes(
     (session?.user?.role || "").toLowerCase()
   );
+  const isHrDashboard = pathname?.startsWith("/hr_dashboard");
 
   useEffect(() => {
-    if (!isApprovalViewer) {
+    if (!isApprovalViewer || isHrDashboard) {
       setPendingApprovals([]);
       setApprovalError("");
       return;
@@ -174,7 +177,41 @@ const Navbar = () => {
       isMounted = false;
       clearInterval(interval);
     };
-  }, [isApprovalViewer]);
+  }, [isApprovalViewer, isHrDashboard]);
+
+  useEffect(() => {
+    if (!isHrDashboard) {
+      setLeaveCount(0);
+      setLeaveError("");
+      return;
+    }
+    let isMounted = true;
+    const fetchLeaves = async () => {
+      try {
+        const res = await fetch("/api/leaves/pending-count", { cache: "no-store" });
+        if (!res.ok) {
+          throw new Error("Failed to load leave requests.");
+        }
+        const data = await res.json();
+        if (isMounted) {
+          setLeaveCount(data?.count || 0);
+          setLeaveError("");
+        }
+      } catch (error) {
+        console.error("Error fetching leave requests:", error);
+        if (isMounted) {
+          setLeaveError(error?.message || "Failed to load leave requests.");
+        }
+      }
+    };
+
+    fetchLeaves();
+    const interval = setInterval(fetchLeaves, 60000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [isHrDashboard]);
 
   // Account editing moved to /dashboard/profile
 
@@ -267,7 +304,10 @@ const Navbar = () => {
 
             {/* Messages Link (Tasks + Tickets) */}
             <div className="relative">
-              <Link href="/dashboard/private" aria-label="Open private dashboard">
+              <Link
+                href={isHrDashboard ? "/hr_dashboard/private" : "/dashboard/private"}
+                aria-label="Open private dashboard"
+              >
                 <span className={`${styles.messageIconButton} ${styles.iconButtonAligned}`}>
                   <MessageSquare className="text-[var(--textSoft)]" />
                   {hasMessageNotifications && (
@@ -280,7 +320,7 @@ const Navbar = () => {
             </div>
 
             {/* Notifications Dropdown (Approvals) */}
-            {isApprovalViewer && (
+            {isApprovalViewer && !isHrDashboard && (
               <div className="relative">
                 <button
                   onClick={() => {
@@ -330,6 +370,59 @@ const Navbar = () => {
                     )}
                     {approvalError && (
                       <div className={styles.dropdownEmpty}>{approvalError}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isHrDashboard && (
+              <div className="relative">
+                <button
+                  onClick={() => {
+                    setShowBellDropdown(!showBellDropdown);
+                    setShowMessageDropdown(false);
+                  }}
+                >
+                  <Bell className="text-[var(--textSoft)]" />
+                  {leaveCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                      {leaveCount}
+                    </span>
+                  )}
+                </button>
+
+                {showBellDropdown && (
+                  <div className={styles.dropdown}>
+                    {leaveCount > 0 && (
+                      <>
+                        <div className={styles.dropdownHeader}>
+                          <span>Pending Leave Requests</span>
+                        </div>
+                        <ul className={styles.dropdownList}>
+                          <li className={styles.dropdownItem}>
+                            <Link
+                              href="/hr_dashboard/leaves"
+                              className="flex flex-col gap-1 text-sm"
+                              onClick={() => setShowBellDropdown(false)}
+                            >
+                              <span className="font-medium text-[var(--text)]">
+                                {leaveCount} pending request{leaveCount === 1 ? "" : "s"}
+                              </span>
+                              <span className="text-xs text-[var(--textSoft)]">
+                                Review in Leave Requests
+                              </span>
+                            </Link>
+                          </li>
+                        </ul>
+                      </>
+                    )}
+
+                    {leaveCount === 0 && !leaveError && (
+                      <div className={styles.dropdownEmpty}>You're all caught up!</div>
+                    )}
+                    {leaveError && (
+                      <div className={styles.dropdownEmpty}>{leaveError}</div>
                     )}
                   </div>
                 )}
