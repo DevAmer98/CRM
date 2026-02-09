@@ -3,7 +3,7 @@
 import styles from '@/app/ui/dashboard/approve/approve.module.css'
 import { addQuotation } from '@/app/lib/actions'
 import { FaPlus, FaTrash, FaTag, FaEdit, FaUnlink } from 'react-icons/fa'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
@@ -82,6 +82,8 @@ const handleExcelUpload = (file, setRows, toast) => {
               h.includes("amount")
           ),
         };
+        const fallbackUnitAsPriceIndex =
+          colIndex.unitPrice === -1 && colIndex.total === -1 ? colIndex.uom : -1;
 
         const sheetProducts = [];
         for (let i = headerIndex + 1; i < rows.length; i++) {
@@ -107,11 +109,22 @@ const handleExcelUpload = (file, setRows, toast) => {
           const unitPriceValue = parseFloat(unitPriceRaw.replace(/[^\d.]/g, "")) || 0;
 
           const totalRaw = r[colIndex.total]?.toString() || "";
-          const totalValue = parseFloat(totalRaw.replace(/[^\d.]/g, "")) || 0;
+          let totalValue = parseFloat(totalRaw.replace(/[^\d.]/g, "")) || 0;
 
-          const rawUom = (r[colIndex.uom] || "").toString().trim();
-          const normalizedUom = rawUom.toUpperCase();
-          const unitType = UNIT_OPTIONS.find((u) => u.toUpperCase() === normalizedUom) || "";
+          let rawUom = (r[colIndex.uom] || "").toString().trim();
+          let normalizedUom = rawUom.toUpperCase();
+          let unitType = UNIT_OPTIONS.find((u) => u.toUpperCase() === normalizedUom) || "";
+          if (fallbackUnitAsPriceIndex !== -1) {
+            const fallbackRaw = (r[fallbackUnitAsPriceIndex] || "").toString();
+            const fallbackValue =
+              parseFloat(fallbackRaw.replace(/[^\d.]/g, "")) || 0;
+            if (fallbackValue > 0 && totalValue === 0 && unitPriceValue === 0) {
+              totalValue = fallbackValue;
+              rawUom = "";
+              normalizedUom = "";
+              unitType = "";
+            }
+          }
           const hasNumericValues = qty > 0 || unitPriceValue > 0 || totalValue > 0;
 
           if (!hasNumericValues) {
@@ -245,6 +258,8 @@ const AddQuotation = () => {
   const [selectedSaleId, setSelectedSaleId] = useState('')
   const [clientSearch, setClientSearch] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
+  const [uploadedExcelName, setUploadedExcelName] = useState('')
+  const excelInputRef = useRef(null)
 
 
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, '').trim()
@@ -291,6 +306,16 @@ const AddQuotation = () => {
   /* ---------- Handlers ---------- */
   const handleRowInputChange = (index, field, value) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)))
+  }
+
+  const resetExcelImport = () => {
+    setRows([buildRow()])
+    setShowTitles([false])
+    setShowSubtitles([false])
+    setSelectedRows([])
+    setSharedPriceValue('')
+    setUploadedExcelName('')
+    if (excelInputRef.current) excelInputRef.current.value = ''
   }
 
   const filteredClients = clients.filter((client) => {
@@ -901,23 +926,35 @@ const cleanQuillHtml = (html) => {
   <div className={styles.inputContainer}>
   <label className={styles.label}>Upload Excel File:</label>
   <input
+    ref={excelInputRef}
     type="file"
     accept=".xlsx, .xls"
-    onChange={(e) =>
+    onChange={(e) => {
+      const file = e.target.files[0]
       handleExcelUpload(
-        e.target.files[0],
+        file,
         (importedRows) => {
           if (!Array.isArray(importedRows)) return
           setRows(importedRows)
           setShowTitles(importedRows.map((row) => !!String(row?.titleAbove || '').trim()))
           setShowSubtitles(importedRows.map((row) => !!String(row?.subtitleAbove || '').trim()))
           setSelectedRows([])
+          setUploadedExcelName(file?.name || 'Excel file')
         },
         toast
       )
-    }
+    }}
     className={styles.input}
   />
+  {uploadedExcelName && (
+    <button
+      type="button"
+      onClick={resetExcelImport}
+      className={styles.excelRemoveButton}
+    >
+      ✖ Remove Excel ({uploadedExcelName})
+    </button>
+  )}
 </div>
 
 

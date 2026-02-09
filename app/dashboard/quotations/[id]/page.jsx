@@ -1,12 +1,14 @@
 //app/dashboard/quotations/%5Bid%5D/page.jsx
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { FaPlus, FaTrash, FaTag, FaEdit, FaGripLines, FaUnlink } from "react-icons/fa";
 import styles from "@/app/ui/dashboard/approve/approve.module.css";
 import { editQuotation, updateQuotation } from "@/app/lib/actions";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
+import toast from "react-hot-toast";
+import * as XLSX from "xlsx";
 import {
   UNIT_MERGE_CONT_TOKEN,
   UNIT_MERGE_START_TOKEN,
@@ -18,6 +20,23 @@ const COMPANY_OPTIONS = [
   { value: "ARABIC_LINE", label: "ArabicLine" },
 ];
 const UNIT_OPTIONS = ["m", "m2", "m3", "PCS", "LM", "L/S", "Roll", "EA", "Trip"];
+const buildRow = (overrides = {}) => ({
+  id: 0,
+  number: 0,
+  productCode: "",
+  description: "",
+  qty: "",
+  unit: "",
+  discount: 0,
+  unitPrice: 0,
+  unitType: "",
+  isSubtitleOnly: false,
+  titleAbove: "",
+  subtitleAbove: "",
+  sharedGroupId: null,
+  sharedGroupPrice: null,
+  ...overrides,
+});
 
 const SingleQuotation = ({ params }) => {
   const [selectedCurrency, setSelectedCurrency] = useState("USD");
@@ -63,6 +82,8 @@ const [richDescValue, setRichDescValue] = useState("");
   const [draggingIndex, setDraggingIndex] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
   const [sharedPriceValue, setSharedPriceValue] = useState("");
+  const [uploadedExcelName, setUploadedExcelName] = useState("");
+  const excelInputRef = useRef(null);
 
   const currencyFields = (selectedCurrency) => {
     const isSAR = selectedCurrency === "SAR";
@@ -665,41 +686,8 @@ return payload;
 
     setSelectedCurrency(quotation.currency || "USD");
 
-    const newRows = [];
-    const initialShow = [];
-    const initialShowSubtitles = [];
-    let prev = undefined;
-
-    (quotation.products || []).forEach((product, index) => {
-      const norm = (product.titleAbove || "").trim();
-      const isBoundary = !!norm && norm !== prev;
-
-      newRows.push({
-        _id: product._id,
-        id: index + 1,
-        number: index + 1,
-        productCode: product.productCode || "",
-        unitPrice: Number(product.unitPrice || 0), // row subtotal (we still recompute below)
-        unit: product.unit || "", // unit price
-        unitType: product.unitType || "",
-        isSubtitleOnly: Boolean(product.isSubtitleOnly),
-        qty: product.qty || "",
-        description: product.description || "",
-        titleAbove: isBoundary ? norm : "", // only keep value where a section starts
-        subtitleAbove: product.subtitleAbove || "",
-        discount: Number(product.discount || 0), // NEW
-        sharedGroupId: product.sharedGroupId || null,
-        sharedGroupPrice:
-          product.sharedGroupPrice !== undefined &&
-          product.sharedGroupPrice !== null
-            ? Number(product.sharedGroupPrice)
-            : null,
-      });
-
-      initialShow.push(isBoundary);
-      initialShowSubtitles.push(!!(product.subtitleAbove || "").trim());
-      if (isBoundary) prev = norm;
-    });
+    const { newRows, initialShow, initialShowSubtitles } =
+      buildRowsFromProducts(quotation.products || []);
 
     console.groupCollapsed("[ROWS] after transform");
     console.table(
@@ -926,6 +914,255 @@ return payload;
     })
   );
 };
+
+  const buildRowsFromProducts = (products = []) => {
+    const newRows = [];
+    const initialShow = [];
+    const initialShowSubtitles = [];
+    let prev = undefined;
+
+    products.forEach((product, index) => {
+      const norm = (product.titleAbove || "").trim();
+      const isBoundary = !!norm && norm !== prev;
+
+      newRows.push({
+        _id: product._id,
+        id: index + 1,
+        number: index + 1,
+        productCode: product.productCode || "",
+        unitPrice: Number(product.unitPrice || 0),
+        unit: product.unit || "",
+        unitType: product.unitType || "",
+        isSubtitleOnly: Boolean(product.isSubtitleOnly),
+        qty: product.qty || "",
+        description: product.description || "",
+        titleAbove: isBoundary ? norm : "",
+        subtitleAbove: product.subtitleAbove || "",
+        discount: Number(product.discount || 0),
+        sharedGroupId: product.sharedGroupId || null,
+        sharedGroupPrice:
+          product.sharedGroupPrice !== undefined &&
+          product.sharedGroupPrice !== null
+            ? Number(product.sharedGroupPrice)
+            : null,
+      });
+
+      initialShow.push(isBoundary);
+      initialShowSubtitles.push(!!(product.subtitleAbove || "").trim());
+      if (isBoundary) prev = norm;
+    });
+
+    return { newRows, initialShow, initialShowSubtitles };
+  };
+
+  const handleExcelUpload = (file) => {
+    if (!file) {
+      toast.error("Please select a file.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+        const products = [];
+        let parsedSheets = 0;
+
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+          const headerIndex = rows.findIndex((r) => {
+            const text = r.join(" ").toLowerCase();
+            const hasDesc = text.includes("description") || text.includes("product");
+            const hasQty = text.includes("qty") || text.includes("quantity");
+            const hasPrice =
+              text.includes("sub-total") ||
+              text.includes("subtotal") ||
+              text.includes("rate") ||
+              text.includes("price") ||
+              text.includes("amount") ||
+              text.includes("unit");
+            return hasDesc && hasQty && hasPrice;
+          });
+          if (headerIndex === -1) continue;
+
+          const header = rows[headerIndex].map((h) =>
+            h.toString().toLowerCase().trim()
+          );
+          const colIndex = {
+            itemNo: header.findIndex((h) => h.includes("item")),
+            productCode: header.findIndex((h) => h.includes("product") || h.includes("code")),
+            description: header.findIndex((h) => h.includes("description")),
+            qty: header.findIndex((h) => h.startsWith("qty") || h.includes("quantity")),
+            uom: header.findIndex(
+              (h) => h === "uom" || h === "unit" || h.includes("unit of measure")
+            ),
+            unitPrice: header.findIndex(
+              (h) => h.includes("unit price") || h === "price" || h.includes("rate")
+            ),
+            total: header.findIndex(
+              (h) =>
+                h.includes("sub-total") ||
+                h.includes("subtotal") ||
+                h === "total" ||
+                h.includes("amount")
+            ),
+          };
+          const fallbackUnitAsPriceIndex =
+            colIndex.unitPrice === -1 && colIndex.total === -1 ? colIndex.uom : -1;
+
+          const sheetProducts = [];
+          for (let i = headerIndex + 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (!r || r.every((v) => !v)) continue;
+
+            const desc = (r[colIndex.description] || "").toString().trim();
+            if (!desc) continue;
+
+            const skipWords = ["included", "note", "division", "page"];
+            if (skipWords.some((w) => desc.toLowerCase().includes(w))) continue;
+
+            const itemNoRaw = (r[colIndex.itemNo] || "").toString().trim();
+            const normalizedItemNo = itemNoRaw.replace(/\s+/g, "").replace(/\.+$/g, "");
+            const itemLevel = normalizedItemNo
+              ? normalizedItemNo.split(".").filter(Boolean).length
+              : 0;
+
+            const qtyRaw = r[colIndex.qty]?.toString() || "";
+            const qty = parseFloat(qtyRaw.replace(/[^\d.]/g, "")) || 0;
+
+            const unitPriceRaw = r[colIndex.unitPrice]?.toString() || "";
+            const unitPriceValue = parseFloat(unitPriceRaw.replace(/[^\d.]/g, "")) || 0;
+
+            const totalRaw = r[colIndex.total]?.toString() || "";
+            let totalValue = parseFloat(totalRaw.replace(/[^\d.]/g, "")) || 0;
+
+            let rawUom = (r[colIndex.uom] || "").toString().trim();
+            let normalizedUom = rawUom.toUpperCase();
+            let unitType = UNIT_OPTIONS.find((u) => u.toUpperCase() === normalizedUom) || "";
+            if (fallbackUnitAsPriceIndex !== -1) {
+              const fallbackRaw = (r[fallbackUnitAsPriceIndex] || "").toString();
+              const fallbackValue =
+                parseFloat(fallbackRaw.replace(/[^\d.]/g, "")) || 0;
+              if (fallbackValue > 0 && totalValue === 0 && unitPriceValue === 0) {
+                totalValue = fallbackValue;
+                rawUom = "";
+                normalizedUom = "";
+                unitType = "";
+              }
+            }
+            const hasNumericValues = qty > 0 || unitPriceValue > 0 || totalValue > 0;
+
+            if (!hasNumericValues) {
+              if (itemLevel === 1) {
+                sheetProducts.push(
+                  buildRow({
+                    titleAbove: desc,
+                    isSubtitleOnly: true,
+                  })
+                );
+                continue;
+              }
+              if (itemLevel >= 2) {
+                sheetProducts.push(
+                  buildRow({
+                    subtitleAbove: desc,
+                    isSubtitleOnly: true,
+                  })
+                );
+                continue;
+              }
+              continue;
+            }
+
+            const unitPrice =
+              unitPriceValue > 0
+                ? unitPriceValue
+                : totalValue > 0
+                ? qty > 0
+                  ? totalValue / qty
+                  : totalValue
+                : 0;
+
+            sheetProducts.push(
+              buildRow({
+                productCode: r[colIndex.productCode]?.toString().trim() || "",
+                description: desc,
+                qty,
+                unit: unitPrice || 0,
+                unitType,
+                discount: 0,
+              })
+            );
+          }
+
+          if (sheetProducts.length) {
+            parsedSheets += 1;
+            products.push(...sheetProducts);
+          }
+        }
+
+        if (!products.length) {
+          toast.error("No valid products found in Excel.");
+          return;
+        }
+
+        const normalizedRows = products.map((row, index) => {
+          const qty = Number(row.qty || 0);
+          const unit = Number(row.unit || 0);
+          const discount = Number(row.discount || 0);
+          const unitPrice = qty * unit * (1 - discount / 100);
+          return {
+            ...row,
+            id: index + 1,
+            number: index + 1,
+            unitPrice,
+          };
+        });
+
+        setRows(normalizedRows);
+        setShowTitles(
+          normalizedRows.map((row) => !!String(row?.titleAbove || "").trim())
+        );
+        setShowSubtitles(
+          normalizedRows.map((row) => !!String(row?.subtitleAbove || "").trim())
+        );
+        setSelectedRows([]);
+        setSharedPriceValue("");
+        setUploadedExcelName(file?.name || "Excel file");
+        toast.success(
+          `Loaded ${normalizedRows.length} products from ${parsedSheets} sheet(s)!`
+        );
+      } catch (err) {
+        console.error("EXCEL PARSE ERROR", err);
+        toast.error("Failed to parse Excel file. Please check format.");
+      }
+    };
+
+    reader.readAsArrayBuffer(file);
+  };
+
+  const resetExcelImport = () => {
+    if (quotation?.products) {
+      const { newRows, initialShow, initialShowSubtitles } =
+        buildRowsFromProducts(quotation.products || []);
+      setRows(newRows);
+      setShowTitles(initialShow);
+      setShowSubtitles(initialShowSubtitles);
+    } else {
+      const emptyRow = buildRow({ id: 1, number: 1 });
+      setRows([emptyRow]);
+      setShowTitles([false]);
+      setShowSubtitles([false]);
+    }
+    setSelectedRows([]);
+    setSharedPriceValue("");
+    setUploadedExcelName("");
+    if (excelInputRef.current) excelInputRef.current.value = "";
+  };
 
 
 
@@ -1712,6 +1949,26 @@ return payload;
               >
                 Clear Selection
               </button>
+            </div>
+
+            <div className={styles.inputContainer}>
+              <label className={styles.label}>Upload Excel File:</label>
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx, .xls"
+                onChange={(e) => handleExcelUpload(e.target.files && e.target.files[0])}
+                className={styles.input}
+              />
+              {uploadedExcelName && (
+                <button
+                  type="button"
+                  onClick={resetExcelImport}
+                  className={styles.excelRemoveButton}
+                >
+                  ✖ Remove Excel ({uploadedExcelName})
+                </button>
+              )}
             </div>
 
             {Object.keys(sharedGroupMeta).length > 0 && (
