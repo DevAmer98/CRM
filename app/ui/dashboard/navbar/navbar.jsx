@@ -41,12 +41,13 @@ const Navbar = () => {
   const isHrDashboard = pathname?.startsWith("/hr_dashboard");
 
   useEffect(() => {
-    if (!isApprovalViewer || isHrDashboard) {
-      setPendingApprovals([]);
-      setApprovalError("");
+    let isMounted = true;
+    if (!session?.user?.id) {
+      setTasks([]);
+      setTickets([]);
+      setReplyTasks([]);
       return;
     }
-    let isMounted = true;
     const fetchMessages = async () => {
       try {
         const [taskData, ticketData, replyData] = await Promise.all([
@@ -76,7 +77,7 @@ const Navbar = () => {
         window.removeEventListener("message-badge-refresh", handleRefresh);
       }
     };
-  }, []);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (soundEnabled) return;
@@ -149,6 +150,11 @@ const Navbar = () => {
   }, [showPlusMenu]);
 
   useEffect(() => {
+    if (!isApprovalViewer || isHrDashboard) {
+      setPendingApprovals([]);
+      setApprovalError("");
+      return;
+    }
     let isMounted = true;
 
     const fetchApprovals = async () => {

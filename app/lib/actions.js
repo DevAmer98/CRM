@@ -1,5 +1,5 @@
 "use server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_noStore as noStore } from "next/cache";
 import { connectToDB } from "./utils";
 import { redirect } from "next/navigation";
 import bcrypt from 'bcrypt';
@@ -2879,6 +2879,7 @@ export const getAssignedTasks = async () => {
 
 
 export const getTasks = async () => {
+  noStore();
   await connectToDB();
 
   const session = await auth(); // this gives you the current user session
@@ -2886,7 +2887,7 @@ export const getTasks = async () => {
     return []; // or throw new Error("Not authenticated");
   }
 
-  const tasks = await Task.find({ assignedTo: session.user.id })
+  const tasks = await Task.find({ assignedTo: session.user.id, status: { $ne: 'done' } })
     .select('title status deadline _id')
     .sort({ deadline: 1 });
 
@@ -3273,6 +3274,7 @@ export const markTaskReplySeen = async (taskId) => {
 };
 
 export const getTaskReplyNotifications = async () => {
+  noStore();
   await connectToDB();
   const session = await auth();
   if (!session || !session.user?.id) {
@@ -3452,6 +3454,7 @@ export const getAllTicketsDetailed = async () => {
 
 
 export const getTickets = async () => {
+  noStore();
   await connectToDB();
 
   const session = await auth(); // this gives you the current user session
@@ -3459,7 +3462,7 @@ export const getTickets = async () => {
     return []; // or throw new Error("Not authenticated");
   }
 
-  const tickets = await Ticket.find({ assignedTo: session.user.id })
+  const tickets = await Ticket.find({ assignedTo: session.user.id, status: { $ne: 'done' } })
     .select('title status deadline _id')
     .sort({ deadline: 1 });
 
