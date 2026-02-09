@@ -1,5 +1,6 @@
 'use client';
 import styles from './task.module.css';
+import toast from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DayPicker } from 'react-day-picker';
@@ -45,10 +46,13 @@ const TaskForm = ({ onClose, onTaskCreated }) => {
     setForm({ title: '', description: '', deadline: '', assignedTo: '' });
     onTaskCreated?.(); // 🔥 call reloadTasks passed from parent
     onClose?.();
-    alert('Task sent successfully!');
+    toast.success('Task sent successfully!');
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("message-badge-refresh"));
+    }
   } catch (err) {
     console.error(err);
-    alert('Error sending task');
+    toast.error('Error sending task');
   } finally {
     setLoading(false);
   }

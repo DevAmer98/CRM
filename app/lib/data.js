@@ -1601,6 +1601,28 @@ export const fetchManagersCount = async () => {
       throw new Error('Failed to fetch supplier count!');
     }
   };
+
+  export const fetchQuotationCount = async () => {
+    try {
+      await connectToDB();
+      const count = await Quotation.countDocuments();
+      return count;
+    } catch (err) {
+      console.log("Error in fetchQuotationCount:", err);
+      throw new Error('Failed to fetch quotation count!');
+    }
+  };
+
+  export const fetchPurchaseOrderCount = async () => {
+    try {
+      await connectToDB();
+      const count = await PurchaseOrder.countDocuments();
+      return count;
+    } catch (err) {
+      console.log("Error in fetchPurchaseOrderCount:", err);
+      throw new Error('Failed to fetch purchase order count!');
+    }
+  };
   
 
 

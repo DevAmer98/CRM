@@ -2898,6 +2898,123 @@ export const getTasks = async () => {
   }));
 };
 
+export const getAssignedTasksDetailed = async () => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const tasks = await Task.find({ assignedTo: session.user.id })
+    .populate('createdBy', 'username email')
+    .populate('assignedTo', 'username email')
+    .populate('comments.author', 'username email')
+    .select('title description status deadline comment comments createdBy assignedTo createdAt updatedAt lastReplyAt lastReplyBy replySeenByCreator')
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  const mapUser = (user, fallback) => {
+    if (!user) return null;
+    const id = user._id
+      ? user._id.toString()
+      : typeof user === 'string'
+        ? user
+        : '';
+
+    return {
+      id,
+      name: user.username || user.email || fallback,
+      email: user.email || '',
+    };
+  };
+
+  return tasks.map(task => ({
+    id: task._id.toString(),
+    title: task.title,
+    description: task.description || '',
+    comment: task.comment || '',
+    comments: Array.isArray(task.comments)
+      ? task.comments.map(comment => ({
+          id: comment._id?.toString() || '',
+          message: comment.message || '',
+          createdAt: comment.createdAt ? new Date(comment.createdAt).toISOString() : null,
+          author: mapUser(comment.author, 'Unknown'),
+        }))
+      : [],
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+    deadlineRaw: task.deadline?.toISOString() || null,
+    createdAt: task.createdAt?.toISOString() || null,
+    updatedAt: task.updatedAt?.toISOString() || null,
+    lastReplyAt: task.lastReplyAt ? new Date(task.lastReplyAt).toISOString() : null,
+    lastReplyBy: mapUser(task.lastReplyBy, 'Unknown'),
+    replySeenByCreator: task.replySeenByCreator ?? true,
+    createdBy: mapUser(task.createdBy, 'Unknown'),
+    assignedTo: mapUser(task.assignedTo, 'Unassigned'),
+  }));
+};
+
+export const getCreatorReplyTasksDetailed = async () => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const userId = session.user.id;
+  const tasks = await Task.find({
+    createdBy: userId,
+    status: { $ne: 'done' },
+    lastReplyBy: { $exists: true, $ne: userId },
+  })
+    .populate('createdBy', 'username email')
+    .populate('assignedTo', 'username email')
+    .populate('comments.author', 'username email')
+    .select('title description status deadline comment comments createdBy assignedTo createdAt updatedAt lastReplyAt lastReplyBy replySeenByCreator')
+    .sort({ lastReplyAt: -1 })
+    .lean();
+
+  const mapUser = (user, fallback) => {
+    if (!user) return null;
+    const id = user._id
+      ? user._id.toString()
+      : typeof user === 'string'
+        ? user
+        : '';
+
+    return {
+      id,
+      name: user.username || user.email || fallback,
+      email: user.email || '',
+    };
+  };
+
+  return tasks.map(task => ({
+    id: task._id.toString(),
+    title: task.title,
+    description: task.description || '',
+    comment: task.comment || '',
+    comments: Array.isArray(task.comments)
+      ? task.comments.map(comment => ({
+          id: comment._id?.toString() || '',
+          message: comment.message || '',
+          createdAt: comment.createdAt ? new Date(comment.createdAt).toISOString() : null,
+          author: mapUser(comment.author, 'Unknown'),
+        }))
+      : [],
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+    deadlineRaw: task.deadline?.toISOString() || null,
+    createdAt: task.createdAt?.toISOString() || null,
+    updatedAt: task.updatedAt?.toISOString() || null,
+    lastReplyAt: task.lastReplyAt ? new Date(task.lastReplyAt).toISOString() : null,
+    lastReplyBy: mapUser(task.lastReplyBy, 'Unknown'),
+    replySeenByCreator: task.replySeenByCreator ?? true,
+    createdBy: mapUser(task.createdBy, 'Unknown'),
+    assignedTo: mapUser(task.assignedTo, 'Unassigned'),
+  }));
+};
+
 export const getAllTasksDetailed = async () => {
   await connectToDB();
 
@@ -2909,7 +3026,8 @@ export const getAllTasksDetailed = async () => {
   const tasks = await Task.find({})
     .populate('createdBy', 'username email')
     .populate('assignedTo', 'username email')
-    .select('title description status deadline comment createdBy assignedTo createdAt updatedAt')
+    .populate('comments.author', 'username email')
+    .select('title description status deadline comment comments createdBy assignedTo createdAt updatedAt lastReplyAt lastReplyBy replySeenByCreator')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -2935,11 +3053,22 @@ export const getAllTasksDetailed = async () => {
       title: task.title,
       description: task.description || '',
       comment: task.comment || '',
+      comments: Array.isArray(task.comments)
+        ? task.comments.map(comment => ({
+            id: comment._id?.toString() || '',
+            message: comment.message || '',
+            createdAt: comment.createdAt ? new Date(comment.createdAt).toISOString() : null,
+            author: mapUser(comment.author, 'Unknown'),
+          }))
+        : [],
       status: task.status,
       deadline: task.deadline?.toISOString().split('T')[0] || '—',
       deadlineRaw: task.deadline?.toISOString() || null,
       createdAt: task.createdAt?.toISOString() || null,
       updatedAt: task.updatedAt?.toISOString() || null,
+      lastReplyAt: task.lastReplyAt ? new Date(task.lastReplyAt).toISOString() : null,
+      lastReplyBy: mapUser(task.lastReplyBy, 'Unknown'),
+      replySeenByCreator: task.replySeenByCreator ?? true,
       createdBy: mapUser(task.createdBy, 'Unknown'),
       assignedTo: mapUser(task.assignedTo, 'Unassigned'),
     })),
@@ -2987,7 +3116,8 @@ export const getTaskById = async (id) => {
   const task = await Task.findById(id)
     .populate('assignedTo', 'username') // populate assigned user
     .populate('createdBy', 'username')  // populate creator user
-    .select('title description status deadline assignedTo createdBy');
+    .populate('comments.author', 'username email')
+    .select('title description status deadline assignedTo createdBy comments lastReplyAt lastReplyBy replySeenByCreator');
 
   if (!task) throw new Error("Task not found");
 
@@ -2997,6 +3127,22 @@ export const getTaskById = async (id) => {
     description: task.description,
     status: task.status,
     deadline: task.deadline?.toISOString().split('T')[0] || '—',
+    comments: Array.isArray(task.comments)
+      ? task.comments.map(comment => ({
+          id: comment._id?.toString() || '',
+          message: comment.message || '',
+          createdAt: comment.createdAt ? new Date(comment.createdAt).toISOString() : null,
+          author: {
+            id: comment.author?._id?.toString() || '',
+            name: comment.author?.username || comment.author?.email || 'Unknown',
+          },
+        }))
+      : [],
+    lastReplyAt: task.lastReplyAt ? new Date(task.lastReplyAt).toISOString() : null,
+    lastReplyBy: task.lastReplyBy
+      ? (task.lastReplyBy.username || task.lastReplyBy.email || task.lastReplyBy.toString())
+      : null,
+    replySeenByCreator: task.replySeenByCreator ?? true,
     assignedTo: task.assignedTo 
       ? (task.assignedTo.username || task.assignedTo.email || task.assignedTo.toString())
       : 'Unassigned',
@@ -3004,6 +3150,100 @@ export const getTaskById = async (id) => {
       ? (task.createdBy.username || task.createdBy.email || task.createdBy.toString())
       : 'Unknown',
   };
+};
+
+export const addTaskComment = async (taskId, message) => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+  if (!message || !String(message).trim()) {
+    throw new Error("Comment message is required");
+  }
+
+  const task = await Task.findById(taskId);
+  if (!task) throw new Error("Task not found");
+
+  const userId = session.user.id;
+  const isCreator = task.createdBy?.toString() === userId;
+  const isAssignee = task.assignedTo?.toString() === userId;
+  if (!isCreator && !isAssignee) {
+    throw new Error("Not authorized to comment on this task");
+  }
+
+  task.comments.push({
+    author: userId,
+    message: String(message).trim(),
+    createdAt: new Date(),
+  });
+  task.lastReplyAt = new Date();
+  task.lastReplyBy = userId;
+  if (!isCreator) {
+    task.replySeenByCreator = false;
+  } else {
+    task.replySeenByCreator = true;
+  }
+  await task.save();
+
+  return {
+    id: task._id.toString(),
+    lastReplyAt: task.lastReplyAt?.toISOString() || null,
+    lastReplyBy: userId,
+    replySeenByCreator: task.replySeenByCreator ?? true,
+  };
+};
+
+export const markTaskReplySeen = async (taskId) => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const task = await Task.findById(taskId);
+  if (!task) throw new Error("Task not found");
+
+  const userId = session.user.id;
+  const isCreator = task.createdBy?.toString() === userId;
+  if (!isCreator) {
+    return { id: task._id.toString(), replySeenByCreator: task.replySeenByCreator ?? true };
+  }
+
+  task.replySeenByCreator = true;
+  await task.save();
+  return { id: task._id.toString(), replySeenByCreator: true };
+};
+
+export const getTaskReplyNotifications = async () => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    return [];
+  }
+
+  const userId = session.user.id;
+  const tasks = await Task.find({
+    createdBy: userId,
+    replySeenByCreator: false,
+    lastReplyBy: { $ne: userId }
+  })
+    .populate('lastReplyBy', 'username email')
+    .select('title lastReplyAt lastReplyBy createdBy')
+    .sort({ lastReplyAt: -1 })
+    .lean();
+
+  return tasks.map(task => ({
+    id: task._id.toString(),
+    title: task.title,
+    lastReplyAt: task.lastReplyAt ? new Date(task.lastReplyAt).toISOString() : null,
+    lastReplyBy: task.lastReplyBy
+      ? {
+          id: task.lastReplyBy._id?.toString() || '',
+          name: task.lastReplyBy.username || task.lastReplyBy.email || 'Unknown'
+        }
+      : null
+  }));
 };
 
 
@@ -3022,6 +3262,31 @@ export const markTaskAsDone = async (id) => {
     description: task.description,
     status: task.status,
     deadline: task.deadline?.toISOString().split('T')[0] || '—',
+  };
+};
+
+export const updateTaskStatus = async (id, status) => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const allowed = ["pending", "in-progress", "done"];
+  if (!allowed.includes(status)) {
+    throw new Error("Invalid status");
+  }
+
+  const task = await Task.findById(id);
+  if (!task) throw new Error("Task not found");
+
+  task.status = status;
+  await task.save();
+
+  return {
+    id: task._id.toString(),
+    status: task.status,
+    updatedAt: task.updatedAt?.toISOString() || null,
   };
 };
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -6,38 +6,115 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts';
 import styles from './chart.module.css'
 
 
-const data = [
-  { name: 'Page A', uv: 4000, pv: 2400, amt: 2400 },
-  { name: 'Page B', uv: 3000, pv: 1398, amt: 2210 },
-  { name: 'Page C', uv: 2000, pv: 9800, amt: 2290 },
-  { name: 'Page D', uv: 2780, pv: 3908, amt: 2000 },
-  { name: 'Page E', uv: 1890, pv: 4800, amt: 2181 },
-  { name: 'Page F', uv: 2390, pv: 3800, amt: 2500 },
-  { name: 'Page G', uv: 3490, pv: 4300, amt: 2100 },
-];
+const formatDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const formatLabel = (dateKey) => {
+  const date = new Date(`${dateKey}T00:00:00`);
+  return date.toLocaleDateString(undefined, { month: "short", day: "2-digit" });
+};
 
 const DualYAxisBarChart = () => {
+  const [trend, setTrend] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchTrend = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const today = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(today.getDate() - 13);
+        const from = formatDateKey(fromDate);
+        const to = formatDateKey(today);
+
+        const response = await fetch(`/api/overview/quote-po-trend?from=${from}&to=${to}`, { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.message || "Failed to load activity.");
+        }
+
+        setTrend(Array.isArray(payload.trend) ? payload.trend : []);
+      } catch (err) {
+        setError(err?.message || "Failed to load activity.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrend();
+  }, []);
+
+  const data = useMemo(
+    () =>
+      trend.map(item => ({
+        date: item.date,
+        label: formatLabel(item.date),
+        quotations: item.quotations || 0,
+        purchaseOrders: item.purchaseOrders || 0
+      })),
+    [trend]
+  );
+
   return (
-    <div className={styles.container} style={{ width: '100%', height: 300 }}>
-      <ResponsiveContainer>
+    <div className={styles.container}>
+      <h2 className={styles.title}>Daily Activity</h2>
+      {loading && <p className={styles.subtitle}>Loading quotations and purchase orders…</p>}
+      {error && <p className={styles.subtitle}>{error}</p>}
+      {!loading && !error && (
+        <div className={styles.legendRow}>
+          <div className={styles.legendItem}>
+            <span className={`${styles.legendSwatch} ${styles.legendQuote}`}></span>
+            <span>Quotations</span>
+          </div>
+          <div className={styles.legendItem}>
+            <span className={`${styles.legendSwatch} ${styles.legendPO}`}></span>
+            <span>Purchase Orders</span>
+          </div>
+        </div>
+      )}
+      <ResponsiveContainer width="100%" height={260}>
         <BarChart
           data={data}
-          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 8, right: 20, left: 4, bottom: 8 }}
+          barGap={6}
+          barCategoryGap="20%"
         >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-          <YAxis yAxisId="right" orientation="right" stroke="#82ca9d" />
-          <Tooltip />
-          <Legend />
-          <Bar yAxisId="left" dataKey="pv" fill="#8884d8" />
-          <Bar yAxisId="right" dataKey="uv" fill="#82ca9d" />
+          <defs>
+            <linearGradient id="barQuote" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7C9BFF" />
+              <stop offset="100%" stopColor="#4A67F5" />
+            </linearGradient>
+            <linearGradient id="barPO" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#7BFFB3" />
+              <stop offset="100%" stopColor="#35C98E" />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.08)" />
+          <XAxis dataKey="label" tick={{ fill: "var(--textSoft)", fontSize: 12 }} />
+          <YAxis allowDecimals={false} tick={{ fill: "var(--textSoft)", fontSize: 12 }} />
+          <Tooltip
+            contentStyle={{
+              background: "rgba(18, 24, 40, 0.95)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: "12px",
+              color: "#fff"
+            }}
+            labelStyle={{ color: "#9fb3c8" }}
+          />
+          <Bar name="Quotations" dataKey="quotations" fill="url(#barQuote)" radius={[6, 6, 0, 0]} />
+          <Bar name="Purchase Orders" dataKey="purchaseOrders" fill="url(#barPO)" radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

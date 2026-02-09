@@ -19,34 +19,19 @@ const Client = () => {
     }); 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [roleStats, setRoleStats] = useState([]);
-
-
-    const chartData = [
-
-  { name: 'Jan', pv: 2400 },
-  { name: 'Feb', pv: 1398 },
-  { name: 'Mar', pv: 9800 },
-  { name: 'Apr', pv: 3908 },
-  { name: 'May', pv: 4800 },
-  { name: 'Jun', pv: 3800 },
-  { name: 'Jul', pv: 4300 },
-  { name: 'Aug', pv: 2100 },
-  { name: 'Sep', pv: 6700 },
-  { name: 'Oct', pv: 5400 },
-  { name: 'Nov', pv: 3200 },
-  { name: 'Dec', pv: 7800 }
-
-  
-];
+    const [latestClients, setLatestClients] = useState([]);
+    const [clientSummary, setClientSummary] = useState({
+      counts: { clients: 0, leads: 0, newClients: 0, conversionRate: 0 },
+      leadStatus: [],
+      leadSource: [],
+      clientRevenue: []
+    });
 
 
 
     
 
     useEffect(() => {
-
-      
       const fetchCounts = async () => {
         try {
           const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
@@ -77,10 +62,17 @@ const Client = () => {
           });
 
 
-          const roleRes = await fetch(`${domain}/api/userRoleStats`, { cache: 'no-store' });
-          if (!roleRes.ok) throw new Error('Failed to fetch role stats');
-          const { stats } = await roleRes.json();
-          setRoleStats(stats);
+          const summaryRes = await fetch(`${domain}/api/overview/clients-summary`, { cache: "no-store" });
+          if (!summaryRes.ok) throw new Error("Failed to fetch client summary");
+          const summary = await summaryRes.json();
+          if (summary?.success) {
+            setClientSummary({
+              counts: summary.counts || { clients: 0, leads: 0, newClients: 0, conversionRate: 0 },
+              leadStatus: summary.leadStatus || [],
+              leadSource: summary.leadSource || [],
+              clientRevenue: summary.clientRevenue || []
+            });
+          }
 
         } catch (error) {
           console.error("Error fetching counts:", error);
@@ -93,24 +85,32 @@ const Client = () => {
       fetchCounts();
     }, []);
   
+    useEffect(() => {
+      const fetchLatestClients = async () => {
+        try {
+          const domain = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+          const res = await fetch(`${domain}/api/clients/latest?limit=6`, { cache: "no-store" });
+          if (!res.ok) throw new Error("Failed to load latest clients");
+          const data = await res.json();
+          setLatestClients(Array.isArray(data) ? data : []);
+        } catch (err) {
+          console.error("Error fetching latest clients:", err);
+        }
+      };
+
+      fetchLatestClients();
+    }, []);
+  
 
     
    
 
-  const [shifts, setShifts] = useState([
-    { id: 1, employee: "John Smith", position: "Manager", shift: "Morning", time: "8:00 AM - 4:00 PM", status: "scheduled", department: "Sales" },
-    { id: 2, employee: "Sarah Johnson", position: "Developer", shift: "Day", time: "9:00 AM - 5:00 PM", status: "active", department: "IT" },
-    { id: 3, employee: "Mike Chen", position: "Support", shift: "Evening", time: "2:00 PM - 10:00 PM", status: "scheduled", department: "Customer Service" },
-    { id: 4, employee: "Lisa Rodriguez", position: "Designer", shift: "Morning", time: "8:30 AM - 4:30 PM", status: "active", department: "Design" },
-    { id: 5, employee: "David Wilson", position: "Analyst", shift: "Night", time: "10:00 PM - 6:00 AM", status: "scheduled", department: "Operations" }
-  ]);
-
-  const [currentShifts, setCurrentShifts] = useState([
-    { employee: "Sarah Johnson", position: "Developer", timeLeft: "3h 45m", status: "active" },
-    { employee: "Lisa Rodriguez", position: "Designer", timeLeft: "2h 15m", status: "active" },
-    { employee: "Tom Anderson", position: "QA Tester", timeLeft: "1h 30m", status: "break" },
-    { employee: "Emma Davis", position: "Project Manager", timeLeft: "4h 20m", status: "active" }
-  ]);
+  const formatCreatedAt = (value) => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" });
+  };
 
 
 
@@ -160,66 +160,34 @@ const Client = () => {
       <div className={styles.wrapper}>
         <div className={styles.main}>
           <div className={styles.cards}>
-            {counts.userCount !== null ? (
-              <Card
-                key="total-users-card"
-                title="Total Clients"
-                number={counts.userCount}
-                detailText={`${counts.userCount} registered clients`}
-              />
-            ) : (
-              <p>Loading...</p>
-            )}
             {counts.clientCount !== null ? (
               <Card
-                key="total-client-card"
-                title="Total Leads"
-                number={counts.clientCount}
-                detailText={`${counts.clientCount} registered Leads`}
+                key="total-clients-card"
+                title="Total Clients"
+                number={clientSummary.counts.clients}
+                detailText={`${clientSummary.counts.clients} registered clients`}
               />
             ) : (
               <p>Loading...</p>
             )}
-             {counts.clientCount !== null ? (
-              <Card
-                key="total-client-card"
-                title="Leads Conversions"
-                number={counts.clientCount}
-                detailText={`${counts.clientCount} registered `}
-              />
-            ) : (
-              <p>Loading...</p>
-            )}
-             {counts.clientCount !== null ? (
-              <Card
-                key="total-client-card"
-                title="Total Leads"
-                number={counts.clientCount}
-                detailText={`${counts.clientCount} registered overdue projects`}
-              />
-            ) : (
-              <p>Loading...</p>
-            )}
-             {counts.clientCount !== null ? (
-              <Card
-                key="total-client-card"
-                title="Contracts Generated"
-                number={counts.clientCount}
-                detailText={`${counts.clientCount} registered overdue projects`}
-              />
-            ) : (
-              <p>Loading...</p>
-            )}
-             {counts.clientCount !== null ? (
-              <Card
-                key="total-client-card"
-                title="Contracts Signed"
-                number={counts.clientCount}
-                detailText={`${counts.clientCount} registered overdue projects`}
-              />
-            ) : (
-              <p>Loading...</p>
-            )}
+            <Card
+              key="new-clients-card"
+              title="New Clients (30d)"
+              number={clientSummary.counts.newClients}
+              detailText="Added in the last 30 days"
+            />
+            <Card
+              key="total-leads-card"
+              title="Total Leads"
+              number={clientSummary.counts.leads}
+              detailText={`${clientSummary.counts.leads} in pipeline`}
+            />
+            <Card
+              key="lead-conversion-card"
+              title="Lead Conversion"
+              number={`${clientSummary.counts.conversionRate}%`}
+              detailText="Won / total leads"
+            />
            
              
           </div>
@@ -232,7 +200,7 @@ const Client = () => {
       
  
       <div className={styles.bossGrid}>
-     {chartData.length < 13 ? (
+     {clientSummary.clientRevenue.length < 13 ? (
   // Centered layout for small data
   <div className="bg-[var(--bgSoft)] rounded-2xl p-6">
     <h3 className="text-center text-xl font-semibold text-[var(--textSoft)] pb-4 border-b border-[var(--input-border)]/30">
@@ -241,11 +209,11 @@ const Client = () => {
     <div className="flex justify-center pt-4">
       <div
         style={{
-          width: `${Math.max(800, 90 * chartData.length)}px`,
+          width: `${Math.max(800, 90 * clientSummary.clientRevenue.length)}px`,
           minWidth: '700px',
         }}
       >
-        <NoPaddingChart data={chartData} />
+        <NoPaddingChart data={clientSummary.clientRevenue} />
       </div>
     </div>
   </div>
@@ -258,10 +226,10 @@ const Client = () => {
     <div
       className="w-full pt-4"
       style={{
-        minWidth: `${90 * chartData.length}px`,
+        minWidth: `${90 * clientSummary.clientRevenue.length}px`,
       }}
     >
-      <NoPaddingChart data={chartData} />
+      <NoPaddingChart data={clientSummary.clientRevenue} />
     </div>
   </div>
 )}
@@ -277,8 +245,8 @@ const Client = () => {
             <span className={styles.cardIcon}><CircleUserRound /></span>
           </div>
           <div className={styles.taskList}>
-            {currentShifts.map((shift, index) => (
-              <div key={index} className={styles.taskItem}>
+            {latestClients.map((client) => (
+              <div key={client.id} className={styles.taskItem}>
                 <div className={styles.taskContent}>
                   <div className={`${styles.iconContainer} ${styles.iconBlue}`} style={{
                     width: '40px',
@@ -286,22 +254,25 @@ const Client = () => {
                     fontSize: '14px',
                     fontWeight: 'bold'
                   }}>
-                    {shift.employee.split(' ').map(n => n[0]).join('')}
+                    {client.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                   </div>
                   <div className={styles.taskDetails}>
                     <p className={`${styles.taskTitle} ${styles.taskTitleActive}`}>
-                      {shift.employee}
+                      {client.name}
                     </p> 
                     <p className={styles.taskStatus}>
-                      {shift.position} • {shift.timeLeft} left
+                      {client.contactName || client.email || client.phone || "No contact info"}
                     </p>
                   </div>
                 </div>
-                <span className="text-blue-600">
-                    Show
+                <span className={styles.taskStatus}>
+                  {formatCreatedAt(client.createdAt)}
                 </span>
               </div>
             ))}
+            {latestClients.length === 0 && (
+              <p className={styles.taskStatus}>No recent clients found.</p>
+            )}
           </div>
         </div>
 
@@ -316,23 +287,15 @@ Leads Count By Status
   </div>
   {/* Optional: static chart or image */}
    <ColorfullPieChart
-  data={[
-    { role: 'Pending', count: 5 },
-    { role: 'App in Process', count: 12 },
-    { role: 'App Done', count: 8 },
-  ]}
+  data={clientSummary.leadStatus}
   colorMap={{
-    Pending: '#e74a3b',      // red
-     'App in Process': '#f6c23e', // yellow
-  'App Done': '#1cc88a',       // green
+    Pending: '#e74a3b',
+     'App in Process': '#f6c23e',
+  'App Done': '#1cc88a',
   }}
    />
   <div className={styles.statusLegend}>
-    {[
-     { role: 'Pending', count: 5 },
-    { role: 'App in Process', count: 12 },
-    { role: 'App Done', count: 8 },
-    ].map((item) => (
+    {clientSummary.leadStatus.map((item) => (
       <div key={item.role} className={styles.statusLegendItem}>
         <div className={styles.statusLegendLabel}>
           <div className={`${styles.legendDot} ${getStatusColor(item.role)}`}></div>
@@ -352,24 +315,9 @@ Leads Count By Status
     <span className={styles.cardIcon}><ChartPie/></span>
   </div>
   {/* Optional: static chart or image */}
-  <ColorfullPieChart data={[
-    { role: 'Email', count: 5 },
-    { role: 'Google', count: 12 },
-    { role: 'Facebook', count: 8 },
-    { role: 'Friend', count: 8 },
-    { role: 'Direct Visit', count: 8 },
-    { role: 'Tv ad', count: 8 },
-
-  ]} />
+  <ColorfullPieChart data={clientSummary.leadSource} />
   <div className={styles.statusLegend}>
-    {[
-    { role: 'Email', count: 5 },
-    { role: 'Google', count: 12 },
-    { role: 'Facebook', count: 8 },
-    { role: 'Friend', count: 8 },
-    { role: 'Direct Visit', count: 8 },
-    { role: 'Tv ad', count: 8 },
-    ].map((item) => (
+    {clientSummary.leadSource.map((item) => (
       <div key={item.role} className={styles.statusLegendItem}>
         <div className={styles.statusLegendLabel}>
           <div className={`${styles.legendDot} ${getLeadBySourceColor(item.role)}`}></div>

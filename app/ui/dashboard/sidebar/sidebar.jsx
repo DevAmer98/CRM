@@ -288,13 +288,21 @@ const Sidebar = ({ session }) => {
   const user = session?.user;
   const userRole = user?.role || ROLES.USER;
 
-  const filteredMenuItems = menuItems.map(category => ({
-    title: category.title,
-    list: category.list.filter(item => {
-      const hasAccess = !item.roles || item.roles.includes(userRole);
-      return hasAccess;
+  const filteredMenuItems = menuItems
+    .map(category => {
+      const list = category.list
+        .filter(item => !item.roles || item.roles.includes(userRole))
+        .map(item => {
+          if (!item.children) return item;
+          const children = item.children.filter(
+            child => !child.roles || child.roles.includes(userRole)
+          );
+          return { ...item, children };
+        })
+        .filter(item => !item.children || item.children.length > 0);
+      return { title: category.title, list };
     })
-  })).filter(category => category.list.length > 0);
+    .filter(category => category.list.length > 0);
 
   return (
     <div className={styles.container}>

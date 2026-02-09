@@ -795,9 +795,19 @@ const taskSchema = new mongoose.Schema({
   description: String,
   deadline: Date,
   comment: String,
+  comments: [
+    {
+      author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+      message: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now },
+    }
+  ],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: { type: String, enum: ['pending', 'in-progress', 'done'], default: 'pending' },
+  lastReplyAt: { type: Date },
+  lastReplyBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  replySeenByCreator: { type: Boolean, default: true },
 }, { timestamps: true });
 
 

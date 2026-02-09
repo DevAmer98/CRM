@@ -1,12 +1,12 @@
+//app/ui/private_dashbaord/admin.jsx
 "use client";
 import React, { useEffect, useState } from "react";
 import styles from "../dashboard/main/main.module.css";
-import TaskTable from "../dashboard/table/TaskTable";
-import { getLeaveRequests, getTasks } from "@/app/lib/actions";
-import TicketTable from "../dashboard/table/TicketTable";
+import { getLeaveRequests, getAssignedTasksDetailed, getCreatorReplyTasksDetailed } from "@/app/lib/actions";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import RequestTable from "../dashboard/table/RequestsTable";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 
 
@@ -18,6 +18,11 @@ const AdminPage = () => {
    const router = useRouter()
    const [requests, setRequests] = useState([]);
 const [loadingRequests, setLoadingRequests] = useState(true);
+const [selectedTask, setSelectedTask] = useState(null);
+const [isDialogOpen, setIsDialogOpen] = useState(false);
+const [replyMessage, setReplyMessage] = useState("");
+const [replyLoading, setReplyLoading] = useState(false);
+const [replyTasks, setReplyTasks] = useState([]);
 
 const reloadRequests = async () => {
   setLoadingRequests(true);
@@ -43,20 +48,18 @@ useEffect(() => {
 
 const reloadTasks = async () => {
   setLoadingTasks(true);
-  const data = await getTasks();
-  setTasks(data || []);
+  const [assigned, needsReply] = await Promise.all([
+    getAssignedTasksDetailed(),
+    getCreatorReplyTasksDetailed(),
+  ]);
+  setTasks(assigned || []);
+  setReplyTasks(needsReply || []);
   setLoadingTasks(false);
 };
 
 useEffect(() => {
   reloadTasks();
 }, []);
-
-  useEffect(() => {
-    getTasks().then(data => {
-      setTasks(data || []);
-    });
-  }, []);
 
     
   
@@ -102,28 +105,95 @@ useEffect(() => {
   
    
  
-  const [shifts, setShifts] = useState([
-    { id: 1, employee: "John Smith", position: "Manager", shift: "Morning", time: "8:00 AM - 4:00 PM", status: "scheduled", department: "Sales" },
-    { id: 2, employee: "Sarah Johnson", position: "Developer", shift: "Day", time: "9:00 AM - 5:00 PM", status: "active", department: "IT" },
-    { id: 3, employee: "Mike Chen", position: "Support", shift: "Evening", time: "2:00 PM - 10:00 PM", status: "scheduled", department: "Customer Service" },
-    { id: 4, employee: "Lisa Rodriguez", position: "Designer", shift: "Morning", time: "8:30 AM - 4:30 PM", status: "active", department: "Design" },
-    { id: 5, employee: "David Wilson", position: "Analyst", shift: "Night", time: "10:00 PM - 6:00 AM", status: "scheduled", department: "Operations" }
-  ]);
-
-  const [currentShifts, setCurrentShifts] = useState([
-    { employee: "Sarah Johnson", position: "Developer", timeLeft: "3h 45m", status: "active" },
-    { employee: "Lisa Rodriguez", position: "Designer", timeLeft: "2h 15m", status: "active" },
-    { employee: "Tom Anderson", position: "QA Tester", timeLeft: "1h 30m", status: "break" },
-    { employee: "Emma Davis", position: "Project Manager", timeLeft: "4h 20m", status: "active" }
-  ]);
-
-  const [birthdaysToday] = useState([
-  { name: "Emily Stone", position: "UX Designer" },
-  { name: "Carlos Rivera", position: "Sales Lead" }
-]);
-
-  const pendingTasks = tasks.filter(task => task.status !== 'done');
+  const pendingTasks = tasks.filter(task => task.status === 'pending');
+  const inProgressTasks = tasks.filter(task => task.status === 'in-progress');
   const doneTasks = tasks.filter(task => task.status === 'done');
+
+  const [dragOver, setDragOver] = useState(null);
+
+  const updateTaskStatus = async (taskId, status) => {
+    try {
+      const res = await fetch(`/api/task/${taskId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed to update task");
+      setTasks((prev) =>
+        prev.map((task) =>
+          task.id === taskId ? { ...task, status } : task
+        )
+      );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("message-badge-refresh"));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDragStart = (event, taskId, sourceKey) => {
+    event.dataTransfer.setData("text/plain", taskId);
+    event.dataTransfer.setData("task-source", sourceKey);
+    event.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDrop = (event, status) => {
+    event.preventDefault();
+    const taskId = event.dataTransfer.getData("text/plain");
+    const sourceKey = event.dataTransfer.getData("task-source");
+    if (!taskId) return;
+    setDragOver(null);
+    updateTaskStatus(taskId, status);
+    if (sourceKey === "needs-reply") {
+      setReplyTasks((prev) => prev.filter((task) => task.id !== taskId));
+      setTasks((prev) => {
+        const existing = prev.find((task) => task.id === taskId);
+        if (existing) {
+          return prev.map((task) =>
+            task.id === taskId ? { ...task, status } : task
+          );
+        }
+        const moved = replyTasks.find((task) => task.id === taskId);
+        return moved ? [{ ...moved, status }, ...prev] : prev;
+      });
+    }
+  };
+
+  const openTask = async (task) => {
+    setSelectedTask(task);
+    setIsDialogOpen(true);
+  };
+
+  const handleReplySubmit = async () => {
+    if (!selectedTask || !replyMessage.trim()) return;
+    setReplyLoading(true);
+    try {
+      const res = await fetch(`/api/task/${selectedTask.id}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: replyMessage.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to add reply");
+      const now = new Date().toISOString();
+      const newComment = {
+        id: `local-${now}`,
+        message: replyMessage.trim(),
+        createdAt: now,
+        author: { id: session?.user?.id || "", name: "You" },
+      };
+      setSelectedTask((prev) =>
+        prev
+          ? { ...prev, comments: [...(prev.comments || []), newComment] }
+          : prev
+      );
+      setReplyMessage("");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setReplyLoading(false);
+    }
+  };
 
 
 
@@ -149,84 +219,149 @@ useEffect(() => {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className={styles.statsGrid}>
-<div className={styles.cardHeader}></div>
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  {/* Projects Card */}
-  <div className={styles.taskItem}>
-    {(() => {
-      const deptShifts = shifts.filter(s => s.department === "Projects");
-      const activeCount = deptShifts.filter(s => s.status === "active").length;
-      return (
-        <>
-          <div className={styles.taskContent}>
-            <div className={styles.taskDetails}>
-              <p className={`${styles.taskTitle} ${styles.taskTitleActive}`}>
-                Projects
-              </p>
-              <p className={styles.taskStatus}>
-                {deptShifts.length} In Progress • {activeCount} Overdue
-              </p>
+      <div className={styles.kanbanBoard}>
+        {[
+          { key: "needs-reply", title: "Needs Response", list: replyTasks, draggable: true },
+          { key: "pending", title: "Pending", list: pendingTasks, draggable: true },
+          { key: "in-progress", title: "In Progress", list: inProgressTasks, draggable: true },
+          { key: "done", title: "Done", list: doneTasks, draggable: true },
+        ].map((column) => (
+          <div
+            key={column.key}
+            className={`${styles.kanbanLane} ${dragOver === column.key ? styles.kanbanLaneActive : ""}`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setDragOver(column.key);
+            }}
+            onDragLeave={() => setDragOver(null)}
+            onDrop={(event) => column.draggable && handleDrop(event, column.key)}
+          >
+            <div className={styles.kanbanHeader}>
+              <h3>{column.title}</h3>
+              <span className={styles.kanbanCount}>{column.list.length}</span>
+            </div>
+            <div className={styles.kanbanLaneBody}>
+              <div className={styles.kanbanList}>
+                {column.list.map((task) => (
+                  <div
+                    key={task.id}
+                    className={styles.kanbanCard}
+                    draggable={column.draggable}
+                    onDragStart={(event) => column.draggable && handleDragStart(event, task.id, column.key)}
+                  >
+                    <div className={styles.kanbanCardTitle}>{task.title}</div>
+                    <div className={styles.kanbanCardMeta}>
+                      <span>
+                        {column.key === "needs-reply"
+                          ? `Assigned to ${task.assignedTo?.name || "Unassigned"}`
+                          : "Assigned to you"}
+                      </span>
+                      <span>{task.deadline || "—"}</span>
+                    </div>
+                    <button
+                      className={styles.kanbanViewButton}
+                      onClick={() => openTask(task)}
+                    >
+                      View details
+                    </button>
+                  </div>
+                ))}
+                {column.list.length === 0 && (
+                  <div className={styles.kanbanEmpty}>No tasks</div>
+                )}
+              </div>
             </div>
           </div>
-          <div className={styles.chartLegend}>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendDot} ${styles.legendDotGreen}`}></div>
-              <span className={styles.legendText}>{activeCount}</span>
-            </div>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendDot} ${styles.legendDotBlue}`}></div>
-              <span className={styles.legendText}>{deptShifts.length - activeCount}</span>
-            </div>
-          </div>
-        </>
-      );
-    })()}
-  </div>
-
-  
-
-  <div className={styles.taskItem}>
-    {(() => {
-      const deptShifts = shifts.filter(s => s.department === "My Task");
-      const activeCount = deptShifts.filter(s => s.status === "active").length;
-      return (
-        <>
-          <div className={styles.taskContent}>
-            <div className={styles.taskDetails}>
-              <p className={`${styles.taskTitle} ${styles.taskTitleActive}`}>
-                Tasks
-              </p>
-              <p className={styles.taskStatus}>
-                {pendingTasks.length} Pending • {doneTasks.length} Done
-              </p>
-            </div>
-          </div>
-          <div className={styles.chartLegend}>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendDot} ${styles.legendDotRed}`}></div>
-      <span className={styles.legendText}>{pendingTasks.length}</span>
-            </div>
-            <div className={styles.legendItem}>
-              <div className={`${styles.legendDot} ${styles.legendDotBlue}`}></div>
-      <span className={styles.legendText}>{doneTasks.length}</span>
-            </div>
-          </div>
-        </>
-      );
-    })()} 
-  </div>
-</div>
- 
-
+        ))}
       </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-<TaskTable tasks={tasks} loading={loadingTasks} reloadTasks={reloadTasks} />
-<TicketTable tasks={tasks} loading={loadingTasks} reloadTasks={reloadTasks} />
-
-</div>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent
+          className="w-[95vw] sm:max-w-lg p-0 overflow-hidden"
+          style={{
+            backgroundColor: "var(--bgSoft)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--border-radius)",
+            boxShadow: "var(--shadow-lg)",
+            color: "var(--text)",
+          }}
+        >
+          <div className={styles.dialogHeader}>
+            <div>
+              <DialogTitle className={styles.dialogTitle}>
+                {selectedTask?.title || "Task Details"}
+              </DialogTitle>
+              <p className={styles.dialogSubtitle}>
+                {selectedTask?.createdBy?.name || "Unknown"} → {selectedTask?.assignedTo?.name || "Unassigned"}
+              </p>
+            </div>
+            <span className={`${styles.priorityBadge} ${selectedTask?.status === "pending"
+              ? styles.priorityHigh
+              : selectedTask?.status === "in-progress"
+                ? styles.priorityMedium
+                : styles.priorityLow
+            }`}>
+              {selectedTask?.status || "—"}
+            </span>
+          </div>
+          <div className={styles.dialogBody}>
+            <div className={styles.dialogGrid}>
+              <div>
+                <span className={styles.dialogLabel}>Assigned By</span>
+                <div className={styles.dialogValue}>{selectedTask?.createdBy?.name || "Unknown"}</div>
+              </div>
+              <div>
+                <span className={styles.dialogLabel}>Assigned To</span>
+                <div className={styles.dialogValue}>{selectedTask?.assignedTo?.name || "Unassigned"}</div>
+              </div>
+              <div>
+                <span className={styles.dialogLabel}>Deadline</span>
+                <div className={styles.dialogValue}>{selectedTask?.deadline || "—"}</div>
+              </div>
+            </div>
+            <div className={styles.dialogSection}>
+              <span className={styles.dialogLabel}>Description</span>
+              <p>{selectedTask?.description || "No description provided."}</p>
+            </div>
+            <div className={styles.dialogSection}>
+              <span className={styles.dialogLabel}>Replies</span>
+              <div className={styles.replyThread}>
+                {(selectedTask?.comments || []).length === 0 ? (
+                  <p className={styles.dialogMuted}>No replies yet.</p>
+                ) : (
+                  (selectedTask?.comments || []).map((comment) => (
+                    <div key={comment.id} className={styles.replyItem}>
+                      <div className={styles.replyMeta}>
+                        <span className={styles.replyAuthor}>{comment.author?.name || "Unknown"}</span>
+                        <span className={styles.replyTime}>
+                          {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : "—"}
+                        </span>
+                      </div>
+                      <p className={styles.replyMessage}>{comment.message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className={styles.replyComposer}>
+                <textarea
+                  className={styles.replyInput}
+                  rows={3}
+                  placeholder="Write a reply or note..."
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                />
+                <button
+                  className={styles.replyButton}
+                  onClick={handleReplySubmit}
+                  disabled={replyLoading || !replyMessage.trim()}
+                >
+                  {replyLoading ? "Sending..." : "Send Reply"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

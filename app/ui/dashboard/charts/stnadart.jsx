@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -6,51 +6,132 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer
 } from 'recharts'; 
 import styles from './chart.module.css'
 
+const formatDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
-const data = [
-  { name: 'Page A', uv: 4000, pv: 2400, amt: 2400 },
-  { name: 'Page B', uv: 3000, pv: 1398, amt: 2210 },
-  { name: 'Page C', uv: 2000, pv: 9800, amt: 2290 },
-  { name: 'Page D', uv: 2780, pv: 3908, amt: 2000 },
-  { name: 'Page E', uv: 1890, pv: 4800, amt: 2181 },
-  { name: 'Page F', uv: 2390, pv: 3800, amt: 2500 },
-  { name: 'Page G', uv: 3490, pv: 4300, amt: 2100 },
-];
+const formatLabel = (dateKey) => {
+  const date = new Date(`${dateKey}T00:00:00`);
+  return date.toLocaleDateString(undefined, { month: "short", day: "2-digit" });
+};
 
 const DashedLineChart = () => {
+  const [trend, setTrend] = useState([]);
+  const [summary, setSummary] = useState({ quotations: 0, purchaseOrders: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchTrend = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const today = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(today.getDate() - 13);
+        const from = formatDateKey(fromDate);
+        const to = formatDateKey(today);
+
+        const response = await fetch(`/api/overview/quote-po-trend?from=${from}&to=${to}`, { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.message || "Failed to load quotation trend.");
+        }
+
+        const trendData = Array.isArray(payload.trend) ? payload.trend : [];
+        setTrend(trendData);
+        setSummary({
+          quotations: trendData.reduce((sum, item) => sum + (item.quotations || 0), 0),
+          purchaseOrders: trendData.reduce((sum, item) => sum + (item.purchaseOrders || 0), 0)
+        });
+      } catch (err) {
+        setError(err?.message || "Failed to load quotation trend.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrend();
+  }, []);
+
+  const data = useMemo(
+    () =>
+      trend.map(item => ({
+        date: item.date,
+        label: formatLabel(item.date),
+        quotations: item.quotations || 0,
+        purchaseOrders: item.purchaseOrders || 0
+      })),
+    [trend]
+  );
+
   return (
     <div className={styles.container}>
-            <h2 className={styles.title}>Weekly Recap</h2>
+      <div className={styles.titleRow}>
+        <h2 className={styles.title}>Quotations vs Purchase Orders</h2>
+        {!loading && !error && (
+          <div className={styles.kicker}>
+            <span>{summary.quotations} quotations</span>
+            <span className={styles.kickerDot}></span>
+            <span>{summary.purchaseOrders} purchase orders</span>
+          </div>
+        )}
+      </div>
+      {loading && <p className={styles.subtitle}>Loading activity…</p>}
+      {error && <p className={styles.subtitle}>{error}</p>}
 
-    <ResponsiveContainer  width="100%" height={300}>
-      <LineChart
-        data={data}
-        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" />
-        <YAxis />
-        <Tooltip />
-        <Legend />
-        <Line
-          type="monotone"
-          dataKey="pv"
-          stroke="#8884d8"
-          strokeDasharray="5 5"
-        />
-        <Line
-          type="monotone"
-          dataKey="uv"
-          stroke="#82ca9d"
-          strokeDasharray="3 4 5 2"
-        />
-      </LineChart>
-    </ResponsiveContainer>
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart
+          data={data}
+          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+        >
+          <defs>
+            <linearGradient id="quoteStroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#7C9BFF" />
+              <stop offset="100%" stopColor="#6CE7FF" />
+            </linearGradient>
+            <linearGradient id="poStroke" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#8BFFB5" />
+              <stop offset="100%" stopColor="#F4C37A" />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.08)" />
+          <XAxis dataKey="label" />
+          <YAxis allowDecimals={false} />
+          <Tooltip
+            contentStyle={{
+              background: "rgba(18, 24, 40, 0.95)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: "12px",
+              color: "#fff"
+            }}
+            labelStyle={{ color: "#9fb3c8" }}
+          />
+          <Line
+            type="monotone"
+            dataKey="quotations"
+            stroke="url(#quoteStroke)"
+            strokeWidth={3}
+            dot={{ r: 2, strokeWidth: 2, stroke: "#7C9BFF" }}
+            activeDot={{ r: 5 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="purchaseOrders"
+            stroke="url(#poStroke)"
+            strokeWidth={3}
+            dot={{ r: 2, strokeWidth: 2, stroke: "#8BFFB5" }}
+            activeDot={{ r: 5 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </div>
   );
 };
