@@ -2954,6 +2954,63 @@ export const getAssignedTasksDetailed = async () => {
   }));
 };
 
+export const getCreatedTasksDetailed = async () => {
+  await connectToDB();
+  const session = await auth();
+  if (!session || !session.user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  const userId = session.user.id;
+  const tasks = await Task.find({ createdBy: userId })
+    .populate('createdBy', 'username email')
+    .populate('assignedTo', 'username email')
+    .populate('comments.author', 'username email')
+    .select('title description status deadline comment comments createdBy assignedTo createdAt updatedAt lastReplyAt lastReplyBy replySeenByCreator')
+    .sort({ updatedAt: -1 })
+    .lean();
+
+  const mapUser = (user, fallback) => {
+    if (!user) return null;
+    const id = user._id
+      ? user._id.toString()
+      : typeof user === 'string'
+        ? user
+        : '';
+
+    return {
+      id,
+      name: user.username || user.email || fallback,
+      email: user.email || '',
+    };
+  };
+
+  return tasks.map(task => ({
+    id: task._id.toString(),
+    title: task.title,
+    description: task.description || '',
+    comment: task.comment || '',
+    comments: Array.isArray(task.comments)
+      ? task.comments.map(comment => ({
+          id: comment._id?.toString() || '',
+          message: comment.message || '',
+          createdAt: comment.createdAt ? new Date(comment.createdAt).toISOString() : null,
+          author: mapUser(comment.author, 'Unknown'),
+        }))
+      : [],
+    status: task.status,
+    deadline: task.deadline?.toISOString().split('T')[0] || '—',
+    deadlineRaw: task.deadline?.toISOString() || null,
+    createdAt: task.createdAt?.toISOString() || null,
+    updatedAt: task.updatedAt?.toISOString() || null,
+    lastReplyAt: task.lastReplyAt ? new Date(task.lastReplyAt).toISOString() : null,
+    lastReplyBy: mapUser(task.lastReplyBy, 'Unknown'),
+    replySeenByCreator: task.replySeenByCreator ?? true,
+    createdBy: mapUser(task.createdBy, 'Unknown'),
+    assignedTo: mapUser(task.assignedTo, 'Unassigned'),
+  }));
+};
+
 export const getCreatorReplyTasksDetailed = async () => {
   await connectToDB();
   const session = await auth();

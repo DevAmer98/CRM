@@ -2,7 +2,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import styles from "../dashboard/main/main.module.css";
-import { getLeaveRequests, getAssignedTasksDetailed, getCreatorReplyTasksDetailed } from "@/app/lib/actions";
+import { getLeaveRequests, getAssignedTasksDetailed, getCreatedTasksDetailed, getCreatorReplyTasksDetailed } from "@/app/lib/actions";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import RequestTable from "../dashboard/table/RequestsTable";
@@ -48,17 +48,42 @@ useEffect(() => {
 
 const reloadTasks = async () => {
   setLoadingTasks(true);
-  const [assigned, needsReply] = await Promise.all([
-    getAssignedTasksDetailed(),
-    getCreatorReplyTasksDetailed(),
-  ]);
-  setTasks(assigned || []);
-  setReplyTasks(needsReply || []);
-  setLoadingTasks(false);
+  try {
+    const [assigned, created, needsReply] = await Promise.all([
+      getAssignedTasksDetailed(),
+      getCreatedTasksDetailed(),
+      getCreatorReplyTasksDetailed(),
+    ]);
+    const merged = new Map();
+    (assigned || []).forEach(task => merged.set(task.id, task));
+    (created || []).forEach(task => merged.set(task.id, task));
+    const replyIds = new Set((needsReply || []).map(task => task.id));
+    const mergedTasks = Array.from(merged.values()).filter(task => !replyIds.has(task.id));
+    setTasks(mergedTasks);
+    setReplyTasks(needsReply || []);
+  } catch (error) {
+    console.error("Failed to load tasks:", error);
+    setTasks([]);
+    setReplyTasks([]);
+  } finally {
+    setLoadingTasks(false);
+  }
 };
 
 useEffect(() => {
   reloadTasks();
+}, []);
+
+useEffect(() => {
+  const handleRefresh = () => reloadTasks();
+  if (typeof window !== "undefined") {
+    window.addEventListener("message-badge-refresh", handleRefresh);
+  }
+  return () => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("message-badge-refresh", handleRefresh);
+    }
+  };
 }, []);
 
     
@@ -254,7 +279,9 @@ useEffect(() => {
                       <span>
                         {column.key === "needs-reply"
                           ? `Assigned to ${task.assignedTo?.name || "Unassigned"}`
-                          : "Assigned to you"}
+                          : task.assignedTo?.id && session?.user?.id && task.assignedTo.id === session.user.id
+                            ? "Assigned to you"
+                            : `Assigned to ${task.assignedTo?.name || "Unassigned"}`}
                       </span>
                       <span>{task.deadline || "—"}</span>
                     </div>
