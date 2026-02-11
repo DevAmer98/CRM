@@ -23,7 +23,6 @@ const PlPage = async ({searchParams}) => {
             <tr>
               <td>Client Name</td>
               <td>Pick List Number</td>
-              <td>Project Name</td>
               <td>Job Order</td>
               <td>Created At</td>
               <td>Updated At</td>
@@ -34,9 +33,8 @@ const PlPage = async ({searchParams}) => {
           {pls && pls.map((pl) => (
              <tr key={pl.id}>
               <td>{pl.client?.name || 'No client name'} </td>
-              <td>{pl.pickListId || 'No client name'} </td>
-              <td>{pl.quotation?.projectName || 'No client name'} </td>
-              <td>{pl.jobOrder?.jobOrderId || 'No client name'} </td>
+              <td>{pl.pickListId || 'No Pick List Number'} </td>
+              <td>{pl.jobOrder?.jobOrderId || 'No Job Order'} </td>
               <td>{pl.createdAt?.toString().slice(4,16)}</td>
               <td>{pl.updatedAt?.toString().slice(4,16)}</td>
 

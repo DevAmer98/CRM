@@ -2591,7 +2591,7 @@ if (latestCoc) {
 
 
 export const updateCoc = async (formData) => {
-  const { id, clientName, projectName, projectLA, products, deliveryLocation } = formData;
+  const { id, clientId, clientName, projectName, projectLA, products, deliveryLocation } = formData;
 
   try {
     await connectToDB();
@@ -2599,6 +2599,14 @@ export const updateCoc = async (formData) => {
     const coc = await Coc.findById(id);
     if (!coc) {
       throw new Error('Coc not found');
+    }
+
+    if (clientId) {
+      const client = await Client.findById(clientId);
+      if (!client) {
+        throw new Error("Client not found");
+      }
+      coc.client = client._id;
     }
 
     coc.revisionNumber += 1;
@@ -2712,7 +2720,7 @@ export const addPickList = async (formData) => {
 
 
 export const updatePl = async (formData) => {
-  const { id,clientName, projectName, projectLA, products,deliveryLocation } = formData;
+  const { id, clientId, clientName, projectName, projectLA, products, deliveryLocation } = formData;
 
   try {
     await connectToDB();
@@ -2720,6 +2728,14 @@ export const updatePl = async (formData) => {
     const pl = await Pl.findById(id);
     if (!pl) {
       throw new Error('Pl not found');
+    }
+
+    if (clientId) {
+      const client = await Client.findById(clientId);
+      if (!client) {
+        throw new Error("Client not found");
+      }
+      pl.client = client._id;
     }
 
     pl.revisionNumber += 1;

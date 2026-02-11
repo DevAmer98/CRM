@@ -9,6 +9,7 @@ import { updateCoc } from '@/app/lib/actions';
  
 const SingleCoc = ({params}) => {
   const [coc, setCoc] = useState(null);
+  const [clients, setClients] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -17,6 +18,7 @@ const SingleCoc = ({params}) => {
     projectName: '',
     projectReference: '',
     projectAddress: '',
+    clientId: '',
     clientName: '',
     jobOrderId: '',
     saleName: '',
@@ -48,21 +50,39 @@ const SingleCoc = ({params}) => {
   
     getCocById();
   }, [params.id]); // <-- Add params.id as a dependency
+
+  useEffect(() => {
+    const getClients = async () => {
+      try {
+        const response = await fetch(`${domain}/api/allClients`, { method: "GET" });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setClients(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load clients:", err);
+      }
+    };
+    getClients();
+  }, [domain]);
   
   const buildCocDocumentData = () => {
     if (!coc) return null;
+    const selectedClient =
+      clients.find((client) => client._id === formData.clientId) || coc.client || {};
 
     return {
       CocNumber: coc.cocId || '',
       ProjectName: coc.quotation?.projectName || '',
       DeliveryLocation: coc.deliveryLocation || '',
-      ClientName: coc.client?.name || '',
+      ClientName: selectedClient?.name || '',
       userName: coc.user?.username || '',
-      ClientPhone: coc.client?.phone || '',
-      ClientEmail: coc.client?.email || '',
-      ClientAddress: coc.client?.address || '',
-      ClientContactMobile: coc.client?.contactMobile || '',
-      ClientContactName: coc.client?.contactName || '',
+      ClientPhone: selectedClient?.phone || '',
+      ClientEmail: selectedClient?.email || '',
+      ClientAddress: selectedClient?.address || '',
+      ClientContactMobile: selectedClient?.contactMobile || '',
+      ClientContactName: selectedClient?.contactName || '',
       SaleName: coc.sale?.name || '',
       SalePhone: coc.sale?.phone || '',
       SaleEmail: coc.sale?.email || '',
@@ -194,6 +214,7 @@ const SingleCoc = ({params}) => {
             projectName: coc.jobOrder?.quotatopn?.projectName || '',
             projectReference: coc.projectReference || '',
             projectAddress: coc.projectAddress || '',
+            clientId: coc.client?._id || '',
             clientName: coc.client ? coc.client.name : '',
             jobOrderId: coc.jobOrder?.jobOrderId || '',
             saleName: coc.sale?.name || '', 
@@ -324,14 +345,22 @@ const SingleCoc = ({params}) => {
                 <label htmlFor="clientName" className={styles.label}>
                 Client Name:
                 </label>
-            <input
-              type="text"
+            <select
               className={styles.input}
-              placeholder="Client Name"
-              value={formData.clientName || ''}
-              onChange={(e) => handleInputChange('clientName', e.target.value)}
-              readOnly 
-            />
+              value={formData.clientId || ''}
+              onChange={(e) => {
+                const selected = clients.find((client) => client._id === e.target.value);
+                handleInputChange('clientId', e.target.value);
+                handleInputChange('clientName', selected?.name || '');
+              }}
+            >
+              <option value="">Select Client</option>
+              {clients.map((client) => (
+                <option key={client._id} value={client._id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
             </div>
             <div className={styles.inputContainer}>
                 <label htmlFor="saleName" className={styles.label}>

@@ -8,6 +8,22 @@ import DeleteQuotation from '@/app/ui/deleteForms/Quotation';
 
 
 const ApprovePage = async({searchParams}) => {
+    const formatDate = (value) => {
+      if (!value) return '—';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '—';
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+      });
+    };
+
+    const displayText = (value) => {
+      const text = typeof value === 'string' ? value.trim() : value;
+      return text ? text : '—';
+    };
+
     const q = searchParams?.q || "";
     const page = searchParams?.page || 1; 
     const company = searchParams?.company;
@@ -35,13 +51,25 @@ const ApprovePage = async({searchParams}) => {
             <tbody>
               {quotations.map((quotation) => ( 
                 
-              <tr key={quotation.id}>
-                <td>
-                  {quotation.client?.name || 'No client name'} 
+              <tr key={quotation._id || quotation.id}>
+                <td className={styles.truncateCell}>
+                  <span
+                    className={styles.truncateText}
+                    title={displayText(quotation.client?.name)}
+                  >
+                    {displayText(quotation.client?.name)}
+                  </span>
                 </td>
-                <td>{quotation.projectName}</td>
-                <td>{quotation.quotationId}</td>
-                <td>{quotation.createdAt?.toString().slice(4,16)}</td>
+                <td className={styles.truncateCell}>
+                  <span
+                    className={styles.truncateText}
+                    title={displayText(quotation.projectLA || quotation.projectName)}
+                  >
+                    {displayText(quotation.projectLA || quotation.projectName)}
+                  </span>
+                </td>
+                <td>{displayText(quotation.quotationId)}</td>
+                <td>{formatDate(quotation.createdAt)}</td>
                 <td>
                   {quotation.user?.username
                   ? <span className={`${styles.statusBox} ${styles.approved}`}>Approved by {quotation.user.username}</span>

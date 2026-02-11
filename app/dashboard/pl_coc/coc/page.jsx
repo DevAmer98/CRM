@@ -24,7 +24,6 @@ const CocPage = async ({searchParams}) => {
               <td>Client Name</td>
               <td>Coc Number</td>
               <td>Job Order</td>
-              <td>Project Name</td>
               <td>Created At</td>
               <td>Updated At</td>
               <td>Action</td>
@@ -36,9 +35,8 @@ const CocPage = async ({searchParams}) => {
               <td>
                 {coc.client?.name || 'No client name'} 
               </td>
-              <td>{coc.cocId || 'No client name'} </td>
-              <td>{coc.jobOrder?.jobOrderId || 'No client name'} </td>
-              <td>{coc.quotation?.projectName || 'No project name'} </td>
+              <td>{coc.cocId || 'No COC Number'} </td>
+              <td>{coc.jobOrder?.jobOrderId || 'No Job Order'} </td>
               <td>{coc.createdAt?.toString().slice(4,16)}</td>
               <td>{coc.updatedAt?.toString().slice(4,16)}</td>
               <td> 

@@ -24,12 +24,14 @@ const splitDescriptionIntoLines = (text = '') => {
 
 const SinglePl = ({params}) => {
   const [pl, setPl] = useState(null);
+  const [clients, setClients] = useState([]);
   const [error, setError] = useState(null); 
   const [isLoading, setLoading] = useState(true);
   const [isUploaded, setIsUploaded] = useState(false);
   const [formData, setFormData] = useState({ 
     pickListId: '',
     jobOrderId: '',
+    clientId: '',
     saleName: '',
     clientName: '',  
     deliveryLocation: '',
@@ -60,20 +62,38 @@ const SinglePl = ({params}) => {
     getPlById();
   }, [params.id]); // Include params.id as a dependency
 
+  useEffect(() => {
+    const getClients = async () => {
+      try {
+        const response = await fetch(`${domain}/api/allClients`, { method: "GET" });
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setClients(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Failed to load clients:", err);
+      }
+    };
+    getClients();
+  }, [domain]);
+
 
 
   const buildPlDocumentData = () => {
     if (!pl) return null;
+    const selectedClient =
+      clients.find((client) => client._id === formData.clientId) || pl.client || {};
 
     return {
       PickListNumber: pl.pickListId || '',
       DeliveryLocation: pl.deliveryLocation?.toUpperCase() || '',
-      ClientName: pl.client?.name?.toUpperCase() || '',
-      ClientPhone: pl.client?.phone || '',
-      ClientEmail: pl.client?.email || '',
-      ClientAddress: pl.client?.address?.toUpperCase() || '',
-      ClientContactMobile: pl.client?.contactMobile || '',
-      ClientContactName: pl.client?.contactName?.toUpperCase() || '',
+      ClientName: selectedClient?.name?.toUpperCase() || '',
+      ClientPhone: selectedClient?.phone || '',
+      ClientEmail: selectedClient?.email || '',
+      ClientAddress: selectedClient?.address?.toUpperCase() || '',
+      ClientContactMobile: selectedClient?.contactMobile || '',
+      ClientContactName: selectedClient?.contactName?.toUpperCase() || '',
       SaleName: pl.sale?.name?.toUpperCase() || '',
       SalePhone: pl.sale?.phone || '',
       SaleEmail: pl.sale?.email || '',
@@ -242,6 +262,7 @@ const SinglePl = ({params}) => {
           setFormData({
             pickListId: pl.pickListId || '',
             jobOrderId: pl.jobOrder?.jobOrderId || '',
+            clientId: pl.client?._id || '',
             saleName: pl.sale?.name || '', 
             clientName: pl.client ? pl.client.name : '',
             deliveryLocation: pl.deliveryLocation || '',
@@ -365,14 +386,22 @@ const SinglePl = ({params}) => {
                 <label htmlFor="clientName" className={styles.label}>
                 Client Name:
                 </label>
-            <input
-              type="text"
+            <select
               className={styles.input}
-              placeholder="Client Name"
-              value={formData.clientName}
-              onChange={(e) => handleInputChange('clientName', e.target.value)}
-              readOnly 
-            />
+              value={formData.clientId || ''}
+              onChange={(e) => {
+                const selected = clients.find((client) => client._id === e.target.value);
+                handleInputChange('clientId', e.target.value);
+                handleInputChange('clientName', selected?.name || '');
+              }}
+            >
+              <option value="">Select Client</option>
+              {clients.map((client) => (
+                <option key={client._id} value={client._id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
             </div>
             <div className={styles.inputContainer}>
                 <label htmlFor="saleName" className={styles.label}>
