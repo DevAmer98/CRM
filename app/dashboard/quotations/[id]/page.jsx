@@ -497,6 +497,7 @@ const formatReadableDate = (dateInput) => {
 
 const clientForDoc = activeClient || {};
 const activeSaleForDoc = activeSale || {};
+const requestedByForDoc = quotation?.requestedBy || {};
 
 
 const payload = {
@@ -516,6 +517,11 @@ CreatedAt: formatReadableDate(quotation.updatedAt || quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
   ProjectLA: (formData.projectLA || "").toUpperCase(),
   SaleName: (activeSaleForDoc.name || "").toUpperCase(),
+  RequesterName: (
+    requestedByForDoc.name ||
+    activeSaleForDoc.name ||
+    ""
+  ).toUpperCase(),
   ClientContactName: (clientForDoc.contactName || "").toUpperCase(),
   userName: (quotation.user?.username || "").toUpperCase(),
   ClientPhone: (clientForDoc.phone || "").toUpperCase(),

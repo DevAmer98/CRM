@@ -217,6 +217,7 @@ const productSchema = z.object({
 
 const quotationSchema = z.object({
   saleId: z.string().min(1, 'Sale Representative is required'),
+  requestedById: z.string().optional(),
   clientId: z.string().min(1, 'Client is required'),
   projectName: z.string().optional(),
   projectLA: z.string().optional(),
@@ -256,6 +257,8 @@ const AddQuotation = () => {
   const [sharedPriceValue, setSharedPriceValue] = useState('')
   const [saleSearch, setSaleSearch] = useState('')
   const [selectedSaleId, setSelectedSaleId] = useState('')
+  const [requestedBySearch, setRequestedBySearch] = useState('')
+  const [selectedRequestedById, setSelectedRequestedById] = useState('')
   const [clientSearch, setClientSearch] = useState('')
   const [selectedClientId, setSelectedClientId] = useState('')
   const [uploadedExcelName, setUploadedExcelName] = useState('')
@@ -345,6 +348,12 @@ const AddQuotation = () => {
     setSaleSearch(value)
     const matched = sales.find((sale) => getSaleLabel(sale) === value)
     setSelectedSaleId(matched?._id || '')
+  }
+
+  const handleRequestedBySearchChange = (value) => {
+    setRequestedBySearch(value)
+    const matched = sales.find((sale) => getSaleLabel(sale) === value)
+    setSelectedRequestedById(matched?._id || '')
   }
 
   const toggleRowSelection = (index) => {
@@ -519,6 +528,7 @@ const cleanQuillHtml = (html) => {
 
     const payload = {
       saleId: form.saleId.value,
+      requestedById: form.requestedById.value,
       clientId: form.clientId.value,
       projectName: form.projectName.value,
       projectLA: form.projectLA.value,
@@ -572,6 +582,23 @@ const cleanQuillHtml = (html) => {
               ))}
             </datalist>
             <input type="hidden" name="saleId" value={selectedSaleId} />
+          </div>
+          <div className={styles.inputContainer}>
+            <label className={styles.label}>Requested by:</label>
+            <input
+              type="text"
+              className={styles.input}
+              placeholder="Search requester..."
+              value={requestedBySearch}
+              onChange={(e) => handleRequestedBySearchChange(e.target.value)}
+              list="requested-by-options"
+            />
+            <datalist id="requested-by-options">
+              {filteredSales.map((sale) => (
+                <option key={sale._id} value={getSaleLabel(sale)} />
+              ))}
+            </datalist>
+            <input type="hidden" name="requestedById" value={selectedRequestedById} />
           </div>
           <div className={styles.inputContainer}>
             <label className={styles.label}>Client:</label>

@@ -864,6 +864,7 @@ export const fetchQuotation = async (id) => {
     const quotation = await Quotation.findById(id)
       .populate('client')
       .populate('sale')
+      .populate('requestedBy')
       .populate({
         path: 'user',
         select: 'username employee',

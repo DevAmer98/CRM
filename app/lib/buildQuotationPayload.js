@@ -222,6 +222,7 @@ export function buildQuotationPayload(q) {
     ProjectName: q.projectName || "—",
     ProjectLA: q.projectLA || "—",
     SaleName: q.sale?.name || "—",
+    RequesterName: q.requestedBy?.name || q.sale?.name || "—",
     ClientContactName: q.client?.contactName || "—",
     userName: q.user?.username || "—",
     ClientPhone: q.client?.phone || "—",

@@ -396,6 +396,11 @@ const quotationSchema = new Schema(
       ref: 'Sale',
       required: true,
     },
+    requestedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'Sale',
+      required: false,
+    },
 
     client: {
       type: Schema.Types.ObjectId,

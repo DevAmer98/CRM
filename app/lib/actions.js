@@ -1958,7 +1958,7 @@ export const editQuotation = async (formData) => {
 
 export const addQuotation = async (formData) => {
   const {
-    saleId, clientId, projectName, projectLA,
+    saleId, requestedById, clientId, projectName, projectLA,
     products, paymentTerm, paymentDelivery, note,
     validityPeriod, excluding, totalPrice, currency,warranty,
     companyProfile,
@@ -1974,6 +1974,12 @@ export const addQuotation = async (formData) => {
 
     const sale = await Sale.findById(saleId);
     if (!sale) throw new Error("Sale not found");
+
+    let requestedBy = null;
+    if (requestedById) {
+      requestedBy = await Sale.findById(requestedById);
+      if (!requestedBy) throw new Error("Requested by user not found");
+    }
 
     const client = await Client.findById(clientId);
     if (!client) throw new Error("Client not found");
@@ -2012,6 +2018,7 @@ export const addQuotation = async (formData) => {
     const newQuotation = new Quotation({
       client: client._id,
       sale: sale._id,
+      requestedBy: requestedBy ? requestedBy._id : undefined,
       projectName,
       projectLA,
       products: normalizedProducts,
@@ -2050,6 +2057,7 @@ export const updateQuotation = async (formData) => {
     companyProfile,
     clientId,
     saleId,
+    requestedById,
 
     // NEW: allow optional updates
     totalDiscount,                 // NEW
@@ -2099,6 +2107,13 @@ export const updateQuotation = async (formData) => {
       }
     }
 
+    let resolvedRequestedById;
+    if (requestedById) {
+      const requestedBy = await Sale.findById(requestedById);
+      if (!requestedBy) throw new Error("Requested by user not found");
+      resolvedRequestedById = requestedBy._id;
+    }
+
     const updateFields = {
       projectName,
       projectLA,
@@ -2115,6 +2130,7 @@ export const updateQuotation = async (formData) => {
       excluding,
       currency,   // keep if you allow editing currency
       companyProfile,
+      requestedBy: resolvedRequestedById,
       user: null, // force re-approval
 
       // NEW: persist if provided
@@ -2229,6 +2245,7 @@ export const editQuotation = async (formData) => {
     companyProfile,
     clientId,
     saleId,
+    requestedById,
 
     // NEW
     totalDiscount,                 
@@ -2276,6 +2293,21 @@ export const editQuotation = async (formData) => {
           throw new Error("Sale not found");
         }
         quotation.sale = sale._id;
+      }
+    }
+
+    if (requestedById) {
+      const nextRequestedById = requestedById.toString();
+      const currentRequestedById =
+        typeof quotation.requestedBy?.toString === "function"
+          ? quotation.requestedBy.toString()
+          : quotation.requestedBy;
+      if (nextRequestedById !== currentRequestedById) {
+        const requestedBy = await Sale.findById(requestedById);
+        if (!requestedBy) {
+          throw new Error("Requested by user not found");
+        }
+        quotation.requestedBy = requestedBy._id;
       }
     }
 
