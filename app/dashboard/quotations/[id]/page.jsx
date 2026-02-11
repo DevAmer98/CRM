@@ -517,7 +517,6 @@ CreatedAt: formatReadableDate(quotation.updatedAt || quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
   ProjectLA: (formData.projectLA || "").toUpperCase(),
   SaleName: (
-    requestedByForDoc.name ||
     activeSaleForDoc.name ||
     ""
   ).toUpperCase(),

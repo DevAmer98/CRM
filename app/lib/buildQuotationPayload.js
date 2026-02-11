@@ -221,7 +221,7 @@ export function buildQuotationPayload(q) {
     CreatedAt: (q.createdAt ? new Date(q.createdAt) : new Date()).toISOString().slice(0, 10),
     ProjectName: q.projectName || "—",
     ProjectLA: q.projectLA || "—",
-    SaleName: q.sale?.name || q.sale?.name || "—",
+    SaleName: q.sale?.name || "—",
     RequesterName: q.requestedBy?.name || q.sale?.name || "—",
     ClientContactName: q.client?.contactName || "—",
     userName: q.requestedBy?.name || "—",

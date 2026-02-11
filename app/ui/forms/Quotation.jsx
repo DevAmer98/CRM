@@ -337,6 +337,13 @@ const AddQuotation = () => {
     const email = String(sale?.email || '').toLowerCase()
     return name.includes(query) || email.includes(query)
   })
+  const filteredRequestedBySales = sales.filter((sale) => {
+    const query = requestedBySearch.trim().toLowerCase()
+    if (!query) return true
+    const name = String(sale?.name || '').toLowerCase()
+    const email = String(sale?.email || '').toLowerCase()
+    return name.includes(query) || email.includes(query)
+  })
 
   const handleClientSearchChange = (value) => {
     setClientSearch(value)
@@ -594,7 +601,7 @@ const cleanQuillHtml = (html) => {
               list="requested-by-options"
             />
             <datalist id="requested-by-options">
-              {filteredSales.map((sale) => (
+              {filteredRequestedBySales.map((sale) => (
                 <option key={sale._id} value={getSaleLabel(sale)} />
               ))}
             </datalist>
