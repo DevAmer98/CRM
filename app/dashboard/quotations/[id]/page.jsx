@@ -60,6 +60,8 @@ const [richDescValue, setRichDescValue] = useState("");
     clientName: "",
     saleId: "",
     saleName: "",
+    requestedById: "",
+    requestedByName: "",
     projectName: "",
     projectLA: "",
     products: [],
@@ -168,6 +170,14 @@ const [richDescValue, setRichDescValue] = useState("");
     }
     return quotation?.sale || null;
   }, [formData.saleId, sales, quotation]);
+
+  const activeRequestedBy = useMemo(() => {
+    if (formData.requestedById) {
+      const match = sales.find((sale) => sale._id === formData.requestedById);
+      if (match) return match;
+    }
+    return quotation?.requestedBy || null;
+  }, [formData.requestedById, sales, quotation]);
 
   const getRowLineTotal = (row) => {
     const discountPct = clampPct(row.discount);
@@ -497,7 +507,7 @@ const formatReadableDate = (dateInput) => {
 
 const clientForDoc = activeClient || {};
 const activeSaleForDoc = activeSale || {};
-const requestedByForDoc = quotation?.requestedBy || {};
+const requestedByForDoc = activeRequestedBy || {};
 
 
 const payload = {
@@ -674,6 +684,8 @@ return payload;
         "N/A",
       saleId: quotation.sale?._id?.toString?.() ?? "",
       saleName: quotation.sale?.name ?? "N/A",
+      requestedById: quotation.requestedBy?._id?.toString?.() ?? "",
+      requestedByName: quotation.requestedBy?.name ?? "",
       clientId:
         quotation.client?._id?.toString?.() ??
         (typeof quotation.client === "string" ? quotation.client : ""),
@@ -1214,6 +1226,15 @@ return payload;
     }));
   };
 
+  const handleRequestedBySelect = (requestedById) => {
+    const selected = sales.find((sale) => sale._id === requestedById);
+    setFormData((prev) => ({
+      ...prev,
+      requestedById,
+      requestedByName: selected?.name || "",
+    }));
+  };
+
   const handleInputChange = (fieldName, value) => {
     if (fieldName === "totalDiscount") {
       const cleaned =
@@ -1369,6 +1390,7 @@ return payload;
       id: params.id,
       ...formData,
       saleId: formData.saleId,
+      requestedById: formData.requestedById || undefined,
       products: rowInputs,
       currency: selectedCurrency, // NEW: keep currency on update as well
       totalDiscount: totals.totalDiscountPct, // normalized percentage
@@ -1410,6 +1432,7 @@ return payload;
       id: params.id,
       ...formData,
       saleId: formData.saleId,
+      requestedById: formData.requestedById || undefined,
       products: rowInputs,
       currency: selectedCurrency,
       totalDiscount: totals.totalDiscountPct, // normalized percentage
@@ -1602,6 +1625,26 @@ return payload;
                   {salesLoading
                     ? "Loading sales..."
                     : salesError || "Select Sale Representative"}
+                </option>
+                {sales.map((sale) => (
+                  <option key={sale._id} value={sale._id}>
+                    {sale.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.inputContainer}>
+              <label className={styles.label}>Requested By:</label>
+              <select
+                className={styles.input}
+                value={formData.requestedById || ""}
+                onChange={(e) => handleRequestedBySelect(e.target.value)}
+                disabled={salesLoading}
+              >
+                <option value="">
+                  {salesLoading
+                    ? "Loading sales..."
+                    : salesError || "Select Requested By"}
                 </option>
                 {sales.map((sale) => (
                   <option key={sale._id} value={sale._id}>

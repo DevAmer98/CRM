@@ -650,6 +650,36 @@
   font-size: 14px;
 }
 
+.input1 {
+  width: 100%;
+  min-width: 0;
+}
+
+.presetCol {
+  min-width: 280px;
+  max-width: 320px;
+}
+
+.presetSelect {
+  width: 100%;
+  max-width: 320px;
+}
+
+.codeCol {
+  min-width: 130px;
+  width: 130px;
+}
+
+.codeInput {
+  min-width: 120px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.descriptionCol {
+  min-width: 260px;
+}
+
 
 .table textarea {
   width: 270px; 

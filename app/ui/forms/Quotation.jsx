@@ -3,7 +3,7 @@
 import styles from '@/app/ui/dashboard/approve/approve.module.css'
 import { addQuotation } from '@/app/lib/actions'
 import { FaPlus, FaTrash, FaTag, FaEdit, FaUnlink } from 'react-icons/fa'
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
@@ -11,8 +11,10 @@ import dynamic from 'next/dynamic'
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
 import 'react-quill/dist/quill.snow.css'
 import * as XLSX from "xlsx";
+import productCatalog from '@/constants/products.json'
 
 const buildRow = (overrides = {}) => ({
+  productPresetId: '',
   productCode: '',
   qty: 0,
   unit: 0,
@@ -26,6 +28,69 @@ const buildRow = (overrides = {}) => ({
   sharedGroupPrice: null,
   ...overrides,
 });
+
+const normalizeProductPresets = (catalog) => {
+  const rows = []
+  const qtyKeys = ['QTY', 'qty', 'Qty', '*']
+  const isHeadingLike = (code, description) => {
+    const c = String(code || '').trim().toUpperCase()
+    const d = String(description || '').trim()
+    if (!c) return false
+    if (!d && c.length > 24) return true
+    if (c.startsWith('SUPPLY OF')) return true
+    if (c.includes('CONSIST OF')) return true
+    return false
+  }
+  const compactLabel = (value, max = 44) => {
+    const v = String(value || '').replace(/\s+/g, ' ').trim()
+    if (!v) return ''
+    return v.length <= max ? v : `${v.slice(0, max - 1)}…`
+  }
+
+  Object.entries(catalog || {}).forEach(([category, items]) => {
+    if (!Array.isArray(items)) return
+    items.forEach((item, idx) => {
+      if (!item || typeof item !== 'object') return
+
+      const productCode = String(
+        item['PRODUCT CODE'] ??
+          item['SMART WATER METERS (AUTHORITY)'] ??
+          ''
+      ).trim()
+      const description = String(
+        item['DESCRIPTION'] ??
+          item['Unnamed: 1'] ??
+          ''
+      ).trim()
+
+      if (!productCode && !description) return
+      if (productCode.toUpperCase() === 'PRODUCT CODE') return
+      if (description.toUpperCase() === 'DESCRIPTION') return
+      if (isHeadingLike(productCode, description)) return
+
+      let qty
+      for (const key of qtyKeys) {
+        if (!(key in item)) continue
+        const numericQty = Number(item[key])
+        if (Number.isFinite(numericQty)) {
+          qty = numericQty
+          break
+        }
+      }
+
+      rows.push({
+        id: `${category}-${idx}`,
+        category: String(category || '').trim(),
+        productCode,
+        description,
+        qty,
+        label: compactLabel(`${String(category || '').trim()} | ${productCode || 'NO CODE'}`),
+      })
+    })
+  })
+
+  return rows
+}
 
 const handleExcelUpload = (file, setRows, toast) => {
   if (!file) {
@@ -263,12 +328,34 @@ const AddQuotation = () => {
   const [selectedClientId, setSelectedClientId] = useState('')
   const [uploadedExcelName, setUploadedExcelName] = useState('')
   const excelInputRef = useRef(null)
+  const productPresets = useMemo(() => normalizeProductPresets(productCatalog), [])
 
 
   const stripHtml = (html) => html.replace(/<[^>]*>?/gm, '').trim()
   const clampPct = (n) => Math.min(Math.max(Number(n) || 0, 0), 100)
+  const normalizeLookup = (value) =>
+    String(value || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
   const getClientLabel = (client) => String(client?.name || '')
-  const getSaleLabel = (sale) => String(sale?.name || '')
+  const getSaleLabel = (sale) => {
+    const name = String(sale?.name || '').trim()
+    const email = String(sale?.email || '').trim()
+    return email ? `${name} (${email})` : name
+  }
+  const resolveSaleIdFromInput = (value) => {
+    const key = normalizeLookup(value)
+    if (!key) return ''
+    const matches = sales.filter((sale) => normalizeLookup(getSaleLabel(sale)) === key)
+    return matches.length === 1 ? String(matches[0]?._id || '') : ''
+  }
+  const resolveClientIdFromInput = (value) => {
+    const key = normalizeLookup(value)
+    if (!key) return ''
+    const matches = clients.filter((client) => normalizeLookup(getClientLabel(client)) === key)
+    return matches.length === 1 ? String(matches[0]?._id || '') : ''
+  }
 
   const getRowLineTotal = (row) => {
     if (
@@ -309,6 +396,22 @@ const AddQuotation = () => {
   /* ---------- Handlers ---------- */
   const handleRowInputChange = (index, field, value) => {
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [field]: value } : r)))
+  }
+  const handleProductPresetChange = (index, presetId) => {
+    const preset = productPresets.find((p) => p.id === presetId)
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r
+        if (!preset) return { ...r, productPresetId: '' }
+        return {
+          ...r,
+          productPresetId: preset.id,
+          productCode: preset.productCode || r.productCode,
+          description: preset.description || r.description,
+          qty: Number.isFinite(preset.qty) ? preset.qty : r.qty,
+        }
+      })
+    )
   }
 
   const resetExcelImport = () => {
@@ -533,10 +636,28 @@ const cleanQuillHtml = (html) => {
       })
     })
 
+    const resolvedSaleId = selectedSaleId || resolveSaleIdFromInput(saleSearch)
+    const resolvedRequestedById =
+      selectedRequestedById || resolveSaleIdFromInput(requestedBySearch)
+    const resolvedClientId = selectedClientId || resolveClientIdFromInput(clientSearch)
+
+    if (!resolvedSaleId) {
+      toast.error('Please choose a valid Sale Representative from the list')
+      return
+    }
+    if (!resolvedClientId) {
+      toast.error('Please choose a valid Client from the list')
+      return
+    }
+    if (requestedBySearch.trim() && !resolvedRequestedById) {
+      toast.error("Please choose a valid 'Requested by' from the list")
+      return
+    }
+
     const payload = {
-      saleId: form.saleId.value,
-      requestedById: form.requestedById.value,
-      clientId: form.clientId.value,
+      saleId: resolvedSaleId,
+      requestedById: resolvedRequestedById || undefined,
+      clientId: resolvedClientId,
       projectName: form.projectName.value,
       projectLA: form.projectLA.value,
       products,
@@ -672,8 +793,9 @@ const cleanQuillHtml = (html) => {
               <tr>
                 <td>Select</td>
                 <td>#</td>
-                <td>Code</td>
-                <td>Description</td>
+                <td className={styles.presetCol}>Preset</td>
+                <td className={styles.codeCol}>Code</td>
+                <td className={styles.descriptionCol}>Description</td>
                 <td>Qty</td>
                 <td>UOM</td>
                 <td>Unit Price</td>
@@ -686,10 +808,10 @@ const cleanQuillHtml = (html) => {
             {rows.map((r, i) => (
   <React.Fragment key={i}>
     {showTitles[i] && (
-      <tr><td colSpan={10}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" value={r.titleAbove || ''} onChange={(e) => handleRowInputChange(i, 'titleAbove', e.target.value)} /></td></tr>
+      <tr><td colSpan={11}><input name={`titleAbove${i}`} className={styles.titleInput} placeholder="Section title" value={r.titleAbove || ''} onChange={(e) => handleRowInputChange(i, 'titleAbove', e.target.value)} /></td></tr>
     )}
     {showSubtitles[i] && (
-      <tr><td colSpan={10}><input name={`subtitleAbove${i}`} className={styles.titleInput} placeholder="Section subtitle" value={r.subtitleAbove || ''} onChange={(e) => handleRowInputChange(i, 'subtitleAbove', e.target.value)} /></td></tr>
+      <tr><td colSpan={11}><input name={`subtitleAbove${i}`} className={styles.titleInput} placeholder="Section subtitle" value={r.subtitleAbove || ''} onChange={(e) => handleRowInputChange(i, 'subtitleAbove', e.target.value)} /></td></tr>
     )}
     <tr>
       <td>
@@ -701,8 +823,22 @@ const cleanQuillHtml = (html) => {
         />
       </td>
       <td>{String(i + 1).padStart(3, '0')}</td>
-      <td><input className={styles.input1} value={r.productCode} onChange={(e) => handleRowInputChange(i, 'productCode', e.target.value)} /></td>
-      <td>
+      <td className={styles.presetCol}>
+        <select
+          className={`${styles.input1} ${styles.presetSelect}`}
+          value={r.productPresetId || ''}
+          onChange={(e) => handleProductPresetChange(i, e.target.value)}
+        >
+          <option value="">Manual</option>
+          {productPresets.map((preset) => (
+            <option key={preset.id} value={preset.id} title={`${preset.category} | ${preset.productCode || 'NO CODE'}`}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className={styles.codeCol}><input className={`${styles.input1} ${styles.codeInput}`} value={r.productCode} onChange={(e) => handleRowInputChange(i, 'productCode', e.target.value)} /></td>
+      <td className={styles.descriptionCol}>
       <button
   type="button"
   className={styles.descButton}
