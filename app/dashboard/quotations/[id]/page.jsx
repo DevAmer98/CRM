@@ -516,17 +516,21 @@ const payload = {
 CreatedAt: formatReadableDate(quotation.updatedAt || quotation.createdAt),
   ProjectName: (formData.projectName || "").toUpperCase(),
   ProjectLA: (formData.projectLA || "").toUpperCase(),
-  SaleName: (activeSaleForDoc.name || "").toUpperCase(),
+  SaleName: (
+    requestedByForDoc.name ||
+    activeSaleForDoc.name ||
+    ""
+  ).toUpperCase(),
   RequesterName: (
     requestedByForDoc.name ||
     activeSaleForDoc.name ||
     ""
   ).toUpperCase(),
   ClientContactName: (clientForDoc.contactName || "").toUpperCase(),
-  userName: (quotation.user?.username || "").toUpperCase(),
+  userName: (requestedByForDoc.name || "").toUpperCase(),
   ClientPhone: (clientForDoc.phone || "").toUpperCase(),
-  UserPhone: (activeSaleForDoc.phone || "").toUpperCase(),
-  UserEmail: (activeSaleForDoc.email || ""),
+  UserPhone: (requestedByForDoc.phone || "").toUpperCase(),
+  UserEmail: (requestedByForDoc.email || ""),
   UserAddress: (activeSaleForDoc.address || "").toUpperCase(),
   ClientContactMobile: (clientForDoc.contactMobile || "").toUpperCase(),
   ClientEmail: (clientForDoc.email || ""),

@@ -1,0 +1,479 @@
+{
+    "Breaker ": [
+        {
+            "*": "",
+            "PRODUCT CODE": "MCCB 30A",
+            "DESCRIPTION": "BREAKER 30A, 750 VAC, 30A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": "",
+            "PRODUCT CODE": "MCCB 40A",
+            "DESCRIPTION": "BREAKER 40A, 750 VAC, 40A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": "",
+            "PRODUCT CODE": "MCCB 50A",
+            "DESCRIPTION": "BREAKER 50A, 750 VAC, 50A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": "",
+            "PRODUCT CODE": "MCCB 70A",
+            "DESCRIPTION": "BREAKER 70A, 750 VAC, 70A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 1.0,
+            "PRODUCT CODE": "MCCB 100A",
+            "DESCRIPTION": "BREAKER 100A, 750 VAC, 100A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 2.0,
+            "PRODUCT CODE": "ECB 125A",
+            "DESCRIPTION": "BREAKER 125A, 750 VAC, 125A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 3.0,
+            "PRODUCT CODE": "ECB 150A",
+            "DESCRIPTION": "BREAKER 150A, 750 VAC, 150A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 4.0,
+            "PRODUCT CODE": "ECB 200A",
+            "DESCRIPTION": "BREAKER 200A, 750 VAC, 200A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 5.0,
+            "PRODUCT CODE": "ECB 250A",
+            "DESCRIPTION": "BREAKER 250A, 750 VAC, 250A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 6.0,
+            "PRODUCT CODE": "ECB 300A",
+            "DESCRIPTION": "BREAKER 300A, 750 VAC, 300A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 7.0,
+            "PRODUCT CODE": "ECB 400A",
+            "DESCRIPTION": "BREAKER 400A, 750 VAC, 400A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 8.0,
+            "PRODUCT CODE": "ECB 500A",
+            "DESCRIPTION": "BREAKER 500A, 750 VAC, 500A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 9.0,
+            "PRODUCT CODE": "ECB 600A",
+            "DESCRIPTION": "BREAKER 600A, 750 VAC, 600A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": 10.0,
+            "PRODUCT CODE": "ECB 800A",
+            "DESCRIPTION": "BREAKER 800A, 750 VAC, 800A, LOCK & KEY SEC SPECIFICATION "
+        },
+        {
+            "*": "",
+            "PRODUCT CODE": "ECB 1000 A",
+            "DESCRIPTION": "BREAKER 1000A, 750 VAC, 1000A, LOCK & KEY SEC SPECIFICATION "
+        }
+    ],
+    "Energy meter": [
+        {
+            "PRODUCT CODE": "FULL SET ",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "S-STMB- 100A",
+            "DESCRIPTION": "Reinforced Single Stainless-steel enclosure as per the utility standards and specifications:\n• Smart Meter DC 100A, approved SEC with communication Module, QTY:1.\n• MCCB 100A, QTY:1."
+        },
+        {
+            "PRODUCT CODE": "D-STMB- 100A",
+            "DESCRIPTION": "Reinforced dual Stainless-steel enclosure as per the utility standards and Specifications:\n• Smart Meter DC 100A, approved SEC with communication Module, QTY:2.\n• MCCB 100A, QTY:2."
+        },
+        {
+            "PRODUCT CODE": "S-FGMB 100A DC",
+            "DESCRIPTION": "Reinforced Single fiberglass enclosure as per the utility standards and specifications:\n• Smart Meter DC 100A, approved SEC with communication Module, QTY:1.\n• MCCB 100A, QTY:1."
+        },
+        {
+            "PRODUCT CODE": "D-FGMB 100A DC",
+            "DESCRIPTION": "Reinforced dual fiberglass enclosure as per the utility standards and specifications:\n• Smart Meter DC 100A, approved SEC with communication Module, QTY:2.\n• MCCB 100A, QTY:2."
+        },
+        {
+            "PRODUCT CODE": "Q-FGMB 100A DC",
+            "DESCRIPTION": "Reinforced quad fiberglass enclosure as per the utility standards and specifications:\n• Smart Meter DC 100A, approved SEC with communication Module, QTY:4.\n• MCCB 100A, QTY:4."
+        },
+        {
+            "PRODUCT CODE": "SMB 150A DC",
+            "DESCRIPTION": "Reinforced Single fiberglass enclosure as per the utility standards and specifications:\n• Smart Meter DC 150A, approved SEC with communication Module, QTY:1.\n• MCCB 150A, QTY:1."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET200A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 200A, as per the utility standards and specifications:\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• ECB 200A, Qty:1.\n• CTs 200/5A: Qty:3."
+        },
+        {
+            "PRODUCT CODE": "CTMB200A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 200A, as per the utility standards and specifications:\n• Smart Meter CT Connect (WC) with communication module approved SEC,QTY:1.\n• MCCB 200A, QTY:1.\n• CTs 200/5A: QTY:3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET250A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 250A, as per the utility standards and specifications:\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• ECB 250A, Qty:1.\n• CTs 250/5A: Qty:3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET250A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 250A, as per the utility standards and specifications:\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• MCCB 250A, Qty:1.\n• CTs 250/5A: Qty:3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET300A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 300A, as per the utility standards and specifications,\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• ECB 300A, Qty: 1.\n• CTs, 300/5A, Qty: 3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET300A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 300A, as per the utility standards and specifications,\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• MCCB 300A, Qty: 1.\n• CTs, 300/5A, Qty: 3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET400A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 400A, as per the utility standards and specifications:\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• ECB 400A, Qty:1.\n• CTs, 400/5A, Qty:3."
+        },
+        {
+            "PRODUCT CODE": "CTMB 400A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 400A, as per the utility standards and specifications,\n• Smart Meter CT Connect with communication\nmodule approved SEC, QTY: 1.\n• MCCB 400A motorized, QTY: 1\n• CTs, 400/5A, QTY: 3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET500A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 500A, as per the utility standards and specifications:\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• ECB 500A, Qty:1.\n• CTs, 500/5A, Qty:3."
+        },
+        {
+            "PRODUCT CODE": "CTMB 500A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 600A, as per the utility standards and specifications,\n• Smart Meter CT Connect with communication module approved SEC, QTY: 1.\n• MCCB 500A motorized, QTY: 1\n• CTs, 500/5A, QTY: 3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET600A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 600A, as per the utility standards and specifications:\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• ECB 600A, Qty:1.\n• CTs, 600/5A, Qty:3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET600A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 600A, as per the utility standards and specifications:\n• Smart Meter CT Connect with communication module approved SEC, Qty:1.\n• MCCB 600A, Qty:1.\n• CTs, 600/5A, Qty:3."
+        },
+        {
+            "PRODUCT CODE": "CTB-SET800A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure 800A, as per the utility standards and specifications:\n•Smart Meter CT Connect (WC) with communication module approved SEC, QTY:1.\n• ECB 800A, QTY:1.\n• CTs 800/5A: QTY:3.\n• Remote BOX QTY:1.\n• 800A Cabinet QTY:1."
+        },
+        {
+            "PRODUCT CODE": "CTMB1000A",
+            "DESCRIPTION": "Single reinforced fiberglass CT enclosure1000A, as per the utility standards and specifications:\n* CT METER QTY: 1\n•CTs 1000/5A: QTY:3.\n•Remote BOX QTY:1."
+        },
+        {
+            "PRODUCT CODE": "RMB",
+            "DESCRIPTION": "Single Reinforced (Remote box) fiberglass enclosure suitable for bulk load, as per the utility standards and specifications, for rang 1000A to 2500A\n• Smart Meter CT Connect with communication module approved SEC, Qty: 1."
+        },
+        {
+            "PRODUCT CODE": "SMB - CT SET630A",
+            "DESCRIPTION": "Reinforced Single CT fiberglass enclosure for 630 A as per the utility standards and specifications, Smart Meter CT Connection (CT), approved SEC with communication Module, MCCB 630A, with complete terminal blocks and accessories with assembly."
+        },
+        {
+            "PRODUCT CODE": "SMB-CT SET 1250A",
+            "DESCRIPTION": "Remote Fiber Box as per the utility standards and specifications with Smart Meter CT connection Approved SEC with complete terminal blocks and accessories with assembly."
+        },
+        {
+            "PRODUCT CODE": "SMB-CT SET 2500A",
+            "DESCRIPTION": "Remote Fiber Box as per the utility standards and specifications with Smart Meter CT connection Approved SEC with complete terminal blocks and accessories with assembly."
+        },
+        {
+            "PRODUCT CODE": "SMB-CT SET 1500A",
+            "DESCRIPTION": "Remote Fiber Box as per the utility standards and specifications with Smart Meter CT connection .Approved SEC with complete terminal blocks."
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "PRODUCT CODE",
+            "DESCRIPTION": "DESCRIPTION"
+        },
+        {
+            "PRODUCT CODE": "BOX ",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "S-STB ",
+            "DESCRIPTION": "Reinforced Single Stainless-steel enclosure as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "D-STB ",
+            "DESCRIPTION": "Reinforced dual Stainless-steel enclosure as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "S-FGB ",
+            "DESCRIPTION": "Reinforced single fiberglass enclosure as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "D-FGB ",
+            "DESCRIPTION": "Reinforced dual fiberglass enclosure as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "Q-FGB",
+            "DESCRIPTION": "Reinforced quad fiberglass enclosure as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "R-FGB",
+            "DESCRIPTION": "Remote Fiber Box as per the utility standards and SEC specifications"
+        },
+        {
+            "PRODUCT CODE": "CT-FGB 200A",
+            "DESCRIPTION": "Reinforced fiberglass CT enclosure 200A, as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "CT-FGB 250A",
+            "DESCRIPTION": "Reinforced fiberglass CT enclosure 250A, as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "CT-FGB 300A",
+            "DESCRIPTION": "Reinforced fiberglass CT enclosure 300A, as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "CT-FGB 400A",
+            "DESCRIPTION": "Reinforced fiberglass CT enclosure 400A, as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "CT-FGB 500A",
+            "DESCRIPTION": "Reinforced fiberglass CT enclosure 500A, as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "CT-FGB 600A",
+            "DESCRIPTION": "Reinforced fiberglass CT enclosure 600A, as per the utility standards and specifications"
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "PRODUCT CODE",
+            "DESCRIPTION": "DESCRIPTION"
+        },
+        {
+            "PRODUCT CODE": "Energy Meter  ",
+            "DESCRIPTION": ""
+        },
+        {
+            "PRODUCT CODE": "Kwh DC 100A",
+            "DESCRIPTION": "Smart Meter DC 100A Connect with communication module approved SEC"
+        },
+        {
+            "PRODUCT CODE": "Kwh DC 150A ",
+            "DESCRIPTION": "Smart Meter DC 150A Connect with communication module approved SEC"
+        },
+        {
+            "PRODUCT CODE": "Kwh CT ",
+            "DESCRIPTION": "Smart Meter CT Connect with communication module approved SEC"
+        },
+        {
+            "PRODUCT CODE": "Kwh CTVT",
+            "DESCRIPTION": "Smart Meter CTVT Connect with communication module approved SEC"
+        }
+    ],
+    "Water Meter ": [
+        {
+            "SMART WATER METERS (AUTHORITY)": " SUPPLY OF 3/4\" SMART WATER METERS , FITTINGS & FIBER BOXES CONSIST OF :",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 3/4''=20 mm",
+            "Unnamed: 1": "SMC HYDRUS ULTRASONIC WATER METER ,  DN 20 Q3 4.0 G1B 190 mm BODY LENGTH incl.8 DIGITS LCD DISPLAY ,OMS over Radio 434 Mhz,, IP 68 PROTECTION , BATTERY OPERATED FOR 12 YEARS , METROLOGICAL CLASS 2, (W/ STRAINER & W/ N-R VALVE )."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FIT",
+            "Unnamed: 1": "FITTINGS (2 COUPLERS M/F+APPROVED BALL VALVE F/F + 90° ELBOW M/F)"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FB",
+            "Unnamed: 1": "FIBER GLASS BOX 4 HOLES , HORIZONTAL FOR METERS."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "AC",
+            "Unnamed: 1": "ALUMINUM COVER 1M"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": " SUPPLY OF 1\" SMART WATER METERS , FITTINGS & FIBER BOXES CONSIST OF ",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 1''=25 mm",
+            "Unnamed: 1": "SMC HYDRUS ULTRASONIC WATER METER, DN 25 Q3 10.0 ,  G5/4B 260 mm BODY LENGTH incl , 8 DIGITS LCD DISPLAY ,OMS over Radio 434 Mhz, IP 68 PROTECTION , BATTERY OPERATED FOR 12 YEARS , METROLOGICAL\nCLASS 2, (W/ STRAINER & W/ N-R VALVE )"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FIT",
+            "Unnamed: 1": "FITTINGS (2 COUPLERS M/F+APPROVED BALL VALVE F/F + 90° ELBOW M/F)"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FB",
+            "Unnamed: 1": "FIBER GLASS BOX 4 HOLES , HORIZONTAL FOR METERS."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "AC",
+            "Unnamed: 1": "ALUMINUM COVER 1M"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": " SUPPLY OF 1 1/4\" SMART WATER METERS , FITTINGS & FIBER BOXES CONSIST OF ",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 1 1/4''=32 mm",
+            "Unnamed: 1": "SMC HYDRUS ULTRASONIC WATER METER, DN 32 Q3 10.0 , G3/2B 260mm BODY LENGTH incl ,8 DIGITS LCD DISPLAY ,OMS over Radio 434 Mhz, IP 68 PROTECTION , BATTERY OPERATED FOR 12 YEARS , METROLOGICAL\nCLASS 2 ,  (W/ STRAINER & W/ N-R VALVE )."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FIT",
+            "Unnamed: 1": "FITTINGS (2 COUPLERS M/F+APPROVED BALL VALVE F/F + 90° ELBOW M/F)"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FB",
+            "Unnamed: 1": "FIBER GLASS BOX 4 HOLES , HORIZONTAL FOR METERS."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "AC",
+            "Unnamed: 1": "ALUMINUM COVER 1M"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": " 1 1/2 \" WATER METERS, FITTINGS & FIBER BOXES CONSIST OF ",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 1 1/2''=40 mm",
+            "Unnamed: 1": "HYDRUS ULTRASONIC WATER METER, DN 40 Q3 16.0 , G2B 300mm BODY LENGTH incl ,  8 DIGITS LCD DISPLAY , OMS over Radio 434 Mhz, IP 68 PROTECTION , BATTERY OPERATED FOR 12 YEARS , METROLOGICAL CLASS 2 , (W/O STRAINER & W /N-R VALVE )"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FIT",
+            "Unnamed: 1": "FITTINGS (2 COUPLERS M/F+APPROVED BALL VALVE F/F + 90° ELBOW M/F)"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FB",
+            "Unnamed: 1": "FIBER GLASS BOX 2 HOLES , HORIZONTAL FOR METERS."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "AC",
+            "Unnamed: 1": "ALUMINUM COVER 1M"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": " SUPPLY OF 2\" SMART WATER METERS , FITTINGS & FIBER BOXES CONSIST OF ",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 2''=50 mm",
+            "Unnamed: 1": "HYDRUS ULTRASONIC WATER METER  THREADED, TYPE , DN 50 Q3 25.0, 270 mm BODY LENGTH incl. 8 DIGITS LCD DISPLAY ,OMS over Radio 434 Mhz, IP 68 PROTECTION , BATTERY OPERATED FOR 12 YEARS , METROLOGICAL CLASS 2 , (W/O STRAINER & W/O N-R VALVE )"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FIT",
+            "Unnamed: 1": "FITTINGS (2 COUPLERS M/F+APPROVED BALL VALVE F/F + 90° ELBOW M/F)"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "FB",
+            "Unnamed: 1": "FIBER GLASS BOX 2 HOLES , HORIZONTAL FOR METERS."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "AC",
+            "Unnamed: 1": "ALUMINUM COVER 1M"
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "SUPPLY OF 2.5\" ELECTROMAGNETIC FLOW METER ",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 2.5''=65 mm",
+            "Unnamed: 1": "BADGER ELECTROMAGNETIC FLOW METERS (MAG-M5000). HOUSING: CARBON STEEL WELDED PAINTED GREY (RAL 7001). LINER : HARD RUBBER\nPROTECTION CLASS FOR SENSOR IS: IP 68 & THE PROTECTION CLASS FOR TRANSMITTER IS: IP 67.\nFLOW RANGE: 0.03-10 M/S, FLANGES EN 1092-1 C-STEEL, PN 16BAR ELECTRODES: STAINLESS STEEL (2 NOS. MEASURING, 1 NO. GROUND, 1 NO. EMPTY PIPE DETECTION)\nREMOTE TYPE WITH 10-METER CABLE.\nINTERFACE : MODBUS RTU RS 485."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": " SUPPLY OF 3\" ELECTROMAGNETIC FLOW METER ",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 3''=80 mm",
+            "Unnamed: 1": "BADGER ELECTROMAGNETIC FLOW METERS (MAG-M5000). HOUSING: CARBON STEEL WELDED PAINTED GREY (RAL 7001). LINER : HARD RUBBER\nPROTECTION CLASS FOR SENSOR IS: IP 68 & THE PROTECTION CLASS FOR TRANSMITTER IS: IP 67.\nFLOW RANGE: 0.03-10 M/S, FLANGES EN 1092-1 C-STEEL, PN 16BAR ELECTRODES: STAINLESS STEEL (2 NOS. MEASURING, 1 NO. GROUND, 1 NO. EMPTY PIPE DETECTION)\nREMOTE TYPE WITH 10-METER CABLE.\nINTERFACE : MODBUS RTU RS 485."
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": " SUPPLY OF 4\" ELECTROMAGNETIC FLOW METER ",
+            "Unnamed: 1": ""
+        },
+        {
+            "SMART WATER METERS (AUTHORITY)": "Size 4''=100 mm",
+            "Unnamed: 1": "BADGER ELECTROMAGNETIC FLOW METERS (MAG-M5000). HOUSING: CARBON STEEL WELDED PAINTED GREY (RAL 7001). LINER : HARD RUBBER\nPROTECTION CLASS FOR SENSOR IS: IP 68 & THE PROTECTION CLASS FOR TRANSMITTER IS: IP 67.\nFLOW RANGE: 0.03-10 M/S, FLANGES EN 1092-1 C-STEEL, PN 16BAR ELECTRODES: STAINLESS STEEL (2 NOS. MEASURING, 1 NO. GROUND, 1 NO. EMPTY PIPE DETECTION)\nREMOTE TYPE WITH 10-METER CABLE.\nINTERFACE : MODBUS RTU RS 485."
+        }
+    ],
+    "Sheet4": [
+        {
+            "PRODUCT CODE": "",
+            "DESCRIPTION": "",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICE",
+            "DESCRIPTION": "installation and implementation of single fiber box inclouding meters and breakers. ",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICE",
+            "DESCRIPTION": "installation and implementation of single fiber box including water meters.",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICE",
+            "DESCRIPTION": "Professional service of installation, and termination of all hardware including all needs and accessories.",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICES",
+            "DESCRIPTION": "Professional service of cable pulling, installation, integration and implementation of all hardware including all needs and accessories.",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICES",
+            "DESCRIPTION": "Professional services and passive work.",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICES",
+            "DESCRIPTION": "Installation and implementation of single fiber box including meters and breakers.",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICES",
+            "DESCRIPTION": "PROFESSIONAL SERVICE OF INSTALLATION, INTEGRATION AND IMPLEMENTATION FOR V-COUNT SENSOR.",
+            "COST": ""
+        },
+        {
+            "PRODUCT CODE": "PRO-SERVICES",
+            "DESCRIPTION": "INSTALLATION AND IMPLEMENTATION OF SINGLE FIBERGLASS BOX INCLUDING METERS AND BREAKERS.",
+            "COST": ""
+        }
+    ]
+}
+
