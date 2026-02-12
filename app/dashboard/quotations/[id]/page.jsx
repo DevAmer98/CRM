@@ -986,6 +986,11 @@ return payload;
 
     reader.onload = (e) => {
       try {
+        const parseNumeric = (value) =>
+          parseFloat(String(value || "").replace(/[^\d.]/g, "")) || 0;
+        const isTwoDecimalCurrency = (value) =>
+          Number.isFinite(value) && Math.abs(value * 100 - Math.round(value * 100)) < 1e-6;
+
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: "array" });
         const products = [];
@@ -1034,6 +1039,24 @@ return payload;
           };
           const fallbackUnitAsPriceIndex =
             colIndex.unitPrice === -1 && colIndex.total === -1 ? colIndex.uom : -1;
+          let fallbackUnitIsTotal = false;
+          if (fallbackUnitAsPriceIndex !== -1) {
+            const inferenceRows = [];
+            for (let i = headerIndex + 1; i < rows.length; i++) {
+              const r = rows[i];
+              if (!r || r.every((v) => !v)) continue;
+              const qty = parseNumeric(r[colIndex.qty]);
+              const candidate = parseNumeric(r[fallbackUnitAsPriceIndex]);
+              if (qty > 1 && candidate > 0) inferenceRows.push({ qty, candidate });
+            }
+            if (inferenceRows.length > 0) {
+              const ratioLooksLikeCurrency = inferenceRows.filter(({ qty, candidate }) =>
+                isTwoDecimalCurrency(candidate / qty)
+              ).length;
+              fallbackUnitIsTotal =
+                ratioLooksLikeCurrency / inferenceRows.length >= 0.7;
+            }
+          }
 
           const sheetProducts = [];
           for (let i = headerIndex + 1; i < rows.length; i++) {
@@ -1053,23 +1076,26 @@ return payload;
               : 0;
 
             const qtyRaw = r[colIndex.qty]?.toString() || "";
-            const qty = parseFloat(qtyRaw.replace(/[^\d.]/g, "")) || 0;
+            const qty = parseNumeric(qtyRaw);
 
             const unitPriceRaw = r[colIndex.unitPrice]?.toString() || "";
-            const unitPriceValue = parseFloat(unitPriceRaw.replace(/[^\d.]/g, "")) || 0;
+            let unitPriceValue = parseNumeric(unitPriceRaw);
 
             const totalRaw = r[colIndex.total]?.toString() || "";
-            let totalValue = parseFloat(totalRaw.replace(/[^\d.]/g, "")) || 0;
+            let totalValue = parseNumeric(totalRaw);
 
             let rawUom = (r[colIndex.uom] || "").toString().trim();
             let normalizedUom = rawUom.toUpperCase();
             let unitType = UNIT_OPTIONS.find((u) => u.toUpperCase() === normalizedUom) || "";
             if (fallbackUnitAsPriceIndex !== -1) {
               const fallbackRaw = (r[fallbackUnitAsPriceIndex] || "").toString();
-              const fallbackValue =
-                parseFloat(fallbackRaw.replace(/[^\d.]/g, "")) || 0;
+              const fallbackValue = parseNumeric(fallbackRaw);
               if (fallbackValue > 0 && totalValue === 0 && unitPriceValue === 0) {
-                totalValue = fallbackValue;
+                if (fallbackUnitIsTotal) {
+                  totalValue = fallbackValue;
+                } else {
+                  unitPriceValue = fallbackValue;
+                }
                 rawUom = "";
                 normalizedUom = "";
                 unitType = "";

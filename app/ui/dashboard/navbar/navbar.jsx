@@ -35,9 +35,15 @@ const Navbar = () => {
   const audioContextRef = useRef(null);
   const prevMessageCountRef = useRef(0);
 
-  const isApprovalViewer = ["admin", "superadmin", "super_admin", "hradmin", "hr_admin"].includes(
-    (session?.user?.role || "").toLowerCase()
-  );
+  const isApprovalViewer = [
+    "admin",
+    "superadmin",
+    "super_admin",
+    "hradmin",
+    "hr_admin",
+    "salesadmin",
+    "sales_admin",
+  ].includes((session?.user?.role || "").toLowerCase());
   const isHrDashboard = pathname?.startsWith("/hr_dashboard");
 
   useEffect(() => {
