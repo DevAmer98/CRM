@@ -93,46 +93,70 @@ const menuItems = [
   ],  
       },
        { 
-        title: "Finance", 
-        path: "/dashboard/users", 
-        icon: <DollarSign />, 
-        roles: [ROLES.ADMIN],
+       title: "Finance", 
+       path: "/dashboard/users", 
+       icon: <DollarSign />, 
+        roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN],
         children: [
    
            {
      title: "Proposal", 
           path: "/", 
-      roles: [ROLES.ADMIN]
+      roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN]
     },
      {
      title: "Estimates", 
           path: "/", 
-      roles: [ROLES.ADMIN]
+      roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN]
     },
     {
       title: "Invoices",
       path: "/",
-      roles: [ROLES.ADMIN]
+      roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN],
+      children: [
+        {
+          title: "Sales Invoices",
+          path: "/dashboard/finance/sales-invoices",
+          icon: <FileClock />,
+          roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN],
+        },
+        {
+          title: "Purchase Invoices",
+          path: "/dashboard/finance/purchase-invoices",
+          icon: <FileBox />,
+          roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN],
+        },
+      ],
     },
      {
       title: "Payments",
       path: "/",
-      roles: [ROLES.ADMIN]
+      roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN]
     },
      {
       title: "Credit Note",
       path: "/",
-      roles: [ROLES.ADMIN]
+      roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN]
     },
      {
       title: "Expenses",
       path: "/",
-      roles: [ROLES.ADMIN]
+      roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN]
     },
      {
       title: "Bank Account ",
       path: "/", 
-      roles: [ROLES.ADMIN]
+      roles: [ROLES.ADMIN, ROLES.ACCOUNTANT_ADMIN]
+    },
+     {
+      title: "Clients Matching",
+      path: "/dashboard/finance/clients-matching",
+      roles: [ROLES.ACCOUNTANT_ADMIN]
+    },
+     {
+      title: "Suppliers Matching",
+      path: "/dashboard/finance/suppliers-matching",
+      roles: [ROLES.ACCOUNTANT_ADMIN]
     },
     
   ],  
@@ -288,9 +312,13 @@ const Sidebar = ({ session }) => {
   const user = session?.user;
   const userRole = user?.role || ROLES.USER;
 
-  const filteredMenuItems = menuItems
+  let filteredMenuItems = menuItems
     .map(category => {
       const list = category.list
+        .filter(item => {
+          if (userRole !== ROLES.ACCOUNTANT_ADMIN) return true;
+          return item.title === "Finance";
+        })
         .filter(item => !item.roles || item.roles.includes(userRole))
         .map(item => {
           if (!item.children) return item;
@@ -303,6 +331,42 @@ const Sidebar = ({ session }) => {
       return { title: category.title, list };
     })
     .filter(category => category.list.length > 0);
+
+  if (userRole === ROLES.ACCOUNTANT_ADMIN) {
+    const financeCategory = menuItems
+      .flatMap(category => category.list)
+      .find(item => item.title === "Finance");
+    const financeChildren = financeCategory?.children || [];
+    filteredMenuItems = [
+      {
+        title: "Dashboard",
+        list: [
+          {
+            title: "Dashboard",
+            icon: <LayoutDashboard />,
+            path: "/dashboard/finance-dashboard",
+            roles: [ROLES.ACCOUNTANT_ADMIN],
+            children: [
+              {
+                title: "Private Dahboard (Tasks)",
+                path: "/dashboard/private",
+                roles: [ROLES.ACCOUNTANT_ADMIN],
+              },
+              {
+                title: "Advanced Dahboard",
+                path: "/dashboard",
+                roles: [ROLES.ACCOUNTANT_ADMIN],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: "Finance",
+        list: financeChildren,
+      },
+    ];
+  }
 
   return (
     <div className={styles.container}>

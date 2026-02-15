@@ -4,6 +4,7 @@ import styles from '../ui/hr_dashboard/hr_dashboard.module.css';
 import { Suspense } from 'react';
 import ErrorBoundary from '../ui/dashboard/errorBoundary/errorBoundary';
 import Main from '../ui/dashboard/main/main';
+import AccountantDashboard from '../ui/dashboard/accountant/AccountantDashboard';
 import Navbar from '../ui/dashboard/navbar/navbar';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -16,7 +17,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (status !== 'authenticated') return;
     const role = (session?.user?.role || '').toLowerCase();
-    const allowed = ['admin', 'superadmin', 'super_admin'];
+    const allowed = ['admin', 'superadmin', 'super_admin', 'accountantadmin'];
     if (!allowed.includes(role)) {
       setAllowed(false);
       router.replace('/dashboard/private');
@@ -33,13 +34,16 @@ const Dashboard = () => {
     return null;
   }
 
+  const role = (session?.user?.role || '').toLowerCase();
+  const showAccountant = role === 'accountantadmin';
+
   return (
     <ErrorBoundary>
     <Suspense fallback={<div>Loading...</div>}>
       <div className={styles.wrapper}>
         <div className={styles.main}>
         </div>
-        <Main />
+        {showAccountant ? <AccountantDashboard /> : <Main />}
        {/* <div className={styles.side}>
           <Rightbar />
         </div>*/}

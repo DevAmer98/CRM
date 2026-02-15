@@ -57,10 +57,15 @@ const reloadTasks = async () => {
     const merged = new Map();
     (assigned || []).forEach(task => merged.set(task.id, task));
     (created || []).forEach(task => merged.set(task.id, task));
-    const replyIds = new Set((needsReply || []).map(task => task.id));
-    const mergedTasks = Array.from(merged.values()).filter(task => !replyIds.has(task.id));
+    const statusNeedsReply = Array.from(merged.values()).filter((task) => task.status === "needs-reply");
+    const combinedNeedsReply = new Map();
+    (needsReply || []).forEach((task) => combinedNeedsReply.set(task.id, task));
+    statusNeedsReply.forEach((task) => combinedNeedsReply.set(task.id, task));
+    const needsReplyList = Array.from(combinedNeedsReply.values());
+    const replyIds = new Set(needsReplyList.map((task) => task.id));
+    const mergedTasks = Array.from(merged.values()).filter((task) => !replyIds.has(task.id));
     setTasks(mergedTasks);
-    setReplyTasks(needsReply || []);
+    setReplyTasks(needsReplyList);
   } catch (error) {
     console.error("Failed to load tasks:", error);
     setTasks([]);

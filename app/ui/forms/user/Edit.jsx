@@ -9,6 +9,7 @@ const Edit = ({ user }) => {
     const roleOptions = [
         { value: 'admin', label: 'Admin' },
         { value: 'salesAdmin', label: 'Sales Admin' },
+        { value: 'accountantAdmin', label: 'Accountant Admin' },
         { value: 'proAdmin', label: 'Procurement Admin' },
         { value: 'userPro', label: 'User Procurement' },
         { value: 'salesUser', label: 'Sales User' },

@@ -100,13 +100,9 @@ useEffect(() => {
           </div>
         </div>
       )}
-      {/* Fixed right sidebar (independent of layout) */}
-      <Rightbar />
-
       <ErrorBoundary>
         <Suspense fallback={<div>Loading...</div>}>
-          {/* Reserve space for the fixed rightbar ONLY on this page */}
-          <div className={`${styles.wrapper} ${styles.withRightbar}`}>
+          <div className={styles.wrapper}>
             <div className={styles.main}>
               <div className={styles.cards}>
                 <Card
@@ -131,6 +127,9 @@ useEffect(() => {
 
               <EmployeePassportSlideshow />
               <EmployeeIqamaSlideshow />
+            </div>
+            <div className={styles.rightRail}>
+              <Rightbar />
             </div>
           </div>
         </Suspense>

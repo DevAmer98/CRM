@@ -180,6 +180,15 @@
   }
 }
 
+@media (max-width: 1024px) {
+  .container {
+    position: static;
+    top: auto;
+    margin: 0;
+    width: 100%;
+  }
+}
+
 /* Dark mode enhancements for Sidebar */
 @media (prefers-color-scheme: dark) {
   .container {

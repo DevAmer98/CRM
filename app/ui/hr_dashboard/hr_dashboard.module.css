@@ -4,18 +4,22 @@
   color: var(--text);
   line-height: 1.5;
   font-family: 'Inter', sans-serif;
-  min-height: 100vh; 
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
  
 .menu {
-  flex: 1;
-  padding: 24px;
-  min-height: 100vh; 
+  flex: 0 0 300px;
+  width: 300px;
+  min-width: 260px;
+  max-width: 320px;
+  padding: 16px;
+  min-height: 100vh;
   box-shadow: 1px 0 10px rgba(0,0,0,0.05);
   position: sticky;
   top: 0;
   height: 100vh;
-  max-width: 600px;
 }
 
 
@@ -23,8 +27,9 @@
 
 
 .content {
-  flex: 4;
-  padding: 32px;
+  flex: 1;
+  min-width: 0;
+  padding: 24px;
   background-color: var(--bg);
   min-height: 100vh;
   box-sizing: border-box;
@@ -35,13 +40,20 @@
   display: flex;
   gap: 24px;
   margin-top: 24px;
+  align-items: flex-start;
 }
 
 .main {
-  flex: 3;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+.rightRail {
+  flex: 0 0 240px;
+  width: 240px;
 }
 
 .cards {
@@ -91,8 +103,44 @@
   box-sizing: border-box;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
   .withRightbar { padding-right: 0; }
+  .rightRail { display: none; }
+}
+
+@media (max-width: 1200px) {
+  .menu {
+    flex-basis: 270px;
+    width: 270px;
+    min-width: 240px;
+    padding: 12px;
+  }
+
+  .content {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .menu {
+    position: static;
+    top: auto;
+    height: auto;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-shadow: none;
+    padding: 12px 12px 0;
+  }
+
+  .content {
+    padding: 12px;
+  }
 }
 
 /* If you previously had a .side column, don't render it on this page,

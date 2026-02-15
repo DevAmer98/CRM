@@ -3285,6 +3285,7 @@ export const addTaskComment = async (taskId, message) => {
   });
   task.lastReplyAt = new Date();
   task.lastReplyBy = userId;
+  task.status = "needs-reply";
   if (!isCreator) {
     task.replySeenByCreator = false;
   } else {
@@ -3379,7 +3380,7 @@ export const updateTaskStatus = async (id, status) => {
     throw new Error("Not authenticated");
   }
 
-  const allowed = ["pending", "in-progress", "done"];
+  const allowed = ["pending", "in-progress", "done", "needs-reply"];
   if (!allowed.includes(status)) {
     throw new Error("Invalid status");
   }

@@ -139,6 +139,203 @@
   overflow: hidden;
 }
 
+.accountantHeader {
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.accountantTitle {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.accountantSubtitle {
+  color: var(--text-secondary);
+  font-size: 0.98rem;
+  margin: 0;
+}
+
+.accountantKpiRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.accountantKpiCard {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(124, 155, 255, 0.18);
+  background: linear-gradient(135deg, rgba(27, 36, 56, 0.92), rgba(20, 28, 46, 0.98));
+  box-shadow: 0 10px 22px rgba(12, 18, 32, 0.4);
+}
+
+.accountantKpiLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  color: var(--textSoft);
+}
+
+.accountantKpiValue {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.accountantChartCard {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(124, 155, 255, 0.2);
+  background: linear-gradient(140deg, rgba(26, 34, 54, 0.95), rgba(18, 24, 40, 0.98));
+  box-shadow: 0 12px 26px rgba(10, 16, 28, 0.45);
+}
+
+.matchingHeader {
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.matchingTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.matchingSubtitle {
+  color: var(--text-secondary);
+  font-size: 0.98rem;
+  margin: 0;
+}
+
+.matchingKpiRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.matchingKpiCard {
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(124, 155, 255, 0.14);
+  background: linear-gradient(135deg, rgba(26, 34, 54, 0.92), rgba(18, 24, 40, 0.98));
+  box-shadow: 0 10px 22px rgba(10, 16, 28, 0.4);
+}
+
+.matchingListCard {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(124, 155, 255, 0.16);
+  background: linear-gradient(140deg, rgba(24, 32, 52, 0.94), rgba(18, 24, 40, 0.98));
+  box-shadow: 0 12px 26px rgba(10, 16, 28, 0.45);
+}
+
+.matchingItem {
+  background-color: rgba(20, 28, 46, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.matchingItem:hover {
+  border-color: rgba(124, 155, 255, 0.35);
+  transform: translateX(2px);
+}
+
+.matchingBadge {
+  border-color: rgba(124, 155, 255, 0.3);
+}
+
+@media (max-width: 1200px) {
+  .matchingKpiRow {
+    grid-template-columns: repeat(2, minmax(200px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .matchingKpiRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .accountantKpiRow {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .accountantKpiRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.accountantCard {
+  border: 1px solid rgba(124, 155, 255, 0.22);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+  background: linear-gradient(135deg, rgba(26, 32, 44, 0.85), rgba(18, 25, 40, 0.95));
+}
+
+.accountantCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 0%, rgba(124, 155, 255, 0.18), transparent 45%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.accountantStatCard {
+  border: 1px solid rgba(124, 155, 255, 0.2);
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+  background: linear-gradient(140deg, rgba(24, 32, 52, 0.95), rgba(16, 22, 36, 0.9));
+}
+
+.accountantGrid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.accountantGridThree {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.span4 { grid-column: span 4; }
+.span5 { grid-column: span 5; }
+.span6 { grid-column: span 6; }
+.span7 { grid-column: span 7; }
+.span8 { grid-column: span 8; }
+.span12 { grid-column: span 12; }
+
+@media (max-width: 1200px) {
+  .span4,
+  .span5,
+  .span6,
+  .span7,
+  .span8 {
+    grid-column: span 12;
+  }
+
+  .accountantGridThree {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .accountantGridThree {
+    grid-template-columns: 1fr;
+  }
+}
+
 .clickableCard {
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;

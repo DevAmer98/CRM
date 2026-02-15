@@ -17,11 +17,10 @@
 
   --header-h: 70px;             /* align with top navbar height */
 
-  position: fixed;
-  right: 0;
+  position: sticky;
   top: var(--header-h);
   height: calc(100vh - var(--header-h));
-  width: var(--rb-w);
+  width: 100%;
 
   display: flex;
   flex-direction: column;
@@ -229,5 +228,11 @@
 
 /* Slightly wider on big screens without breaking layout */
 @media (min-width: 1440px) {
-  .container { width: 240px; }
+  .container { width: 100%; }
+}
+
+@media (max-width: 1280px) {
+  .container {
+    display: none;
+  }
 }

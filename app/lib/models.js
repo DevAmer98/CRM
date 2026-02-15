@@ -49,6 +49,14 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
+const existingUserModel = mongoose.models.User;
+if (
+  existingUserModel &&
+  !existingUserModel.schema.path("role")?.enumValues?.includes(ROLES.ACCOUNTANT_ADMIN)
+) {
+  delete mongoose.models.User;
+}
+
 
 
 const clientSchema = new Schema(
@@ -809,7 +817,7 @@ const taskSchema = new mongoose.Schema({
   ],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  status: { type: String, enum: ['pending', 'in-progress', 'done'], default: 'pending' },
+  status: { type: String, enum: ['pending', 'in-progress', 'done', 'needs-reply'], default: 'pending' },
   lastReplyAt: { type: Date },
   lastReplyBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   replySeenByCreator: { type: Boolean, default: true },

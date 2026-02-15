@@ -1,10 +1,10 @@
-import Project from '@/app/ui/dashboard/navComponents/projects'
+import FinanceView from '@/app/ui/dashboard/navComponents/finance'
 import React from 'react'
 
-const Finance = () => {
+const FinancePage = () => {
   return (
-<Project />
+<FinanceView />
   )
 }
 
-export default Finance
+export default FinancePage
